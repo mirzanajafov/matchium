@@ -11,6 +11,22 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "matchium"]
+      interval: 5s
+      retries: 10
+
+  matcher:
+    build: ./engine
+    container_name: matchium-matcher
+    profiles: ["jobs"]
+    environment:
+      DATABASE_URL: postgresql://matchium:matchium@postgres:5432/matchium
+      MATCH_AT: "03:00"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:
