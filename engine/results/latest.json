@@ -1,0 +1,165 @@
+{
+  "config": {
+    "users": 1500,
+    "days": 7,
+    "per_day": 6,
+    "k_daily": 3,
+    "seed": 7
+  },
+  "random": [
+    {
+      "spearman": 0.2804444299601591,
+      "precision_at_10": 0.1467111111111111,
+      "mutual_like_rate": 0.1800818553888131,
+      "cumulative_mutual_matches": 396,
+      "mean_confidence": 0.17782933718387478,
+      "day": 1,
+      "questions_answered": 6
+    },
+    {
+      "spearman": 0.45608072330365046,
+      "precision_at_10": 0.2365925925925926,
+      "mutual_like_rate": 0.2887067395264117,
+      "cumulative_mutual_matches": 1016,
+      "mean_confidence": 0.3346867214438548,
+      "day": 2,
+      "questions_answered": 12
+    },
+    {
+      "spearman": 0.5516325204647792,
+      "precision_at_10": 0.3036740740740741,
+      "mutual_like_rate": 0.34287011807447776,
+      "cumulative_mutual_matches": 1730,
+      "mean_confidence": 0.45444550359008457,
+      "day": 3,
+      "questions_answered": 18
+    },
+    {
+      "spearman": 0.6100209724728456,
+      "precision_at_10": 0.3433555555555555,
+      "mutual_like_rate": 0.38276643990929704,
+      "cumulative_mutual_matches": 2498,
+      "mean_confidence": 0.5383209729697269,
+      "day": 4,
+      "questions_answered": 24
+    },
+    {
+      "spearman": 0.6443688857476759,
+      "precision_at_10": 0.3699629629629629,
+      "mutual_like_rate": 0.4267515923566879,
+      "cumulative_mutual_matches": 3305,
+      "mean_confidence": 0.5949855060809844,
+      "day": 5,
+      "questions_answered": 30
+    },
+    {
+      "spearman": 0.6645529616535311,
+      "precision_at_10": 0.39467407407407407,
+      "mutual_like_rate": 0.45049954586739327,
+      "cumulative_mutual_matches": 4095,
+      "mean_confidence": 0.6344584581072178,
+      "day": 6,
+      "questions_answered": 36
+    },
+    {
+      "spearman": 0.6788993665094236,
+      "precision_at_10": 0.40217777777777775,
+      "mutual_like_rate": 0.4641235240690282,
+      "cumulative_mutual_matches": 4854,
+      "mean_confidence": 0.6649575957677448,
+      "day": 7,
+      "questions_answered": 42
+    }
+  ],
+  "adaptive": [
+    {
+      "spearman": 0.46947206176122747,
+      "precision_at_10": 0.24124444444444446,
+      "mutual_like_rate": 0.27692307692307694,
+      "cumulative_mutual_matches": 612,
+      "mean_confidence": 0.30952039431852457,
+      "day": 1,
+      "questions_answered": 6
+    },
+    {
+      "spearman": 0.5986787325905228,
+      "precision_at_10": 0.33799259259259257,
+      "mutual_like_rate": 0.39355424421243757,
+      "cumulative_mutual_matches": 1440,
+      "mean_confidence": 0.5102590936047977,
+      "day": 2,
+      "questions_answered": 12
+    },
+    {
+      "spearman": 0.6398016727970895,
+      "precision_at_10": 0.3688444444444444,
+      "mutual_like_rate": 0.43466424682395643,
+      "cumulative_mutual_matches": 2250,
+      "mean_confidence": 0.5821498256188093,
+      "day": 3,
+      "questions_answered": 18
+    },
+    {
+      "spearman": 0.6594137010652442,
+      "precision_at_10": 0.3884814814814814,
+      "mutual_like_rate": 0.45376246600181325,
+      "cumulative_mutual_matches": 3015,
+      "mean_confidence": 0.6203468897343172,
+      "day": 4,
+      "questions_answered": 24
+    },
+    {
+      "spearman": 0.6716422728419719,
+      "precision_at_10": 0.39688148148148156,
+      "mutual_like_rate": 0.4594104308390023,
+      "cumulative_mutual_matches": 3814,
+      "mean_confidence": 0.647296946283701,
+      "day": 5,
+      "questions_answered": 30
+    },
+    {
+      "spearman": 0.6798272540262575,
+      "precision_at_10": 0.4038962962962963,
+      "mutual_like_rate": 0.45888232621535663,
+      "cumulative_mutual_matches": 4533,
+      "mean_confidence": 0.6661600058277745,
+      "day": 6,
+      "questions_answered": 36
+    },
+    {
+      "spearman": 0.6856680658294406,
+      "precision_at_10": 0.40657777777777776,
+      "mutual_like_rate": 0.47655894401456533,
+      "cumulative_mutual_matches": 5212,
+      "mean_confidence": 0.6796792980425713,
+      "day": 7,
+      "questions_answered": 42
+    }
+  ],
+  "allocation": {
+    "naive_top_k": {
+      "mutual_like_rate": 0.5075555555555555,
+      "exposure_gini": 0.4602376296296296,
+      "max_exposure": 17,
+      "users_never_shown": 0.13333333333333333
+    },
+    "greedy_b_matching": {
+      "mutual_like_rate": 0.47655894401456533,
+      "exposure_gini": 0.023263541192535275,
+      "max_exposure": 3,
+      "users_never_shown": 0.0033333333333333335
+    }
+  },
+  "baselines": {
+    "oracle": {
+      "spearman": 0.7666183415106856,
+      "precision_at_10": 0.48259259259259263,
+      "mutual_like_rate": 0.5394736842105263
+    },
+    "random": {
+      "spearman": -0.001007621084043679,
+      "precision_at_10": 0.05511851851851852,
+      "mutual_like_rate": 0.06326809285389166
+    }
+  }
+}

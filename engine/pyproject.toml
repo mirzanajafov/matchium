@@ -1,0 +1,20 @@
+[project]
+name = "matchium-engine"
+version = "0.1.0"
+description = "Matching engine and simulator for Matchium"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["matchium", "sim"]
