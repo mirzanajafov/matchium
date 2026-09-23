@@ -8,11 +8,17 @@ def _variance_drop(var: np.ndarray, obs_var: np.ndarray) -> np.ndarray:
     return var - posterior_var(var, obs_var)
 
 
-def adaptive(beliefs: Beliefs, bank: list[Question], users: np.ndarray, n: int) -> np.ndarray:
+def adaptive(
+    beliefs: Beliefs,
+    bank: list[Question],
+    users: np.ndarray,
+    n: int,
+    population_weights: np.ndarray | None = None,
+) -> np.ndarray:
     dims = np.array([q.dimension for q in bank])
     obs_var = np.array([observation_var(q) for q in bank])
     w = beliefs.weights[users]
-    w_pop = beliefs.weights.mean(0)
+    w_pop = beliefs.weights.mean(0) if population_weights is None else population_weights
     var_pref = beliefs.var_pref[users].copy()
     var_self = beliefs.var_self[users].copy()
     available = ~beliefs.answered[users]

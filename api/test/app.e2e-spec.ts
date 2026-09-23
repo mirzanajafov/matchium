@@ -1,0 +1,215 @@
+import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/app.setup.js';
+import { Clock } from '../src/common/clock.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
+
+class FixedClock extends Clock {
+  current = new Date('2026-09-23T09:00:00Z');
+
+  now() {
+    return new Date(this.current);
+  }
+
+  nextDay() {
+    this.current = new Date(this.current.getTime() + 24 * 60 * 60 * 1000);
+  }
+}
+
+let app: INestApplication;
+let prisma: PrismaService;
+let clock: FixedClock;
+let counter = 0;
+
+function http() {
+  return request(app.getHttpServer());
+}
+
+async function register(overrides: Record<string, unknown> = {}) {
+  counter += 1;
+  const body = {
+    email: `user${counter}@example.com`,
+    password: 'correct horse battery',
+    displayName: `User ${counter}`,
+    birthDate: '1995-04-12',
+    gender: 'WOMAN',
+    seeking: ['MAN'],
+    city: 'Baku',
+    ...overrides,
+  };
+  const res = await http().post('/auth/register').send(body).expect(201);
+  const me = await http().get('/me').set('Authorization', `Bearer ${res.body.accessToken}`).expect(200);
+  return { token: res.body.accessToken as string, id: me.body.id as string, email: body.email };
+}
+
+beforeAll(async () => {
+  clock = new FixedClock();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(Clock)
+    .useValue(clock)
+    .compile();
+  app = configureApp(moduleRef.createNestApplication());
+  await app.init();
+  prisma = app.get(PrismaService);
+});
+
+beforeEach(async () => {
+  await prisma.$executeRawUnsafe('TRUNCATE "User" CASCADE');
+  clock.current = new Date('2026-09-23T09:00:00Z');
+});
+
+afterAll(async () => {
+  await app.close();
+});
+
+describe('auth', () => {
+  it('registers, logs in and rejects bad credentials', async () => {
+    const user = await register();
+    await http().post('/auth/login').send({ email: user.email, password: 'correct horse battery' }).expect(200);
+    await http().post('/auth/login').send({ email: user.email, password: 'wrong password' }).expect(401);
+    await http().post('/auth/login').send({ email: 'nobody@example.com', password: 'whatever1' }).expect(401);
+  });
+
+  it('rejects duplicates, minors and malformed input', async () => {
+    const user = await register();
+    await http()
+      .post('/auth/register')
+      .send({ email: user.email.toUpperCase(), password: 'another password', displayName: 'X', birthDate: '1990-01-01', gender: 'MAN', seeking: ['WOMAN'], city: 'Baku' })
+      .expect(409);
+    await http()
+      .post('/auth/register')
+      .send({ email: 'kid@example.com', password: 'long enough', displayName: 'Kid', birthDate: '2010-01-01', gender: 'MAN', seeking: ['WOMAN'], city: 'Baku' })
+      .expect(400);
+    await http()
+      .post('/auth/register')
+      .send({ email: 'x@example.com', password: 'long enough', displayName: 'X', birthDate: '1990-01-01', gender: 'ROBOT', seeking: [], city: 'Baku', admin: true })
+      .expect(400);
+  });
+
+  it('protects private routes', async () => {
+    await http().get('/me').expect(401);
+    await http().get('/me').set('Authorization', 'Bearer not-a-token').expect(401);
+    await http().get('/health').expect(200);
+  });
+});
+
+describe('daily questions', () => {
+  it('returns a stable set for the day and updates beliefs on answer', async () => {
+    const { token } = await register();
+    const auth = { Authorization: `Bearer ${token}` };
+
+    const first = await http().get('/questions/today').set(auth).expect(200);
+    expect(first.body.questions).toHaveLength(6);
+    expect(first.body.remaining).toBe(6);
+    const again = await http().get('/questions/today').set(auth).expect(200);
+    expect(again.body.questions.map((q: { id: string }) => q.id)).toEqual(first.body.questions.map((q: { id: string }) => q.id));
+
+    const questionId = first.body.questions[0].id;
+    const answer = await http()
+      .post(`/questions/${questionId}/answer`)
+      .set(auth)
+      .send({ self: 5, partner: 4, importance: 5 })
+      .expect(201);
+    expect(answer.body.remaining).toBe(5);
+    expect(answer.body.certainty).toBeGreaterThan(0);
+
+    await http().post(`/questions/${questionId}/answer`).set(auth).send({ self: 1, partner: 1, importance: 1 }).expect(409);
+    await http().post(`/questions/${questionId}/answer`).set(auth).send({ self: 9, partner: 1, importance: 1 }).expect(400);
+
+    const outside = await prisma.question.findFirstOrThrow({
+      where: { id: { notIn: first.body.questions.map((q: { id: string }) => q.id) } },
+    });
+    await http().post(`/questions/${outside.id}/answer`).set(auth).send({ self: 3, partner: 3, importance: 3 }).expect(404);
+
+    const me = await http().get('/me').set(auth).expect(200);
+    expect(me.body.answerCount).toBe(1);
+    expect(me.body.certainty).toBe(answer.body.certainty);
+  });
+
+  it('serializes concurrent answers without losing belief updates', async () => {
+    const { token, id } = await register();
+    const auth = { Authorization: `Bearer ${token}` };
+    const { body } = await http().get('/questions/today').set(auth).expect(200);
+
+    await Promise.all(
+      body.questions.map((q: { id: string }) =>
+        http().post(`/questions/${q.id}/answer`).set(auth).send({ self: 4, partner: 2, importance: 4 }).expect(201),
+      ),
+    );
+
+    const belief = await prisma.belief.findUniqueOrThrow({ where: { userId: id } });
+    expect(belief.answerCount).toBe(6);
+    expect(belief.logWCount.reduce((a, b) => a + b, 0)).toBe(8 + 6);
+  });
+
+  it('gives a fresh set the next day without repeating answered questions', async () => {
+    const { token } = await register();
+    const auth = { Authorization: `Bearer ${token}` };
+    const today = await http().get('/questions/today').set(auth).expect(200);
+    for (const q of today.body.questions) {
+      await http().post(`/questions/${q.id}/answer`).set(auth).send({ self: 2, partner: 3, importance: 3 }).expect(201);
+    }
+
+    clock.nextDay();
+    const tomorrow = await http().get('/questions/today').set(auth).expect(200);
+    expect(tomorrow.body.day).toBe('2026-09-24');
+    const seen = new Set(today.body.questions.map((q: { id: string }) => q.id));
+    expect(tomorrow.body.questions.some((q: { id: string }) => seen.has(q.id))).toBe(false);
+  });
+});
+
+describe('matches', () => {
+  it('shows today’s match to both people and reports mutual likes', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
+    const eve = await register();
+    const match = await prisma.match.create({
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.81,
+        confidence: 0.64,
+        aligned: ['family', 'planning'],
+        friction: 'adventure',
+      },
+    });
+
+    const aliceView = await http().get('/matches/today').set('Authorization', `Bearer ${alice.token}`).expect(200);
+    expect(aliceView.body.matches).toHaveLength(1);
+    expect(aliceView.body.matches[0]).toMatchObject({
+      id: match.id,
+      person: { id: bob.id, displayName: 'Bob', city: 'Baku' },
+      aligned: ['family', 'planning'],
+      decision: null,
+      mutual: false,
+    });
+    expect(aliceView.body.matches[0].person.email).toBeUndefined();
+
+    const first = await http()
+      .post(`/matches/${match.id}/decision`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ like: true })
+      .expect(200);
+    expect(first.body.mutual).toBe(false);
+
+    const second = await http()
+      .post(`/matches/${match.id}/decision`)
+      .set('Authorization', `Bearer ${bob.token}`)
+      .send({ like: true })
+      .expect(200);
+    expect(second.body.mutual).toBe(true);
+
+    await http().post(`/matches/${match.id}/decision`).set('Authorization', `Bearer ${alice.token}`).send({ like: false }).expect(409);
+    await http().post(`/matches/${match.id}/decision`).set('Authorization', `Bearer ${eve.token}`).send({ like: true }).expect(404);
+
+    const bobView = await http().get('/matches/today').set('Authorization', `Bearer ${bob.token}`).expect(200);
+    expect(bobView.body.matches[0]).toMatchObject({ decision: 'LIKE', mutual: true, person: { id: alice.id } });
+
+    clock.nextDay();
+    const tomorrow = await http().get('/matches/today').set('Authorization', `Bearer ${alice.token}`).expect(200);
+    expect(tomorrow.body.matches).toHaveLength(0);
+  });
+});

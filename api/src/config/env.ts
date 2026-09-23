@@ -1,0 +1,33 @@
+import 'reflect-metadata';
+import { plainToInstance } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Max, Min, MinLength, validateSync } from 'class-validator';
+
+export class Env {
+  @IsString()
+  DATABASE_URL: string;
+
+  @IsString()
+  @MinLength(8)
+  JWT_SECRET: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  PORT: number = 3000;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  QUESTIONS_PER_DAY: number = 6;
+}
+
+export function validateEnv(raw: Record<string, unknown>): Env {
+  const env = plainToInstance(Env, raw, { enableImplicitConversion: true });
+  const errors = validateSync(env);
+  if (errors.length > 0) {
+    const details = errors.flatMap((e) => Object.values(e.constraints ?? {}));
+    throw new Error(`Invalid environment: ${details.join('; ')}`);
+  }
+  return env;
+}
