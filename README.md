@@ -4,7 +4,7 @@ There's a Rick and Morty episode where Jerry gets an alien intern to build him a
 
 The idea: you answer a handful of questions every day, and the app gets a better picture of who you are, what you're looking for, and what you actually care about. Each day you get a few matches, and for each one it tells you how sure it is and why it picked that person.
 
-Right now there's the matching engine, a simulator I use to test it, and a NestJS API. The web app is next.
+It's split into a matching engine in Python (plus a simulator I use to test it), a NestJS API, and a Next.js web app.
 
 ## How matching works
 
@@ -41,7 +41,7 @@ Full numbers are written to `engine/results/latest.json` every time the simulati
 ## How the pieces fit
 
 ```
-NestJS API ──> Postgres <── nightly job (Python)
+Next.js ──> NestJS API ──> Postgres <── nightly job (Python)
 ```
 
 The API handles the fast, per-user stuff: sign up, today's questions, saving an answer and updating that user's beliefs. Scoring every pair is heavier, so a nightly Python job reads all beliefs, runs the matching and allocation, and writes the day's matches back. The API only reads them.
@@ -49,6 +49,8 @@ The API handles the fast, per-user stuff: sign up, today's questions, saving an 
 That means the belief update and question picking exist in both TypeScript and Python. To keep them from drifting apart, the Python side exports the question bank and a set of recorded answer sequences with the expected results to `contract/`, and the API tests replay them. If the math changes on one side and not the other, the tests fail.
 
 Answers for the same user are written under a row lock on their belief, so answering from two tabs at once doesn't lose an update. There's a test for that.
+
+The web app never talks to the API from the browser. Pages and form actions run on the Next server, which keeps the JWT in an httpOnly cookie and calls the API with it. The browser never sees the token, and the API doesn't need CORS.
 
 ## Running it
 
@@ -72,7 +74,15 @@ pip install -e ".[dev]"
 pytest
 python -m sim.run --users 1500 --days 7 --per-day 6
 DATABASE_URL=postgresql://matchium:matchium@localhost:5441/matchium python -m jobs.nightly
+
+cd ../web
+cp .env.example .env.local
+npm install
+npm run dev                    # http://localhost:3001
+npm test
 ```
+
+To have someone to match with locally, `python -m jobs.seed_demo --users 40` creates simulated users through the API and has them answer today's questions (log in as any of them with `demo0@example.com` / `demo-password`). Then run the nightly job.
 
 If you touch the engine math or the question bank, regenerate the shared fixtures with `python -m matchium.contract`.
 
@@ -90,15 +100,17 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 ## What's where
 
 ```
+web/               Next.js app
 api/               NestJS + Prisma
 engine/matchium/   questions, beliefs, scoring, question selection, allocation
 engine/sim/        synthetic population, metrics, experiment runner
-engine/jobs/       nightly matching job
+engine/jobs/       nightly matching job, demo data
 contract/          question bank and fixtures shared by the API and the engine
 ```
 
 ## Next
 
-- Next.js web app (daily questions, match feed)
+- Schedule the nightly job and notify people when matches are ready
+- Chat once a match is mutual
 - Use likes/passes and chat activity alongside stated answers
 - Bigger question bank and a proper IRT model once there's real data

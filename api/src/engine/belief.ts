@@ -87,6 +87,7 @@ export function observe(state: BeliefState, question: EngineQuestion, answer: An
 }
 
 export function certainty(state: BeliefState): number {
-  const remaining = state.varSelf.reduce((acc, v, k) => acc + v + state.varPref[k], 0);
-  return 1 - remaining / (2 * DIMENSION_COUNT * PRIOR_VAR);
+  const priorStd = Math.sqrt(PRIOR_VAR);
+  const remaining = state.varSelf.reduce((acc, v, k) => acc + Math.sqrt(v) + Math.sqrt(state.varPref[k]), 0);
+  return 1 - remaining / (2 * DIMENSION_COUNT * priorStd);
 }
