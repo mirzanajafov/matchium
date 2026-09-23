@@ -17,6 +17,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <nav className="mt-6 flex gap-1 rounded-xl border border-line bg-surface p-1 text-sm font-medium">
         <NavLink href="/today">Today</NavLink>
         <NavLink href="/matches">Matches</NavLink>
+        <NavLink href="/chats">Chats</NavLink>
         <NavLink href="/me">You</NavLink>
       </nav>
       <main className="mt-8 flex-1">{children}</main>

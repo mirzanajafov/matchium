@@ -50,3 +50,22 @@ export interface TodayMatches {
   day: string;
   matches: Match[];
 }
+
+export interface ChatMessage {
+  id: string;
+  body: string;
+  fromMe: boolean;
+  createdAt: string;
+}
+
+export interface ChatSummary {
+  id: string;
+  matchedOn: string;
+  person: { id: string; displayName: string; age: number; city: string };
+  lastMessage: ChatMessage | null;
+}
+
+export interface ChatThread {
+  person: { id: string; displayName: string };
+  messages: ChatMessage[];
+}

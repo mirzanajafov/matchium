@@ -98,6 +98,9 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | `POST /questions/:id/answer` | `{ self, partner, importance }`, each 1-5 |
 | `GET /matches/today` | today's matches with score, confidence, what fits and what might clash |
 | `POST /matches/:id/decision` | `{ like }`, tells you if it's mutual |
+| `GET /chats` | your mutual matches, most recent conversation first |
+| `GET /chats/:id/messages?after=` | messages in a chat, optionally only newer ones |
+| `POST /chats/:id/messages` | `{ body }`, only once you both said yes |
 
 ## What's where
 
@@ -113,6 +116,6 @@ contract/          question bank and fixtures shared by the API and the engine
 ## Next
 
 - Notify people when matches are ready
-- Chat once a match is mutual
+- Push new chat messages over SSE instead of polling every few seconds
 - Use likes/passes and chat activity alongside stated answers
 - Bigger question bank and a proper IRT model once there's real data

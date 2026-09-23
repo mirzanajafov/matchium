@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { decide } from "@/app/actions";
 import { confidenceLabel, dimensionLabel, joinWords, percent } from "@/lib/format";
@@ -59,9 +60,12 @@ export function MatchCard({ match }: { match: Match }) {
 
       <footer className="mt-5">
         {mutual ? (
-          <p className="rounded-lg bg-accent px-3 py-2.5 text-center font-medium text-white dark:text-background">
-            It&apos;s mutual. You both said yes.
-          </p>
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-accent px-3 py-2.5 font-medium text-white dark:text-background">
+            <span>It&apos;s mutual. You both said yes.</span>
+            <Link href={`/chats/${match.id}`} className="shrink-0 underline">
+              Say hi
+            </Link>
+          </div>
         ) : decision ? (
           <p className="text-center text-sm text-muted">
             {decision === "LIKE" ? "You said yes. We'll let you know if it's mutual." : "You passed on this one."}
