@@ -213,3 +213,72 @@ describe('matches', () => {
     expect(tomorrow.body.matches).toHaveLength(0);
   });
 });
+
+describe('chats', () => {
+  async function pair() {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
+    const match = await prisma.match.create({
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.7,
+        confidence: 0.5,
+        aligned: ['family'],
+        friction: 'adventure',
+      },
+    });
+    const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+    return { alice, bob, match, as };
+  }
+
+  it('opens only after both people said yes', async () => {
+    const { alice, bob, match, as } = await pair();
+    await http().get(`/chats/${match.id}/messages`).set(as(alice.token)).expect(403);
+    await http().post(`/matches/${match.id}/decision`).set(as(alice.token)).send({ like: true }).expect(200);
+    await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: 'hi' }).expect(403);
+    expect((await http().get('/chats').set(as(alice.token)).expect(200)).body).toEqual([]);
+
+    await http().post(`/matches/${match.id}/decision`).set(as(bob.token)).send({ like: true }).expect(200);
+    const chats = await http().get('/chats').set(as(alice.token)).expect(200);
+    expect(chats.body).toEqual([
+      expect.objectContaining({ id: match.id, person: expect.objectContaining({ displayName: 'Bob' }), lastMessage: null }),
+    ]);
+  });
+
+  it('delivers messages to both sides and keeps strangers out', async () => {
+    const { alice, bob, match, as } = await pair();
+    const stranger = await register();
+    for (const who of [alice, bob]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+
+    const sent = await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: '  Hey Bob!  ' }).expect(201);
+    expect(sent.body).toMatchObject({ body: 'Hey Bob!', fromMe: true });
+    await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'Hi Alice' }).expect(201);
+
+    const bobView = await http().get(`/chats/${match.id}/messages`).set(as(bob.token)).expect(200);
+    expect(bobView.body.person.displayName).toBe('Alice');
+    expect(bobView.body.messages.map((m: { body: string; fromMe: boolean }) => [m.body, m.fromMe])).toEqual([
+      ['Hey Bob!', false],
+      ['Hi Alice', true],
+    ]);
+
+    const newer = await http()
+      .get(`/chats/${match.id}/messages`)
+      .query({ after: bobView.body.messages[1].createdAt })
+      .set(as(alice.token))
+      .expect(200);
+    expect(newer.body.messages.map((m: { body: string }) => m.body)).toEqual(['Hi Alice']);
+
+    const list = await http().get('/chats').set(as(alice.token)).expect(200);
+    expect(list.body[0].lastMessage).toMatchObject({ body: 'Hi Alice', fromMe: false });
+
+    await http().get(`/chats/${match.id}/messages`).set(as(stranger.token)).expect(404);
+    await http().post(`/chats/${match.id}/messages`).set(as(stranger.token)).send({ body: 'hello' }).expect(404);
+    await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: '   ' }).expect(400);
+    await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: 'x'.repeat(1001) }).expect(400);
+    await http().get(`/chats/${match.id}/messages`).query({ after: 'yesterday' }).set(as(alice.token)).expect(400);
+  });
+});

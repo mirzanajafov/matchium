@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { ApiError, api, authedApi } from "@/lib/api";
 import { clearSession, setSession } from "@/lib/session";
-import type { AnswerResult, AnswerValues } from "@/lib/types";
+import type { AnswerResult, AnswerValues, ChatMessage, ChatThread } from "@/lib/types";
 
 export interface FormState {
   error?: string;
@@ -65,4 +65,14 @@ export async function answerQuestion(questionId: string, values: AnswerValues): 
 
 export async function decide(matchId: string, like: boolean): Promise<{ mutual: boolean }> {
   return authedApi<{ mutual: boolean }>(`/matches/${encodeURIComponent(matchId)}/decision`, { body: { like } });
+}
+
+export async function sendMessage(matchId: string, body: string): Promise<ChatMessage> {
+  return authedApi<ChatMessage>(`/chats/${encodeURIComponent(matchId)}/messages`, { body: { body } });
+}
+
+export async function fetchMessages(matchId: string, after?: string): Promise<ChatMessage[]> {
+  const query = after ? `?after=${encodeURIComponent(after)}` : "";
+  const thread = await authedApi<ChatThread>(`/chats/${encodeURIComponent(matchId)}/messages${query}`);
+  return thread.messages;
 }
