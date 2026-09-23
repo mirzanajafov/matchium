@@ -84,6 +84,8 @@ npm test
 
 To have someone to match with locally, `python -m jobs.seed_demo --users 40` creates simulated users through the API and has them answer today's questions (log in as any of them with `demo0@example.com` / `demo-password`). Then run the nightly job.
 
+In a real deployment the job runs on its own: `docker compose --profile jobs up -d` starts a small scheduler container that catches up on start (the job skips days that already have matches) and then runs every day at 03:00 UTC, retrying a few times if the database isn't reachable.
+
 If you touch the engine math or the question bank, regenerate the shared fixtures with `python -m matchium.contract`.
 
 ## API
@@ -110,7 +112,7 @@ contract/          question bank and fixtures shared by the API and the engine
 
 ## Next
 
-- Schedule the nightly job and notify people when matches are ready
+- Notify people when matches are ready
 - Chat once a match is mutual
 - Use likes/passes and chat activity alongside stated answers
 - Bigger question bank and a proper IRT model once there's real data
