@@ -4,7 +4,7 @@ There's a Rick and Morty episode where Jerry gets an alien intern to build him a
 
 The idea: you answer a handful of questions every day, and the app gets a better picture of who you are, what you're looking for, and what you actually care about. Each day you get a few matches, and for each one it tells you how sure it is and why it picked that person.
 
-Right now this repo has the matching engine and a simulator I use to test it. API and web app are next.
+Right now there's the matching engine, a simulator I use to test it, and a NestJS API. The web app is next.
 
 ## How matching works
 
@@ -38,29 +38,67 @@ What I take from this:
 
 Full numbers are written to `engine/results/latest.json` every time the simulation runs.
 
+## How the pieces fit
+
+```
+NestJS API ──> Postgres <── nightly job (Python)
+```
+
+The API handles the fast, per-user stuff: sign up, today's questions, saving an answer and updating that user's beliefs. Scoring every pair is heavier, so a nightly Python job reads all beliefs, runs the matching and allocation, and writes the day's matches back. The API only reads them.
+
+That means the belief update and question picking exist in both TypeScript and Python. To keep them from drifting apart, the Python side exports the question bank and a set of recorded answer sequences with the expected results to `contract/`, and the API tests replay them. If the math changes on one side and not the other, the tests fail.
+
+Answers for the same user are written under a row lock on their belief, so answering from two tabs at once doesn't lose an update. There's a test for that.
+
 ## Running it
 
-Python 3.11+.
+You need Docker, Node 24 and Python 3.11+.
 
 ```bash
-cd engine
+docker compose up -d
+
+cd api
+cp .env.example .env
+npm install
+npx prisma migrate deploy
+npx prisma db seed
+npm run start:dev             # http://localhost:3000, docs at /docs
+npm test && npm run test:e2e
+
+cd ../engine
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 pytest
 python -m sim.run --users 1500 --days 7 --per-day 6
+DATABASE_URL=postgresql://matchium:matchium@localhost:5441/matchium python -m jobs.nightly
 ```
+
+If you touch the engine math or the question bank, regenerate the shared fixtures with `python -m matchium.contract`.
+
+## API
+
+| | |
+|---|---|
+| `POST /auth/register`, `POST /auth/login` | returns a JWT |
+| `GET /me` | profile, answer count, how much the model knows about you |
+| `GET /questions/today` | today's questions (same set all day) |
+| `POST /questions/:id/answer` | `{ self, partner, importance }`, each 1-5 |
+| `GET /matches/today` | today's matches with score, confidence, what fits and what might clash |
+| `POST /matches/:id/decision` | `{ like }`, tells you if it's mutual |
 
 ## What's where
 
 ```
+api/               NestJS + Prisma
 engine/matchium/   questions, beliefs, scoring, question selection, allocation
 engine/sim/        synthetic population, metrics, experiment runner
-engine/tests/
+engine/jobs/       nightly matching job
+contract/          question bank and fixtures shared by the API and the engine
 ```
 
 ## Next
 
-- NestJS API and a Next.js web app (daily questions, match feed)
+- Next.js web app (daily questions, match feed)
 - Use likes/passes and chat activity alongside stated answers
 - Bigger question bank and a proper IRT model once there's real data

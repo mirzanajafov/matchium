@@ -1,0 +1,350 @@
+{
+  "dimensions": [
+    "social_energy",
+    "adventure",
+    "ambition",
+    "family",
+    "tidiness",
+    "planning",
+    "tradition",
+    "activity"
+  ],
+  "questions": [
+    {
+      "id": "social_energy.1",
+      "dimension": 0,
+      "text": "A big party after a long week sounds energizing, not draining.",
+      "noise": 0.5,
+      "reverse": false
+    },
+    {
+      "id": "social_energy.2",
+      "dimension": 0,
+      "text": "I'd rather meet new people than spend the evening with close friends.",
+      "noise": 0.7,
+      "reverse": false
+    },
+    {
+      "id": "social_energy.3",
+      "dimension": 0,
+      "text": "I often start conversations with strangers.",
+      "noise": 0.6,
+      "reverse": false
+    },
+    {
+      "id": "social_energy.4",
+      "dimension": 0,
+      "text": "My ideal weekend has plans with other people on both days.",
+      "noise": 0.8,
+      "reverse": false
+    },
+    {
+      "id": "social_energy.5",
+      "dimension": 0,
+      "text": "I recharge by being alone, not by being around people.",
+      "noise": 0.4,
+      "reverse": true
+    },
+    {
+      "id": "social_energy.6",
+      "dimension": 0,
+      "text": "I enjoy being the center of attention in a group.",
+      "noise": 0.9,
+      "reverse": false
+    },
+    {
+      "id": "adventure.1",
+      "dimension": 1,
+      "text": "I'd pick a trip to a country I know nothing about over a favorite familiar place.",
+      "noise": 0.5,
+      "reverse": false
+    },
+    {
+      "id": "adventure.2",
+      "dimension": 1,
+      "text": "I like trying food I can't pronounce.",
+      "noise": 0.8,
+      "reverse": false
+    },
+    {
+      "id": "adventure.3",
+      "dimension": 1,
+      "text": "A last-minute flight somewhere new sounds exciting, not stressful.",
+      "noise": 0.6,
+      "reverse": false
+    },
+    {
+      "id": "adventure.4",
+      "dimension": 1,
+      "text": "I'd try skydiving at least once.",
+      "noise": 0.9,
+      "reverse": false
+    },
+    {
+      "id": "adventure.5",
+      "dimension": 1,
+      "text": "Routine comforts me more than it bores me.",
+      "noise": 0.5,
+      "reverse": true
+    },
+    {
+      "id": "adventure.6",
+      "dimension": 1,
+      "text": "I change hobbies often to try new things.",
+      "noise": 0.7,
+      "reverse": false
+    },
+    {
+      "id": "ambition.1",
+      "dimension": 2,
+      "text": "I'd take a demanding job over a relaxed one if it meant faster growth.",
+      "noise": 0.5,
+      "reverse": false
+    },
+    {
+      "id": "ambition.2",
+      "dimension": 2,
+      "text": "I often think about where my career will be in ten years.",
+      "noise": 0.6,
+      "reverse": false
+    },
+    {
+      "id": "ambition.3",
+      "dimension": 2,
+      "text": "Working evenings on something I care about feels normal to me.",
+      "noise": 0.7,
+      "reverse": false
+    },
+    {
+      "id": "ambition.4",
+      "dimension": 2,
+      "text": "Success at work is a big part of who I am.",
+      "noise": 0.4,
+      "reverse": false
+    },
+    {
+      "id": "ambition.5",
+      "dimension": 2,
+      "text": "I'd move to another city for the right career opportunity.",
+      "noise": 0.8,
+      "reverse": false
+    },
+    {
+      "id": "ambition.6",
+      "dimension": 2,
+      "text": "I'm happy with a stable job that just pays the bills.",
+      "noise": 0.6,
+      "reverse": true
+    },
+    {
+      "id": "family.1",
+      "dimension": 3,
+      "text": "I want to have children someday.",
+      "noise": 0.4,
+      "reverse": false
+    },
+    {
+      "id": "family.2",
+      "dimension": 3,
+      "text": "I'd like to live close to my parents.",
+      "noise": 0.7,
+      "reverse": false
+    },
+    {
+      "id": "family.3",
+      "dimension": 3,
+      "text": "Big family gatherings are something I look forward to.",
+      "noise": 0.6,
+      "reverse": false
+    },
+    {
+      "id": "family.4",
+      "dimension": 3,
+      "text": "Starting a family is one of my top life goals.",
+      "noise": 0.4,
+      "reverse": false
+    },
+    {
+      "id": "family.5",
+      "dimension": 3,
+      "text": "I'd be happy with a life without kids.",
+      "noise": 0.5,
+      "reverse": true
+    },
+    {
+      "id": "family.6",
+      "dimension": 3,
+      "text": "Family opinion matters when I make big decisions.",
+      "noise": 0.8,
+      "reverse": false
+    },
+    {
+      "id": "tidiness.1",
+      "dimension": 4,
+      "text": "A messy room makes it hard for me to relax.",
+      "noise": 0.5,
+      "reverse": false
+    },
+    {
+      "id": "tidiness.2",
+      "dimension": 4,
+      "text": "Dishes should be washed the same day.",
+      "noise": 0.6,
+      "reverse": false
+    },
+    {
+      "id": "tidiness.3",
+      "dimension": 4,
+      "text": "I make my bed every morning.",
+      "noise": 0.7,
+      "reverse": false
+    },
+    {
+      "id": "tidiness.4",
+      "dimension": 4,
+      "text": "I notice when things at home are out of place.",
+      "noise": 0.6,
+      "reverse": false
+    },
+    {
+      "id": "tidiness.5",
+      "dimension": 4,
+      "text": "A little chaos at home doesn't bother me.",
+      "noise": 0.5,
+      "reverse": true
+    },
+    {
+      "id": "tidiness.6",
+      "dimension": 4,
+      "text": "I clean even when nobody is coming over.",
+      "noise": 0.9,
+      "reverse": false
+    },
+    {
+      "id": "planning.1",
+      "dimension": 5,
+      "text": "I like having my week planned in advance.",
+      "noise": 0.5,
+      "reverse": false
+    },
+    {
+      "id": "planning.2",
+      "dimension": 5,
+      "text": "I book vacations months ahead.",
+      "noise": 0.7,
+      "reverse": false
+    },
+    {
+      "id": "planning.3",
+      "dimension": 5,
+      "text": "Spontaneous plans on a free evening annoy me more than they excite me.",
+      "noise": 0.8,
+      "reverse": false
+    },
+    {
+      "id": "planning.4",
+      "dimension": 5,
+      "text": "I keep a to-do list or calendar for my personal life.",
+      "noise": 0.6,
+      "reverse": false
+    },
+    {
+      "id": "planning.5",
+      "dimension": 5,
+      "text": "I'm usually on time or early.",
+      "noise": 0.8,
+      "reverse": false
+    },
+    {
+      "id": "planning.6",
+      "dimension": 5,
+      "text": "I prefer to decide things in the moment.",
+      "noise": 0.5,
+      "reverse": true
+    },
+    {
+      "id": "tradition.1",
+      "dimension": 6,
+      "text": "Traditional roles in a relationship make sense to me.",
+      "noise": 0.5,
+      "reverse": false
+    },
+    {
+      "id": "tradition.2",
+      "dimension": 6,
+      "text": "Religious or cultural traditions are important in my daily life.",
+      "noise": 0.4,
+      "reverse": false
+    },
+    {
+      "id": "tradition.3",
+      "dimension": 6,
+      "text": "Marriage should come before living together.",
+      "noise": 0.5,
+      "reverse": false
+    },
+    {
+      "id": "tradition.4",
+      "dimension": 6,
+      "text": "I celebrate holidays the way my family always has.",
+      "noise": 0.7,
+      "reverse": false
+    },
+    {
+      "id": "tradition.5",
+      "dimension": 6,
+      "text": "Couples should follow their own rules, not society's.",
+      "noise": 0.6,
+      "reverse": true
+    },
+    {
+      "id": "tradition.6",
+      "dimension": 6,
+      "text": "I'd want my partner to share my cultural background.",
+      "noise": 0.8,
+      "reverse": false
+    },
+    {
+      "id": "activity.1",
+      "dimension": 7,
+      "text": "I work out at least three times a week.",
+      "noise": 0.4,
+      "reverse": false
+    },
+    {
+      "id": "activity.2",
+      "dimension": 7,
+      "text": "A hiking day beats a movie marathon.",
+      "noise": 0.6,
+      "reverse": false
+    },
+    {
+      "id": "activity.3",
+      "dimension": 7,
+      "text": "I get restless if I stay home all weekend.",
+      "noise": 0.7,
+      "reverse": false
+    },
+    {
+      "id": "activity.4",
+      "dimension": 7,
+      "text": "I pay attention to what I eat for health reasons.",
+      "noise": 0.8,
+      "reverse": false
+    },
+    {
+      "id": "activity.5",
+      "dimension": 7,
+      "text": "I'd rather walk than take a taxi for short distances.",
+      "noise": 0.9,
+      "reverse": false
+    },
+    {
+      "id": "activity.6",
+      "dimension": 7,
+      "text": "A lazy day on the couch is my favorite way to spend a Sunday.",
+      "noise": 0.5,
+      "reverse": true
+    }
+  ]
+}
