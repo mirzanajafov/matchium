@@ -1,9 +1,13 @@
 import type { ReactNode } from "react";
 import { logout } from "@/app/actions";
+import { AppNav } from "@/components/AppNav";
 import { Logo } from "@/components/Logo";
-import { NavLink } from "@/components/NavLink";
+import { authedApi } from "@/lib/api";
+import type { Inbox } from "@/lib/types";
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const inbox = await authedApi<Inbox>("/inbox");
+
   return (
     <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-6 py-8">
       <header className="flex items-center justify-between">
@@ -14,12 +18,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </button>
         </form>
       </header>
-      <nav className="mt-6 flex gap-1 rounded-xl border border-line bg-surface p-1 text-sm font-medium">
-        <NavLink href="/today">Today</NavLink>
-        <NavLink href="/matches">Matches</NavLink>
-        <NavLink href="/chats">Chats</NavLink>
-        <NavLink href="/me">You</NavLink>
-      </nav>
+      <AppNav initial={inbox} />
       <main className="mt-8 flex-1">{children}</main>
     </div>
   );

@@ -282,3 +282,41 @@ describe('chats', () => {
     await http().get(`/chats/${match.id}/messages`).query({ after: 'yesterday' }).set(as(alice.token)).expect(400);
   });
 });
+
+describe('inbox', () => {
+  it('counts undecided matches and unread chats', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    const carl = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+    const inbox = async (token: string) => (await http().get('/inbox').set(as(token)).expect(200)).body;
+    const create = (other: string) =>
+      prisma.match.create({
+        data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: other, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      });
+    const withBob = await create(bob.id);
+    await create(carl.id);
+
+    expect(await inbox(alice.token)).toEqual({ newMatches: 2, unreadChats: 0 });
+
+    await http().post(`/matches/${withBob.id}/decision`).set(as(alice.token)).send({ like: true }).expect(200);
+    await http().post(`/matches/${withBob.id}/decision`).set(as(bob.token)).send({ like: true }).expect(200);
+    expect(await inbox(alice.token)).toEqual({ newMatches: 1, unreadChats: 1 });
+    expect(await inbox(bob.token)).toEqual({ newMatches: 0, unreadChats: 1 });
+
+    await http().get(`/chats/${withBob.id}/messages`).set(as(alice.token)).expect(200);
+    expect(await inbox(alice.token)).toEqual({ newMatches: 1, unreadChats: 0 });
+
+    await http().post(`/chats/${withBob.id}/messages`).set(as(bob.token)).send({ body: 'Hi!' }).expect(201);
+    expect((await inbox(bob.token)).unreadChats).toBe(0);
+    expect((await inbox(alice.token)).unreadChats).toBe(1);
+    const list = await http().get('/chats').set(as(alice.token)).expect(200);
+    expect(list.body[0]).toMatchObject({ id: withBob.id, unread: true });
+
+    await http().get(`/chats/${withBob.id}/messages`).set(as(alice.token)).expect(200);
+    expect((await inbox(alice.token)).unreadChats).toBe(0);
+
+    clock.nextDay();
+    expect((await inbox(alice.token)).newMatches).toBe(0);
+  });
+});

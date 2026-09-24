@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { ApiError, api, authedApi } from "@/lib/api";
 import { clearSession, setSession } from "@/lib/session";
-import type { AnswerResult, AnswerValues, ChatMessage, ChatThread } from "@/lib/types";
+import type { AnswerResult, AnswerValues, ChatMessage, ChatThread, Inbox } from "@/lib/types";
 
 export interface FormState {
   error?: string;
@@ -75,4 +75,8 @@ export async function fetchMessages(matchId: string, after?: string): Promise<Ch
   const query = after ? `?after=${encodeURIComponent(after)}` : "";
   const thread = await authedApi<ChatThread>(`/chats/${encodeURIComponent(matchId)}/messages${query}`);
   return thread.messages;
+}
+
+export async function getInbox(): Promise<Inbox> {
+  return authedApi<Inbox>("/inbox");
 }

@@ -5,6 +5,7 @@ import { ChatsModule } from './chats/chats.module.js';
 import { CommonModule } from './common/common.module.js';
 import { validateEnv } from './config/env.js';
 import { HealthController } from './health.controller.js';
+import { InboxModule } from './inbox/inbox.module.js';
 import { MatchesModule } from './matches/matches.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { QuestionsModule } from './questions/questions.module.js';
@@ -24,6 +25,7 @@ import { UsersModule } from './users/users.module.js';
     QuestionsModule,
     MatchesModule,
     ChatsModule,
+    InboxModule,
   ],
   controllers: [HealthController],
 })
