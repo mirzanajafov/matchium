@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { fetchMessages, sendMessage } from "@/app/actions";
 import type { ChatMessage } from "@/lib/types";
 
-const POLL_MS = 4000;
+const FALLBACK_POLL_MS = 10_000;
 
 interface ChatThreadProps {
   matchId: string;
@@ -35,17 +35,30 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
 
   useEffect(() => {
     let active = true;
-    const timer = setInterval(async () => {
-      try {
-        const fresh = await fetchMessages(matchId, latest.current);
-        if (active && fresh.length > 0) setMessages((current) => merge(current, fresh));
-      } catch {
-        return;
+    let fallback: ReturnType<typeof setInterval> | undefined;
+    const catchUp = () =>
+      fetchMessages(matchId, latest.current)
+        .then((fresh) => {
+          if (active && fresh.length > 0) setMessages((current) => merge(current, fresh));
+        })
+        .catch(() => undefined);
+
+    const source = new EventSource(`/api/chats/${encodeURIComponent(matchId)}/stream`);
+    source.addEventListener("open", catchUp);
+    source.addEventListener("message", (event: MessageEvent<string>) => {
+      const message = JSON.parse(event.data) as ChatMessage;
+      if (active) setMessages((current) => merge(current, [message]));
+    });
+    source.addEventListener("error", () => {
+      if (source.readyState === EventSource.CLOSED && !fallback) {
+        fallback = setInterval(catchUp, FALLBACK_POLL_MS);
       }
-    }, POLL_MS);
+    });
+
     return () => {
       active = false;
-      clearInterval(timer);
+      source.close();
+      clearInterval(fallback);
     };
   }, [matchId]);
 

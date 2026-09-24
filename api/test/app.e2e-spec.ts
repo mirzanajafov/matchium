@@ -320,3 +320,56 @@ describe('inbox', () => {
     expect((await inbox(alice.token)).newMatches).toBe(0);
   });
 });
+
+describe('chat stream', () => {
+  async function openStream(matchId: string, token: string) {
+    const server = app.getHttpServer() as import('node:http').Server;
+    if (!server.listening) await app.listen(0);
+    const { port } = server.address() as import('node:net').AddressInfo;
+    const abort = new AbortController();
+    const response = await fetch(`http://127.0.0.1:${port}/chats/${matchId}/stream`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: abort.signal,
+    });
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    async function next(pattern: RegExp) {
+      while (!pattern.test(buffer)) {
+        const { value, done } = await reader.read();
+        if (done) throw new Error('stream ended');
+        buffer += decoder.decode(value, { stream: true });
+      }
+      return buffer;
+    }
+    return { status: response.status, next, close: () => abort.abort() };
+  }
+
+  it('pushes new messages to the other person and marks them read', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    const stranger = await register();
+    const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+    const match = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+
+    expect((await openStream(match.id, alice.token)).status).toBe(403);
+    for (const who of [alice, bob]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    expect((await openStream(match.id, stranger.token)).status).toBe(404);
+
+    const stream = await openStream(match.id, alice.token);
+    expect(stream.status).toBe(200);
+    await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'Are you there?' }).expect(201);
+
+    const received = await stream.next(/Are you there\?/);
+    expect(received).toContain('event: message');
+    expect(received).toContain('"fromMe":false');
+    stream.close();
+
+    const inbox = await http().get('/inbox').set(as(alice.token)).expect(200);
+    expect(inbox.body.unreadChats).toBe(0);
+  });
+});
