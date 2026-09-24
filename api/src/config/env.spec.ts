@@ -5,7 +5,7 @@ const base = { DATABASE_URL: 'postgresql://localhost/db', JWT_SECRET: 'long-enou
 describe('validateEnv', () => {
   it('converts numeric strings and applies defaults', () => {
     expect(validateEnv({ ...base, PORT: '3100' })).toMatchObject({ PORT: 3100, QUESTIONS_PER_DAY: 6 });
-    expect(validateEnv(base)).toMatchObject({ PORT: 3000 });
+    expect(validateEnv(base)).toMatchObject({ PORT: 3100 });
   });
 
   it('rejects missing or invalid values', () => {

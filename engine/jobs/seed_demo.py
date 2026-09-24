@@ -34,7 +34,7 @@ def sign_in(base: str, profile: dict) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Create synthetic users through the API and answer today's questions.")
-    parser.add_argument("--api", default="http://localhost:3000")
+    parser.add_argument("--api", default="http://localhost:3100")
     parser.add_argument("--users", type=int, default=40)
     parser.add_argument("--city", default="Baku")
     parser.add_argument("--seed", type=int, default=3)

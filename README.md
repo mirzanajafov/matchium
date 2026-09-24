@@ -64,7 +64,7 @@ cp .env.example .env
 npm install
 npx prisma migrate deploy
 npx prisma db seed
-npm run start:dev             # http://localhost:3000, docs at /docs
+npm run start:dev             # http://localhost:3100, docs at /docs
 npm test && npm run test:e2e
 
 cd ../engine
@@ -78,7 +78,7 @@ DATABASE_URL=postgresql://matchium:matchium@localhost:5441/matchium python -m jo
 cd ../web
 cp .env.example .env.local
 npm install
-npm run dev                    # http://localhost:3001
+npm run dev                    # http://localhost:3101
 npm test
 ```
 
