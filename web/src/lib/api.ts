@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { getToken } from "./session";
 
-const API_URL = process.env.API_URL ?? "http://localhost:3000";
+const API_URL = process.env.API_URL ?? "http://localhost:3100";
 
 export class ApiError extends Error {
   constructor(
