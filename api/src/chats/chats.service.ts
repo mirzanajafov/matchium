@@ -31,15 +31,7 @@ export class ChatsService {
   ) {}
 
   async list(userId: string) {
-    const matches = await this.prisma.match.findMany({
-      where: { OR: [{ userAId: userId }, { userBId: userId }], decisions: { some: { liked: true } } },
-      include: {
-        decisions: true,
-        userA: publicProfile,
-        userB: publicProfile,
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
-      },
-    });
+    const matches = await this.mutualMatches(userId);
     const now = this.clock.now();
     const activity = (match: (typeof matches)[number]) =>
       (match.messages[0]?.createdAt ?? match.createdAt).getTime();
@@ -55,8 +47,14 @@ export class ChatsService {
           matchedOn: isoDay(match.day),
           person: { id: person.id, displayName: person.displayName, age: ageOn(person.birthDate, now), city: person.city },
           lastMessage: last ? this.toMessage(last, userId) : null,
+          unread: this.isUnread(match, userId),
         };
       });
+  }
+
+  async unreadCount(userId: string): Promise<number> {
+    const matches = await this.mutualMatches(userId);
+    return matches.filter((match) => isMutual(match) && this.isUnread(match, userId)).length;
   }
 
   async messages(userId: string, matchId: string, after?: string) {
@@ -67,6 +65,7 @@ export class ChatsService {
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: PAGE_SIZE,
     });
+    await this.markRead(matchId, userId);
     return {
       person: { id: person.id, displayName: person.displayName },
       messages: rows.map((row) => this.toMessage(row, userId)),
@@ -76,7 +75,34 @@ export class ChatsService {
   async send(userId: string, matchId: string, body: string) {
     await this.openChat(userId, matchId);
     const row = await this.prisma.message.create({ data: { matchId, senderId: userId, body } });
+    await this.markRead(matchId, userId);
     return this.toMessage(row, userId);
+  }
+
+  private mutualMatches(userId: string) {
+    return this.prisma.match.findMany({
+      where: { OR: [{ userAId: userId }, { userBId: userId }], decisions: { some: { liked: true } } },
+      include: {
+        decisions: true,
+        userA: publicProfile,
+        userB: publicProfile,
+        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        reads: { where: { userId } },
+      },
+    });
+  }
+
+  private isUnread(match: { messages: MessageRow[]; reads: { readAt: Date }[] }, userId: string): boolean {
+    const read = match.reads[0];
+    if (!read) return true;
+    const last = match.messages[0];
+    return Boolean(last && last.senderId !== userId && last.createdAt > read.readAt);
+  }
+
+  private async markRead(matchId: string, userId: string) {
+    await this.prisma.$executeRaw`
+      INSERT INTO "ChatRead" ("matchId", "userId", "readAt") VALUES (${matchId}::uuid, ${userId}::uuid, now())
+      ON CONFLICT ("matchId", "userId") DO UPDATE SET "readAt" = now()`;
   }
 
   private async openChat(userId: string, matchId: string) {

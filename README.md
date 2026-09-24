@@ -101,6 +101,7 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | `GET /chats` | your mutual matches, most recent conversation first |
 | `GET /chats/:id/messages?after=` | messages in a chat, optionally only newer ones |
 | `POST /chats/:id/messages` | `{ body }`, only once you both said yes |
+| `GET /inbox` | how many new matches and unread chats you have |
 
 ## What's where
 
@@ -115,7 +116,7 @@ contract/          question bank and fixtures shared by the API and the engine
 
 ## Next
 
-- Notify people when matches are ready
+- Email or push notifications on top of the in-app ones
 - Push new chat messages over SSE instead of polling every few seconds
 - Use likes/passes and chat activity alongside stated answers
 - Bigger question bank and a proper IRT model once there's real data

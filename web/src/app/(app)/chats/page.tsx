@@ -21,12 +21,13 @@ export default async function ChatsPage() {
             <li key={chat.id}>
               <Link href={`/chats/${chat.id}`} className="block px-5 py-4 hover:bg-background">
                 <div className="flex items-baseline justify-between gap-4">
-                  <span className="font-medium">
+                  <span className={`flex items-center gap-2 ${chat.unread ? "font-semibold" : "font-medium"}`}>
+                    {chat.unread && <span className="size-2 rounded-full bg-accent" aria-label="Unread" />}
                     {chat.person.displayName}, {chat.person.age}
                   </span>
                   <span className="text-xs text-muted">matched {chat.matchedOn}</span>
                 </div>
-                <p className="mt-0.5 truncate text-sm text-muted">
+                <p className={`mt-0.5 truncate text-sm ${chat.unread ? "text-foreground" : "text-muted"}`}>
                   {chat.lastMessage
                     ? `${chat.lastMessage.fromMe ? "You: " : ""}${chat.lastMessage.body}`
                     : "No messages yet. Say hi."}

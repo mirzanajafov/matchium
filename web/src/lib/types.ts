@@ -63,6 +63,12 @@ export interface ChatSummary {
   matchedOn: string;
   person: { id: string; displayName: string; age: number; city: string };
   lastMessage: ChatMessage | null;
+  unread: boolean;
+}
+
+export interface Inbox {
+  newMatches: number;
+  unreadChats: number;
 }
 
 export interface ChatThread {
