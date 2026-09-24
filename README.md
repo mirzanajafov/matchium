@@ -52,6 +52,8 @@ Answers for the same user are written under a row lock on their belief, so answe
 
 The web app never talks to the API from the browser. Pages and form actions run on the Next server, which keeps the JWT in an httpOnly cookie and calls the API with it. The browser never sees the token, and the API doesn't need CORS.
 
+Chat messages are pushed live. When a message is saved the API fires a Postgres `NOTIFY`, every API instance is `LISTEN`ing, and each one forwards it to the people who have that chat open over server-sent events. The web app proxies the stream through a Next route handler so the token still stays on the server. If the stream drops, the page reconnects and fetches anything it missed.
+
 ## Running it
 
 You need Docker, Node 24 and Python 3.11+.
@@ -101,6 +103,7 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | `GET /chats` | your mutual matches, most recent conversation first |
 | `GET /chats/:id/messages?after=` | messages in a chat, optionally only newer ones |
 | `POST /chats/:id/messages` | `{ body }`, only once you both said yes |
+| `GET /chats/:id/stream` | server-sent events with new messages as they arrive |
 | `GET /inbox` | how many new matches and unread chats you have |
 
 ## What's where
@@ -117,6 +120,5 @@ contract/          question bank and fixtures shared by the API and the engine
 ## Next
 
 - Email or push notifications on top of the in-app ones
-- Push new chat messages over SSE instead of polling every few seconds
 - Use likes/passes and chat activity alongside stated answers
 - Bigger question bank and a proper IRT model once there's real data

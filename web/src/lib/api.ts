@@ -51,3 +51,13 @@ export async function authedApi<T>(path: string, options: Omit<RequestOptions, "
     throw error;
   }
 }
+
+export async function openApiStream(path: string, signal: AbortSignal): Promise<Response> {
+  const token = await getToken();
+  if (!token) return new Response(null, { status: 401 });
+  return fetch(`${API_URL}${path}`, {
+    headers: { authorization: `Bearer ${token}`, accept: "text/event-stream" },
+    cache: "no-store",
+    signal,
+  });
+}

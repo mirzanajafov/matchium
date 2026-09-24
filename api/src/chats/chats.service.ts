@@ -1,9 +1,12 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
+import { Observable, concatMap, interval, map, merge } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CHAT_CHANNEL, ChatEvent, ChatEvents } from './chat-events.js';
 
 const publicProfile = { select: { id: true, displayName: true, birthDate: true, city: true } } as const;
 const PAGE_SIZE = 200;
+const HEARTBEAT_MS = 25_000;
 
 interface MatchParticipants {
   userAId: string;
@@ -28,6 +31,7 @@ export class ChatsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly events: ChatEvents,
   ) {}
 
   async list(userId: string) {
@@ -76,7 +80,21 @@ export class ChatsService {
     await this.openChat(userId, matchId);
     const row = await this.prisma.message.create({ data: { matchId, senderId: userId, body } });
     await this.markRead(matchId, userId);
+    const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
+    await this.prisma.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
     return this.toMessage(row, userId);
+  }
+
+  async stream(userId: string, matchId: string): Promise<Observable<MessageEvent>> {
+    await this.openChat(userId, matchId);
+    const messages = this.events.forMatch(matchId).pipe(
+      concatMap(async (event): Promise<MessageEvent> => {
+        if (event.senderId !== userId) await this.markRead(matchId, userId);
+        return { type: 'message', data: this.toMessage({ ...event, createdAt: new Date(event.createdAt) }, userId) };
+      }),
+    );
+    const heartbeat = interval(HEARTBEAT_MS).pipe(map((): MessageEvent => ({ type: 'ping', data: '' })));
+    return merge(messages, heartbeat);
   }
 
   private mutualMatches(userId: string) {

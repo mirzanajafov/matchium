@@ -8,6 +8,30 @@ vi.mock("@/app/actions", () => ({ fetchMessages: vi.fn(), sendMessage: vi.fn() }
 
 const MATCH = "8c1f7d2e-1111-4a4a-9999-000000000001";
 
+class FakeEventSource {
+  static CLOSED = 2;
+  static instances: FakeEventSource[] = [];
+  readyState = 0;
+  closed = false;
+  private listeners = new Map<string, ((event: MessageEvent<string>) => void)[]>();
+
+  constructor(readonly url: string) {
+    FakeEventSource.instances.push(this);
+  }
+
+  addEventListener(type: string, listener: (event: MessageEvent<string>) => void) {
+    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+  }
+
+  emit(type: string, data = "") {
+    for (const listener of this.listeners.get(type) ?? []) listener(new MessageEvent(type, { data }));
+  }
+
+  close() {
+    this.closed = true;
+  }
+}
+
 function message(id: string, body: string, createdAt: string, fromMe = false): ChatMessage {
   return { id, body, fromMe, createdAt };
 }
@@ -25,11 +49,15 @@ describe("merge", () => {
 describe("ChatThread", () => {
   beforeEach(() => {
     vi.mocked(fetchMessages).mockReset();
+    vi.mocked(fetchMessages).mockResolvedValue([]);
     vi.mocked(sendMessage).mockReset();
+    FakeEventSource.instances = [];
+    vi.stubGlobal("EventSource", FakeEventSource);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("invites you to start when there are no messages", () => {
@@ -65,18 +93,50 @@ describe("ChatThread", () => {
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Hello?");
   });
 
-  it("polls for new messages after the latest one", async () => {
-    vi.useFakeTimers();
+  it("shows messages pushed over the stream and closes it on unmount", async () => {
     const first = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
-    vi.mocked(fetchMessages).mockResolvedValue([first, message("m2", "Hi yourself", "2026-09-23T10:00:05.000Z")]);
+    const { unmount } = render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
+    const source = FakeEventSource.instances[0];
+    expect(source.url).toBe(`/api/chats/${MATCH}/stream`);
+
+    await act(async () => {
+      source.emit("message", JSON.stringify(message("m2", "Hi yourself", "2026-09-23T10:00:05.000Z")));
+    });
+    expect(screen.getByText("Hi yourself")).toBeInTheDocument();
+
+    await act(async () => {
+      source.emit("message", JSON.stringify(message("m2", "Hi yourself", "2026-09-23T10:00:05.000Z")));
+    });
+    expect(screen.getAllByText("Hi yourself")).toHaveLength(1);
+
+    unmount();
+    expect(source.closed).toBe(true);
+  });
+
+  it("catches up on anything missed when the stream (re)connects", async () => {
+    const first = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
+    vi.mocked(fetchMessages).mockResolvedValue([message("m2", "Sent while you were offline", "2026-09-23T10:01:00.000Z")]);
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(4000);
+      FakeEventSource.instances[0].emit("open");
     });
-
     expect(fetchMessages).toHaveBeenCalledWith(MATCH, first.createdAt);
-    expect(screen.getByText("Hi yourself")).toBeInTheDocument();
-    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getByText("Sent while you were offline")).toBeInTheDocument();
+  });
+
+  it("falls back to polling if the stream is closed for good", async () => {
+    vi.useFakeTimers();
+    const first = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
+    vi.mocked(fetchMessages).mockResolvedValue([message("m2", "Polled", "2026-09-23T10:00:05.000Z")]);
+    render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
+    const source = FakeEventSource.instances[0];
+    source.readyState = FakeEventSource.CLOSED;
+
+    await act(async () => {
+      source.emit("error");
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(screen.getByText("Polled")).toBeInTheDocument();
   });
 });
