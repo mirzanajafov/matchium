@@ -99,3 +99,17 @@ export async function removePushSubscription(endpoint: string): Promise<void> {
 export async function unmatch(matchId: string, report?: { reason: ReportReason; note?: string }): Promise<void> {
   await authedApi(`/matches/${encodeURIComponent(matchId)}/unmatch`, { body: report ? { report } : {} });
 }
+
+export async function deleteAccount(_: FormState, formData: FormData): Promise<FormState> {
+  const password = String(formData.get("password") ?? "");
+  if (!password) return { error: "Type your password to confirm." };
+  try {
+    await authedApi("/me", { method: "DELETE", body: { password } });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 403) return { error: "That password doesn't match." };
+    throw error;
+  }
+  await clearSession();
+  redirect("/");
+}
+
