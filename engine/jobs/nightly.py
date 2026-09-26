@@ -101,7 +101,7 @@ def load_users(conn: psycopg.Connection, min_answers: int) -> list[dict]:
                b."muSelf", b."varSelf", b."muPref", b."varPref", b."logWSum", b."logWCount",
                b."muGap", b."varGap", b."muBar", b."varBar"
         FROM "User" u JOIN "Belief" b ON b."userId" = u.id
-        WHERE b."answerCount" >= %s
+        WHERE b."answerCount" >= %s AND u."bannedAt" IS NULL
         ORDER BY u.id
         """,
         (min_answers,),

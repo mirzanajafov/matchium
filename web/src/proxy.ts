@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 
-const PRIVATE_PREFIXES = ["/today", "/matches", "/chats", "/me"];
+const PRIVATE_PREFIXES = ["/today", "/matches", "/chats", "/me", "/admin"];
 const GUEST_ONLY = ["/login", "/signup"];
 
 export function proxy(request: NextRequest) {
@@ -18,5 +18,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/today/:path*", "/matches/:path*", "/chats/:path*", "/me/:path*", "/login", "/signup"],
+  matcher: ["/today/:path*", "/matches/:path*", "/chats/:path*", "/me/:path*", "/admin/:path*", "/login", "/signup"],
 };

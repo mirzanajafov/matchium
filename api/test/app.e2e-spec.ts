@@ -615,3 +615,83 @@ describe('account data', () => {
   });
 });
 
+describe('moderation', () => {
+  const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  async function reported() {
+    const admin = await register({ displayName: 'Admin' });
+    await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
+    const mallory = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Mallory' });
+    const carol = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Carol' });
+    const match = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: mallory.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+    const other = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: carol.id, userBId: mallory.id, score: 0.5, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+    for (const who of [alice, mallory]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    await http().post(`/chats/${match.id}/messages`).set(as(mallory.token)).send({ body: 'send me money' }).expect(201);
+    await http()
+      .post(`/matches/${match.id}/unmatch`)
+      .set(as(alice.token))
+      .send({ report: { reason: 'SPAM', note: 'asked for money' } })
+      .expect(200);
+    return { admin, alice, mallory, carol, other };
+  }
+
+  it('keeps the queue away from regular users', async () => {
+    const { alice } = await reported();
+    await http().get('/admin/reports').set(as(alice.token)).expect(403);
+    await http().get('/admin/reports').expect(401);
+    expect((await http().get('/me').set(as(alice.token)).expect(200)).body.role).toBe('USER');
+  });
+
+  it('shows open reports with the conversation as evidence', async () => {
+    const { admin, alice, mallory } = await reported();
+    const res = await http().get('/admin/reports').set(as(admin.token)).expect(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({
+      reason: 'SPAM',
+      note: 'asked for money',
+      reporter: { id: alice.id, displayName: 'Alice' },
+      reported: { id: mallory.id, displayName: 'Mallory', reportsAgainst: 1, banned: false },
+      messages: [{ from: 'reported', body: 'send me money' }],
+    });
+    expect((await http().get('/admin/reports?status=reviewed').set(as(admin.token)).expect(200)).body).toEqual([]);
+    await http().get('/admin/reports?status=everything').set(as(admin.token)).expect(400);
+  });
+
+  it('bans: locks the account out, closes their matches and resolves the report once', async () => {
+    const { admin, mallory, carol, other } = await reported();
+    const [report] = (await http().get('/admin/reports').set(as(admin.token)).expect(200)).body;
+
+    const res = await http()
+      .post(`/admin/reports/${report.id}/resolve`)
+      .set(as(admin.token))
+      .send({ outcome: 'BANNED' })
+      .expect(200);
+    expect(res.body).toEqual({ outcome: 'BANNED', closedMatches: 1 });
+    await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'DISMISSED' }).expect(409);
+
+    await http().get('/me').set(as(mallory.token)).expect(401);
+    const login = await http().post('/auth/login').send({ email: mallory.email, password: 'correct horse battery' }).expect(403);
+    expect(login.body.message).toMatch(/suspended/);
+    expect((await prisma.match.findUniqueOrThrow({ where: { id: other.id } })).closedAt).not.toBeNull();
+    expect((await http().get('/matches/today').set(as(carol.token)).expect(200)).body.matches).toEqual([]);
+
+    const reviewed = await http().get('/admin/reports?status=reviewed').set(as(admin.token)).expect(200);
+    expect(reviewed.body[0]).toMatchObject({ outcome: 'BANNED', reported: { banned: true } });
+  });
+
+  it('dismisses without touching the account', async () => {
+    const { admin, mallory } = await reported();
+    const [report] = (await http().get('/admin/reports').set(as(admin.token)).expect(200)).body;
+    await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'DISMISSED' }).expect(200);
+    await http().get('/me').set(as(mallory.token)).expect(200);
+    await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'NOPE' }).expect(400);
+  });
+});
+
