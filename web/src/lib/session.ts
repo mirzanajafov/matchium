@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE } from "./session-cookie";
+import { PUSH_COOKIE, SESSION_COOKIE } from "./session-cookie";
 
 const WEEK_IN_SECONDS = 60 * 60 * 24 * 7;
 
@@ -19,5 +19,26 @@ export async function setSession(token: string): Promise<void> {
 }
 
 export async function clearSession(): Promise<void> {
-  (await cookies()).delete(SESSION_COOKIE);
+  const jar = await cookies();
+  jar.delete(SESSION_COOKIE);
+  jar.delete(PUSH_COOKIE);
+}
+
+export async function getPushEndpoint(): Promise<string | undefined> {
+  return (await cookies()).get(PUSH_COOKIE)?.value;
+}
+
+export async function rememberPushEndpoint(endpoint: string | null): Promise<void> {
+  const jar = await cookies();
+  if (!endpoint) {
+    jar.delete(PUSH_COOKIE);
+    return;
+  }
+  jar.set(PUSH_COOKIE, endpoint, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: WEEK_IN_SECONDS,
+  });
 }

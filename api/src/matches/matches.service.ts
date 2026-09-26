@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Clock, ageOn, isoDay, utcDay } from '../common/clock.js';
 import { isUniqueViolation } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { PushService } from '../push/push.service.js';
 
 const publicProfile = { select: { id: true, displayName: true, birthDate: true, city: true } } as const;
 
@@ -10,6 +11,7 @@ export class MatchesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly push: PushService,
   ) {}
 
   async today(userId: string) {
@@ -59,6 +61,16 @@ export class MatchesService {
     }
     const otherId = match.userAId === userId ? match.userBId : match.userAId;
     const theirs = match.decisions.find((d) => d.userId === otherId);
-    return { mutual: like && Boolean(theirs?.liked) };
+    const mutual = like && Boolean(theirs?.liked);
+    if (mutual) {
+      const me = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } });
+      this.push.notifyInBackground(otherId, {
+        title: "It's mutual",
+        body: `You and ${me.displayName} both said yes. Say hi.`,
+        url: `/chats/${matchId}`,
+        tag: `mutual-${matchId}`,
+      });
+    }
+    return { mutual };
   }
 }

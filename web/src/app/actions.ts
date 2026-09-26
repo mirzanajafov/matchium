@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { ApiError, api, authedApi } from "@/lib/api";
-import { clearSession, setSession } from "@/lib/session";
+import type { PushSubscriptionPayload } from "@/lib/push";
+import { clearSession, getPushEndpoint, getToken, rememberPushEndpoint, setSession } from "@/lib/session";
 import type { AnswerResult, AnswerValues, ChatMessage, ChatThread, Inbox } from "@/lib/types";
 
 export interface FormState {
@@ -55,6 +56,10 @@ export async function signup(_: FormState, formData: FormData): Promise<FormStat
 }
 
 export async function logout(): Promise<void> {
+  const [token, endpoint] = await Promise.all([getToken(), getPushEndpoint()]);
+  if (token && endpoint) {
+    await api("/push/subscriptions", { method: "DELETE", body: { endpoint }, token }).catch(() => undefined);
+  }
   await clearSession();
   redirect("/");
 }
@@ -79,4 +84,14 @@ export async function fetchMessages(matchId: string, after?: string): Promise<Ch
 
 export async function getInbox(): Promise<Inbox> {
   return authedApi<Inbox>("/inbox");
+}
+
+export async function savePushSubscription(subscription: PushSubscriptionPayload): Promise<void> {
+  await authedApi("/push/subscriptions", { body: subscription });
+  await rememberPushEndpoint(subscription.endpoint);
+}
+
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  await authedApi("/push/subscriptions", { method: "DELETE", body: { endpoint } });
+  await rememberPushEndpoint(null);
 }

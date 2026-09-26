@@ -33,6 +33,7 @@ model User {
   matchDecisions MatchDecision[]
   messages       Message[]
   chatReads      ChatRead[]
+  pushes         PushSubscription[]
 }
 
 model Question {
@@ -89,15 +90,16 @@ model DailyQuestionSet {
 }
 
 model Match {
-  id         String   @id @default(uuid()) @db.Uuid
-  day        DateTime @db.Date
-  userAId    String   @db.Uuid
-  userBId    String   @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  day        DateTime  @db.Date
+  userAId    String    @db.Uuid
+  userBId    String    @db.Uuid
   score      Float
   confidence Float
   aligned    String[]
   friction   String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
+  notifiedAt DateTime?
 
   userA     User            @relation("MatchUserA", fields: [userAId], references: [id], onDelete: Cascade)
   userB     User            @relation("MatchUserB", fields: [userBId], references: [id], onDelete: Cascade)
@@ -145,4 +147,17 @@ model ChatRead {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([matchId, userId])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

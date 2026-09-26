@@ -8,6 +8,7 @@ import { HealthController } from './health.controller.js';
 import { InboxModule } from './inbox/inbox.module.js';
 import { MatchesModule } from './matches/matches.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { PushModule } from './push/push.module.js';
 import { QuestionsModule } from './questions/questions.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -20,6 +21,7 @@ import { UsersModule } from './users/users.module.js';
     }),
     CommonModule,
     PrismaModule,
+    PushModule,
     AuthModule,
     UsersModule,
     QuestionsModule,

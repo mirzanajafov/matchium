@@ -56,6 +56,8 @@ The web app never talks to the API from the browser. Pages and form actions run 
 
 Chat messages are pushed live. When a message is saved the API fires a Postgres `NOTIFY`, every API instance is `LISTEN`ing, and each one forwards it to the people who have that chat open over server-sent events. The web app proxies the stream through a Next route handler so the token still stays on the server. If the stream drops, the page reconnects and fetches anything it missed.
 
+Web push covers the times the app isn't open: a new message, a mutual like, and "your matches are here" after the nightly run. The API signs pushes with its own VAPID keys, so there's no third-party account. The nightly job fires `NOTIFY matches_ready` when it commits, and whichever API instance claims the day first (`UPDATE ... WHERE "notifiedAt" IS NULL RETURNING`) sends the pushes, so running several instances doesn't mean several notifications. Dead subscriptions (404/410 from the push service) are deleted on the spot. The service worker skips the notification if you're already looking at that chat.
+
 ## Running it
 
 You need Docker, Node 24 and Python 3.11+.
@@ -66,6 +68,7 @@ docker compose up -d
 cd api
 cp .env.example .env
 npm install
+npx web-push generate-vapid-keys   # paste into .env to turn on push
 npx prisma migrate deploy
 npx prisma db seed
 npm run start:dev             # http://localhost:3100, docs at /docs
@@ -107,6 +110,8 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | `POST /chats/:id/messages` | `{ body }`, only once you both said yes |
 | `GET /chats/:id/stream` | server-sent events with new messages as they arrive |
 | `GET /inbox` | how many new matches and unread chats you have |
+| `GET /push/key` | the VAPID public key, or `null` if push is off |
+| `POST /push/subscriptions`, `DELETE /push/subscriptions` | register or drop this browser for push |
 
 ## What's where
 
@@ -121,6 +126,6 @@ contract/          question bank and fixtures shared by the API and the engine
 
 ## Next
 
-- Email or push notifications on top of the in-app ones
+- Email digests for people who don't allow push
 - Use chat activity as a signal too, not only likes and passes
 - Bigger question bank and a proper IRT model once there's real data
