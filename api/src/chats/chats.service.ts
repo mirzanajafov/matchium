@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
-import { Observable, concatMap, filter, interval, map, merge } from 'rxjs';
+import { Observable, concatMap, filter, interval, map, merge, takeWhile } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
@@ -16,6 +16,15 @@ export interface ChatEvent {
   senderId: string;
   body: string;
   createdAt: string;
+}
+
+interface ClosedEvent {
+  matchId: string;
+  closed: true;
+}
+
+function isClosed(event: ChatEvent | ClosedEvent): event is ClosedEvent {
+  return 'closed' in event;
 }
 
 interface MatchParticipants {
@@ -105,20 +114,21 @@ export class ChatsService {
 
   async stream(userId: string, matchId: string): Promise<Observable<MessageEvent>> {
     await this.openChat(userId, matchId);
-    const messages = this.events.on<ChatEvent>(CHAT_CHANNEL).pipe(
+    const messages = this.events.on<ChatEvent | ClosedEvent>(CHAT_CHANNEL).pipe(
       filter((event) => event.matchId === matchId),
       concatMap(async (event): Promise<MessageEvent> => {
+        if (isClosed(event)) return { type: 'closed', data: '' };
         if (event.senderId !== userId) await this.markRead(matchId, userId);
         return { type: 'message', data: this.toMessage({ ...event, createdAt: new Date(event.createdAt) }, userId) };
       }),
     );
     const heartbeat = interval(HEARTBEAT_MS).pipe(map((): MessageEvent => ({ type: 'ping', data: '' })));
-    return merge(messages, heartbeat);
+    return merge(messages, heartbeat).pipe(takeWhile((event) => event.type !== 'closed', true));
   }
 
   private mutualMatches(userId: string) {
     return this.prisma.match.findMany({
-      where: { OR: [{ userAId: userId }, { userBId: userId }], decisions: { some: { liked: true } } },
+      where: { closedAt: null, OR: [{ userAId: userId }, { userBId: userId }], decisions: { some: { liked: true } } },
       include: {
         decisions: true,
         userA: publicProfile,
@@ -147,7 +157,7 @@ export class ChatsService {
       where: { id: matchId },
       include: { decisions: true, userA: publicProfile, userB: publicProfile },
     });
-    if (!match || (match.userAId !== userId && match.userBId !== userId)) {
+    if (!match || match.closedAt || (match.userAId !== userId && match.userBId !== userId)) {
       throw new NotFoundException('Chat not found');
     }
     if (!isMutual(match)) throw new ForbiddenException('You can chat once you both said yes');

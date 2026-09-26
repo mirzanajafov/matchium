@@ -1,8 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Clock, ageOn, isoDay, utcDay } from '../common/clock.js';
+import { CHAT_CHANNEL } from '../common/db-events.js';
 import { isUniqueViolation } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
+import type { ReportDto } from './dto/unmatch.dto.js';
 
 const publicProfile = { select: { id: true, displayName: true, birthDate: true, city: true } } as const;
 
@@ -18,7 +20,7 @@ export class MatchesService {
     const now = this.clock.now();
     const day = utcDay(now);
     const matches = await this.prisma.match.findMany({
-      where: { day, OR: [{ userAId: userId }, { userBId: userId }] },
+      where: { day, closedAt: null, OR: [{ userAId: userId }, { userBId: userId }] },
       include: { userA: publicProfile, userB: publicProfile, decisions: true },
       orderBy: { score: 'desc' },
     });
@@ -50,7 +52,7 @@ export class MatchesService {
 
   async decide(userId: string, matchId: string, like: boolean) {
     const match = await this.prisma.match.findUnique({ where: { id: matchId }, include: { decisions: true } });
-    if (!match || (match.userAId !== userId && match.userBId !== userId)) {
+    if (!match || match.closedAt || (match.userAId !== userId && match.userBId !== userId)) {
       throw new NotFoundException('Match not found');
     }
     try {
@@ -72,5 +74,31 @@ export class MatchesService {
       });
     }
     return { mutual };
+  }
+
+  async unmatch(userId: string, matchId: string, report?: ReportDto) {
+    const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+    if (!match || (match.userAId !== userId && match.userBId !== userId)) {
+      throw new NotFoundException('Match not found');
+    }
+    const otherId = match.userAId === userId ? match.userBId : match.userAId;
+
+    await this.prisma.$transaction(async (tx) => {
+      const closed = await tx.match.updateMany({
+        where: { id: matchId, closedAt: null },
+        data: { closedAt: new Date(), closedById: userId },
+      });
+      if (report) {
+        await tx.report.upsert({
+          where: { matchId_reporterId: { matchId, reporterId: userId } },
+          create: { matchId, reporterId: userId, reportedId: otherId, reason: report.reason, note: report.note },
+          update: { reason: report.reason, note: report.note ?? null },
+        });
+      }
+      if (closed.count > 0) {
+        await tx.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify({ matchId, closed: true })})`;
+      }
+    });
+    return { closed: true, reported: Boolean(report) };
   }
 }
