@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { Clock } from '../src/common/clock.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { RateLimiter } from '../src/limits/rate-limiter.js';
 import { MatchNotifier } from '../src/push/match-notifier.js';
 import { type Delivery, type PushMessage, PushSender, type PushTarget } from '../src/push/push-sender.js';
 
@@ -74,7 +75,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await prisma.$executeRawUnsafe('TRUNCATE "User" CASCADE');
+  await prisma.$executeRawUnsafe('TRUNCATE "User", "RateLimit" CASCADE');
   clock.current = new Date('2026-09-23T09:00:00Z');
   pushes.sent = [];
   pushes.gone.clear();
@@ -692,6 +693,62 @@ describe('moderation', () => {
     await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'DISMISSED' }).expect(200);
     await http().get('/me').set(as(mallory.token)).expect(200);
     await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'NOPE' }).expect(400);
+  });
+});
+
+describe('rate limits', () => {
+  const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  it('slows down password guessing per account and tells you when to retry', async () => {
+    const alice = await register();
+    for (let i = 0; i < 10; i += 1) {
+      await http().post('/auth/login').set('X-Forwarded-For', `10.0.0.${i}`).send({ email: alice.email, password: 'wrong password' }).expect(401);
+    }
+    const blocked = await http()
+      .post('/auth/login')
+      .set('X-Forwarded-For', '10.0.0.99')
+      .send({ email: alice.email.toUpperCase(), password: 'correct horse battery' })
+      .expect(429);
+    expect(blocked.headers['retry-after']).toBe('900');
+    expect(blocked.body.message).toBe('Too many attempts, try again in 15 minutes');
+
+    clock.current = new Date(clock.current.getTime() + 15 * 60 * 1000);
+    await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200);
+  });
+
+  it('limits sign-ups per address but not across addresses', async () => {
+    const signup = (n: number, ip: string) =>
+      http()
+        .post('/auth/register')
+        .set('X-Forwarded-For', ip)
+        .send({ email: `bulk${n}@example.com`, password: 'long enough', displayName: 'Bulk', birthDate: '1990-01-01', gender: 'MAN', seeking: ['WOMAN'], city: 'Baku' });
+    for (let n = 0; n < 5; n += 1) await signup(n, '203.0.113.7').expect(201);
+    await signup(5, '203.0.113.7').expect(429);
+    await signup(6, '198.51.100.4').expect(201);
+  });
+
+  it('caps how fast one person can send messages', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    const match = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+    for (const who of [alice, bob]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    for (let i = 0; i < 30; i += 1) {
+      await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: `hi ${i}` }).expect(201);
+    }
+    const res = await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'one more' }).expect(429);
+    expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+    await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: 'still fine for me' }).expect(201);
+  });
+
+  it('cleans up old windows', async () => {
+    await prisma.rateLimit.create({ data: { key: 'old', windowStart: new Date('2026-09-20T00:00:00Z') } });
+    await prisma.rateLimit.create({ data: { key: 'fresh', windowStart: new Date('2026-09-23T08:00:00Z') } });
+    await app.get(RateLimiter).cleanup();
+    expect((await prisma.rateLimit.findMany()).map((r) => r.key)).toEqual(['fresh']);
   });
 });
 

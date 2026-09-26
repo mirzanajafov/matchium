@@ -73,8 +73,12 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
     setError(null);
     startSending(async () => {
       try {
-        const message = await sendMessage(matchId, body);
-        setMessages((current) => merge(current, [message]));
+        const result = await sendMessage(matchId, body);
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
+        setMessages((current) => merge(current, [result]));
         setDraft("");
       } catch {
         setError("Message didn't go through. Try again.");

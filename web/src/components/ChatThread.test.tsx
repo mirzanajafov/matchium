@@ -151,5 +151,17 @@ describe("ChatThread", () => {
     expect(screen.getByRole("status")).toHaveTextContent("This conversation has been closed.");
     expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
   });
+
+  it("says so when messages are coming too fast", async () => {
+    const user = userEvent.setup();
+    vi.mocked(sendMessage).mockResolvedValue({ error: "You're sending messages too fast. Wait a moment." });
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "hello");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("too fast");
+    expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("hello");
+  });
 });
 
