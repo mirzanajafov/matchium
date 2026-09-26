@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import type { ReactNode } from "react";
 import { logout } from "@/app/actions";
 import { AppNav } from "@/components/AppNav";
@@ -5,8 +6,17 @@ import { Logo } from "@/components/Logo";
 import { authedApi } from "@/lib/api";
 import type { Inbox } from "@/lib/types";
 
+async function loadInbox(): Promise<Inbox> {
+  try {
+    return await authedApi<Inbox>("/inbox");
+  } catch (error) {
+    unstable_rethrow(error);
+    return { newMatches: 0, unreadChats: 0 };
+  }
+}
+
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const inbox = await authedApi<Inbox>("/inbox");
+  const inbox = await loadInbox();
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-6 py-8">
