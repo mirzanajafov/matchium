@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.next
+**/.venv
+**/__pycache__
+**/.env
+**/.env.local
+**/*.tsbuildinfo
+**/src/generated
+.git
+engine/results

@@ -19,12 +19,48 @@ services:
   matcher:
     build: ./engine
     container_name: matchium-matcher
-    profiles: ["jobs"]
+    profiles: ["jobs", "app"]
     environment:
       DATABASE_URL: postgresql://matchium:matchium@postgres:5432/matchium
       MATCH_AT: "03:00"
     depends_on:
       postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: matchium-api
+    profiles: ["app"]
+    environment:
+      DATABASE_URL: postgresql://matchium:matchium@postgres:5432/matchium
+      JWT_SECRET: ${JWT_SECRET:-local-docker-secret}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:push@example.com}
+    ports:
+      - "3100:3100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3100/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    container_name: matchium-web
+    profiles: ["app"]
+    environment:
+      API_URL: http://api:3100
+    ports:
+      - "3101:3101"
+    depends_on:
+      api:
         condition: service_healthy
     restart: unless-stopped
 
