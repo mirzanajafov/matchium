@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ApiError, api, authedApi } from "@/lib/api";
 import type { PushSubscriptionPayload } from "@/lib/push";
@@ -111,5 +112,10 @@ export async function deleteAccount(_: FormState, formData: FormData): Promise<F
   }
   await clearSession();
   redirect("/");
+}
+
+export async function resolveReport(reportId: string, outcome: "DISMISSED" | "BANNED"): Promise<void> {
+  await authedApi(`/admin/reports/${encodeURIComponent(reportId)}/resolve`, { body: { outcome } });
+  revalidatePath("/admin");
 }
 

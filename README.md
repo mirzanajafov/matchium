@@ -58,7 +58,7 @@ Answers for the same user are written under a row lock on their belief, so answe
 
 The web app never talks to the API from the browser. Pages and form actions run on the Next server, which keeps the JWT in an httpOnly cookie and calls the API with it. The browser never sees the token, and the API doesn't need CORS.
 
-Either person can unmatch at any point, optionally filing a report (spam, harassment, fake profile, possibly underage). The match disappears for both of them, the chat stops accepting messages, an open chat on the other side is told over the stream and locks, and the pair is never matched again because the nightly job skips any pair it has matched before. Reports land in a table for review.
+Either person can unmatch at any point, optionally filing a report (spam, harassment, fake profile, possibly underage). The match disappears for both of them, the chat stops accepting messages, an open chat on the other side is told over the stream and locks, and the pair is never matched again because the nightly job skips any pair it has matched before. Reports go to a small moderation queue at `/admin`, where an admin sees both people, the note and the conversation, and either dismisses the report or bans the account. A ban locks the person out on their next request, closes every open match they have, resolves any other reports against them and keeps them out of the nightly run. There's no endpoint that makes someone an admin; that's `npm run admin:grant -- <email>` on the server.
 
 Chat messages are pushed live. When a message is saved the API fires a Postgres `NOTIFY`, every API instance is `LISTEN`ing, and each one forwards it to the people who have that chat open over server-sent events. The web app proxies the stream through a Next route handler so the token still stays on the server. If the stream drops, the page reconnects and fetches anything it missed.
 
@@ -117,6 +117,8 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | `GET /me` | profile, answer count, how much the model knows about you, where your likes disagree with your answers |
 | `GET /me/export` | everything stored about you as JSON (never the other person's messages) |
 | `DELETE /me` | `{ password }`, deletes the account and everything tied to it |
+| `GET /admin/reports?status=open\|reviewed` | admins only: reports with both people and their conversation |
+| `POST /admin/reports/:id/resolve` | admins only: `{ outcome: DISMISSED \| BANNED }` |
 | `GET /questions/today` | today's questions (same set all day) |
 | `POST /questions/:id/answer` | `{ self, partner, importance }`, each 1-5 |
 | `GET /matches/today` | today's matches with score, confidence, what fits and what might clash |

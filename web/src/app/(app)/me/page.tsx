@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { Meter } from "@/components/Meter";
 import { PushToggle } from "@/components/PushToggle";
@@ -28,6 +29,11 @@ export default async function MePage() {
   return (
     <>
       <h1 className="text-2xl font-semibold">{me.displayName}</h1>
+      {me.role === "ADMIN" && (
+        <Link href="/admin" className="mt-2 inline-block text-sm font-medium text-accent-ink hover:underline">
+          Moderation queue
+        </Link>
+      )}
       <section className="mt-6 rounded-2xl border border-line bg-surface p-6">
         <Meter value={me.certainty} label="How well we know you" caption={certaintyHint(me.certainty)} />
       </section>

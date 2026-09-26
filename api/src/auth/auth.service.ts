@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  OnModuleInit,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { Clock, ageOn } from '../common/clock.js';
@@ -57,6 +64,7 @@ export class AuthService implements OnModuleInit {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
     const valid = await argon2.verify(user?.passwordHash ?? this.decoyHash, dto.password);
     if (!user || !valid) throw new UnauthorizedException('Invalid email or password');
+    if (user.bannedAt) throw new ForbiddenException('This account has been suspended');
     return this.issue(user.id);
   }
 

@@ -152,6 +152,19 @@ def test_run_writes_matches_once_per_day_and_never_repeats_pairs(conn):
     assert len(pairs) == len(set(pairs))
 
 
+def test_run_skips_banned_users(conn):
+    rng = np.random.default_rng(7)
+    users = population(rng)
+    insert_users(conn, users)
+    banned = users[0]["id"]
+    conn.execute('UPDATE "User" SET "bannedAt" = now() WHERE id = %s::uuid', (banned,))
+    conn.commit()
+    run(conn, dt.date(2026, 9, 23), per_user=3, min_answers=6)
+    conn.commit()
+    pairs = conn.execute('SELECT "userAId"::text, "userBId"::text FROM "Match"').fetchall()
+    assert pairs and all(banned not in pair for pair in pairs)
+
+
 def test_run_announces_new_matches_after_commit(conn):
     psycopg = pytest.importorskip("psycopg")
     insert_users(conn, population(np.random.default_rng(6)))

@@ -1,10 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthUser } from './current-user.decorator.js';
-import { IS_PUBLIC } from './public.decorator.js';
+import { ADMIN_ONLY, IS_PUBLIC } from './public.decorator.js';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -27,9 +27,14 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException();
     }
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-    if (!user) throw new UnauthorizedException();
-    request.user = { id: user.id };
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, bannedAt: true },
+    });
+    if (!user || user.bannedAt) throw new UnauthorizedException();
+    const adminOnly = this.reflector.getAllAndOverride<boolean>(ADMIN_ONLY, [ctx.getHandler(), ctx.getClass()]);
+    if (adminOnly && user.role !== 'ADMIN') throw new ForbiddenException();
+    request.user = { id: user.id, role: user.role };
     return true;
   }
 }

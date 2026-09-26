@@ -21,6 +21,7 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "admin:grant": "node prisma/grant-admin.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

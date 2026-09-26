@@ -14,6 +14,16 @@ enum Gender {
   NONBINARY
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ReportOutcome {
+  DISMISSED
+  BANNED
+}
+
 enum ReportReason {
   SPAM
   HARASSMENT
@@ -23,15 +33,17 @@ enum ReportReason {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
   passwordHash String
   displayName  String
-  birthDate    DateTime @db.Date
+  birthDate    DateTime  @db.Date
   gender       Gender
   seeking      Gender[]
   city         String
-  createdAt    DateTime @default(now())
+  role         Role      @default(USER)
+  bannedAt     DateTime?
+  createdAt    DateTime  @default(now())
 
   belief         Belief?
   answers        Answer[]
@@ -176,14 +188,16 @@ model PushSubscription {
 }
 
 model Report {
-  id         String       @id @default(uuid()) @db.Uuid
-  matchId    String       @db.Uuid
-  reporterId String       @db.Uuid
-  reportedId String       @db.Uuid
+  id         String         @id @default(uuid()) @db.Uuid
+  matchId    String         @db.Uuid
+  reporterId String         @db.Uuid
+  reportedId String         @db.Uuid
   reason     ReportReason
   note       String?
-  createdAt  DateTime     @default(now())
+  createdAt  DateTime       @default(now())
   reviewedAt DateTime?
+  reviewedBy String?        @db.Uuid
+  outcome    ReportOutcome?
 
   match    Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
   reporter User  @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
