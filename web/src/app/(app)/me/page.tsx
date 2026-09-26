@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { Meter } from "@/components/Meter";
 import { PushToggle } from "@/components/PushToggle";
 import { api, authedApi } from "@/lib/api";
@@ -60,6 +61,13 @@ export default async function MePage() {
           </div>
         ))}
       </dl>
+      <section className="mt-6 space-y-4 rounded-2xl border border-line bg-surface p-6">
+        <h2 className="text-sm font-medium">Your data</h2>
+        <a href="/api/me/export" download className="block text-sm font-medium text-accent-ink hover:underline">
+          Download everything we have on you (JSON)
+        </a>
+        <DeleteAccountForm />
+      </section>
     </>
   );
 }

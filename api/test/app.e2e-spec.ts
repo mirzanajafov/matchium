@@ -566,3 +566,52 @@ describe('unmatch and report', () => {
   });
 });
 
+describe('account data', () => {
+  const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  async function active() {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
+    const today = await http().get('/questions/today').set(as(alice.token)).expect(200);
+    const first = today.body.questions[0];
+    await http().post(`/questions/${first.id}/answer`).set(as(alice.token)).send({ self: 4, partner: 2, importance: 5 }).expect(201);
+    const match = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+    for (const who of [alice, bob]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: 'hi Bob' }).expect(201);
+    await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'hi Alice' }).expect(201);
+    return { alice, bob, match, question: first };
+  }
+
+  it('exports what we hold about you and nothing about the other person', async () => {
+    const { alice, question } = await active();
+    const res = await http().get('/me/export').set(as(alice.token)).expect(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body.profile).toMatchObject({ email: alice.email, displayName: 'Alice', city: 'Baku' });
+    expect(res.body.answers).toEqual([expect.objectContaining({ question: question.text, you: 4, partner: 2, importance: 5 })]);
+    expect(Object.keys(res.body.model)).toHaveLength(8);
+    expect(res.body.matches).toEqual([expect.objectContaining({ day: '2026-09-23', with: 'Bob', yourDecision: 'LIKE', mutual: true, closed: false })]);
+    expect(res.body.messagesSent.map((m: { body: string }) => m.body)).toEqual(['hi Bob']);
+    expect(JSON.stringify(res.body)).not.toContain('hi Alice');
+    expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+  });
+
+  it('deletes the account only with the right password and cuts off the old token', async () => {
+    const { alice, bob, match } = await active();
+    await http().delete('/me').set(as(alice.token)).send({}).expect(400);
+    await http().delete('/me').set(as(alice.token)).send({ password: 'not it' }).expect(403);
+    await http().get('/me').set(as(alice.token)).expect(200);
+
+    await http().delete('/me').set(as(alice.token)).send({ password: 'correct horse battery' }).expect(204);
+
+    await http().get('/me').set(as(alice.token)).expect(401);
+    await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(401);
+    expect(await prisma.match.findUnique({ where: { id: match.id } })).toBeNull();
+    expect(await prisma.answer.count({ where: { userId: alice.id } })).toBe(0);
+    expect((await http().get('/chats').set(as(bob.token)).expect(200)).body).toEqual([]);
+  });
+});
+

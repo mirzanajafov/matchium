@@ -115,6 +115,8 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 |---|---|
 | `POST /auth/register`, `POST /auth/login` | returns a JWT |
 | `GET /me` | profile, answer count, how much the model knows about you, where your likes disagree with your answers |
+| `GET /me/export` | everything stored about you as JSON (never the other person's messages) |
+| `DELETE /me` | `{ password }`, deletes the account and everything tied to it |
 | `GET /questions/today` | today's questions (same set all day) |
 | `POST /questions/:id/answer` | `{ self, partner, importance }`, each 1-5 |
 | `GET /matches/today` | today's matches with score, confidence, what fits and what might clash |

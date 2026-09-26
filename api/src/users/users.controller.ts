@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Header } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
 import { beliefState } from '../common/belief-row.js';
@@ -6,12 +6,17 @@ import { isoDay } from '../common/clock.js';
 import { certainty } from '../engine/belief.js';
 import { preferenceShifts } from '../engine/revealed.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { AccountService } from './account.service.js';
+import { DeleteAccountDto } from './dto/delete-account.dto.js';
 
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('me')
 export class UsersController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly account: AccountService,
+  ) {}
 
   @Get()
   async me(@CurrentUser() { id }: AuthUser) {
@@ -32,5 +37,17 @@ export class UsersController {
       decisionsLearned,
       preferenceShifts: preferenceShifts(user.belief?.muGap ?? []),
     };
+  }
+
+  @Get('export')
+  @Header('Cache-Control', 'no-store')
+  export(@CurrentUser() { id }: AuthUser) {
+    return this.account.export(id);
+  }
+
+  @Delete()
+  @HttpCode(204)
+  async remove(@CurrentUser() { id }: AuthUser, @Body() dto: DeleteAccountDto) {
+    await this.account.delete(id, dto.password);
   }
 }
