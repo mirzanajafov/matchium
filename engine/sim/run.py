@@ -9,7 +9,7 @@ from matchium.allocation import greedy_b_matching, naive_top_k
 from matchium.revealed import Decisions, learn, pool_spread
 from matchium.scoring import confidence, directed_scores, mutual_scores
 from matchium.selection import adaptive, random_order
-from sim import metrics
+from sim import chart, metrics
 from sim.population import answer, attraction, generate, likes, predictable_attraction
 
 RESULTS_DIR = Path(__file__).resolve().parents[1] / "results"
@@ -177,6 +177,7 @@ def main():
     (RESULTS_DIR / "latest.json").write_text(json.dumps(results, indent=2))
     report = to_markdown(results)
     (RESULTS_DIR / "latest.md").write_text(report)
+    chart.render(results, RESULTS_DIR)
     print(report)
 
 

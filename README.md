@@ -31,6 +31,8 @@ No real users yet, so I built a simulator. It generates people with hidden trait
 | mutual matches so far, random order | 396 | 1016 | 4854 |
 | mutual matches so far, adaptive | 612 | 1440 | 5212 |
 
+![Rank correlation by day for adaptive and random question order](engine/results/questions.svg)
+
 What I take from this:
 
 - Adaptive questions get to the same accuracy with about half the questions (12 vs ~24). The gap closes by day 7 because the question bank is only 48 questions, so the bank needs to grow.
@@ -38,7 +40,9 @@ What I take from this:
 - Learning from likes and passes doesn't matter when people answer honestly (0.689 vs 0.691 after four weeks). It does when they don't: if every stated preference is off by noise with std 0.5, questions alone stall at 0.63, and adding decisions pushes that to 0.68 by day 28 with 7% more mutual matches. Without it the model would just keep believing the answers.
 - b-matching drops exposure inequality from a Gini of 0.46 to 0.02 and costs about 3 points of like rate. I think that trade is worth it.
 
-Full numbers are written to `engine/results/latest.json` every time the simulation runs.
+![Rank correlation over 28 days with and without learning from likes](engine/results/decisions.svg)
+
+Full numbers are written to `engine/results/latest.json` every time the simulation runs, and the charts are redrawn from them (`python -m sim.chart` redraws without rerunning).
 
 ## How the pieces fit
 
