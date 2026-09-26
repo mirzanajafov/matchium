@@ -67,6 +67,10 @@ model Belief {
   varPref     Float[]
   logWSum     Float[]
   logWCount   Float[]
+  muGap       Float[]  @default([])
+  varGap      Float[]  @default([])
+  muBar       Float?
+  varBar      Float?
   answerCount Int      @default(0)
   updatedAt   DateTime @updatedAt
 
@@ -107,10 +111,11 @@ model Match {
 }
 
 model MatchDecision {
-  matchId   String   @db.Uuid
-  userId    String   @db.Uuid
+  matchId   String    @db.Uuid
+  userId    String    @db.Uuid
   liked     Boolean
-  decidedAt DateTime @default(now())
+  decidedAt DateTime  @default(now())
+  learnedAt DateTime?
 
   match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)

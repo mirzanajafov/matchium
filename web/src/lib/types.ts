@@ -10,6 +10,13 @@ export interface Me {
   city: string;
   answerCount: number;
   certainty: number;
+  decisionsLearned: number;
+  preferenceShifts: PreferenceShift[];
+}
+
+export interface PreferenceShift {
+  dimension: string;
+  direction: "more" | "less";
 }
 
 export interface DailyQuestion {

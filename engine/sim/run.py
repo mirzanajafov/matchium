@@ -6,6 +6,7 @@ import numpy as np
 
 from matchium import Beliefs, DIMENSIONS, load_bank
 from matchium.allocation import greedy_b_matching, naive_top_k
+from matchium.revealed import Decisions, learn, pool_spread
 from matchium.scoring import confidence, directed_scores, mutual_scores
 from matchium.selection import adaptive, random_order
 from sim import metrics
@@ -23,14 +24,14 @@ def evaluate(pred_mutual, truth_mutual, pop, like, k_daily):
     }
 
 
-def run_policy(name, pop, bank, like, truth_mutual, args):
+def run_policy(name, pop, bank, like, truth_mutual, args, days=None, use_decisions=False):
     beliefs = Beliefs(pop.n_users, len(DIMENSIONS), len(bank))
     rng = np.random.default_rng(args.seed + 1)
     users = np.arange(pop.n_users)
     shown = np.zeros_like(pop.eligible)
     history = []
     total_mutual = 0
-    for day in range(1, args.days + 1):
+    for day in range(1, (days or args.days) + 1):
         if name == "adaptive":
             picks = adaptive(beliefs, bank, users, args.per_day)
         else:
@@ -46,11 +47,14 @@ def run_policy(name, pop, bank, like, truth_mutual, args):
         pairs = greedy_b_matching(pred, pop.eligible, shown, args.k_daily)
         shown[pairs[:, 0], pairs[:, 1]] = shown[pairs[:, 1], pairs[:, 0]] = True
         total_mutual += int((like[pairs[:, 0], pairs[:, 1]] & like[pairs[:, 1], pairs[:, 0]]).sum())
+        if use_decisions:
+            chooser, target = np.r_[pairs[:, 0], pairs[:, 1]], np.r_[pairs[:, 1], pairs[:, 0]]
+            learn(beliefs, Decisions(chooser, target, like[chooser, target]), *pool_spread(directed.mean, pop.eligible))
         row["cumulative_mutual_matches"] = total_mutual
         conf = confidence(directed, beliefs.weights, pop.eligible)
         row["mean_confidence"] = float(conf[pop.eligible].mean())
         row["day"] = day
-        row["questions_answered"] = day * args.per_day
+        row["questions_answered"] = int(beliefs.answered.sum(1).mean())
         history.append(row)
     return history, beliefs, pred
 
@@ -68,6 +72,22 @@ def allocation_comparison(pred, pop, like, k):
             "max_exposure": int(exp.max()),
             "users_never_shown": float(np.mean(exp == 0)),
         }
+    return out
+
+
+def decision_learning(args, bank):
+    out = {}
+    for world, gap in (("honest", 0.0), ("misreporting", args.stated_gap)):
+        rng = np.random.default_rng(args.seed)
+        pop = generate(args.users, len(DIMENSIONS), rng, stated_gap=gap)
+        like = likes(pop, rng)
+        truth_mutual = mutual_scores(attraction(pop), pop.eligible)
+        out[world] = {}
+        for label, use in (("survey", False), ("survey_and_decisions", True)):
+            history, _, _ = run_policy("adaptive", pop, bank, like, truth_mutual, args, args.long_days, use)
+            out[world][label] = [
+                {key: row[key] for key in ("day", "spearman", "cumulative_mutual_matches")} for row in history
+            ]
     return out
 
 
@@ -97,6 +117,20 @@ def to_markdown(results) -> str:
         f"| random matching | {b['random']['spearman']:.3f} | {b['random']['precision_at_10']:.3f} | {b['random']['mutual_like_rate']:.3f} |",
         f"| oracle (knows true traits, not chemistry) | {b['oracle']['spearman']:.3f} | "
         f"{b['oracle']['precision_at_10']:.3f} | {b['oracle']['mutual_like_rate']:.3f} |",
+        "\n## Learning from like/pass decisions\n",
+        f"Adaptive questions for {results['config']['long_days']} days. In the misreporting world each stated "
+        f"preference is off by noise with std {results['config']['stated_gap']} from the one that drives likes.\n",
+        "| world | day | spearman (survey) | spearman (+decisions) | mutual matches (survey) | mutual matches (+decisions) |",
+        "|---|---|---|---|---|---|",
+    ]
+    for world, runs in results["decisions"].items():
+        for a, b_row in zip(runs["survey"], runs["survey_and_decisions"]):
+            if a["day"] in (1, 7, 14) or a["day"] == len(runs["survey"]):
+                lines.append(
+                    f"| {world} | {a['day']} | {a['spearman']:.3f} | {b_row['spearman']:.3f} | "
+                    f"{a['cumulative_mutual_matches']} | {b_row['cumulative_mutual_matches']} |"
+                )
+    lines += [
         "\n## Allocation: naive top-k vs greedy b-matching (final adaptive model)\n",
         "| allocator | mutual like rate | exposure gini | max exposure | users never shown |",
         "|---|---|---|---|---|",
@@ -116,6 +150,8 @@ def main():
     parser.add_argument("--per-day", type=int, default=6)
     parser.add_argument("--k-daily", type=int, default=3)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--long-days", type=int, default=28)
+    parser.add_argument("--stated-gap", type=float, default=0.5)
     args = parser.parse_args()
 
     rng = np.random.default_rng(args.seed)
@@ -135,6 +171,7 @@ def main():
     noise = mutual_scores(rng.standard_normal(pop.eligible.shape), pop.eligible)
     random_row = evaluate(noise, truth_mutual, pop, like, args.k_daily)
     results["baselines"] = {"oracle": oracle_row, "random": random_row}
+    results["decisions"] = decision_learning(args, bank)
 
     RESULTS_DIR.mkdir(exist_ok=True)
     (RESULTS_DIR / "latest.json").write_text(json.dumps(results, indent=2))

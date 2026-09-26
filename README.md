@@ -15,6 +15,7 @@ A few things I spent most of the time on:
 - **Which questions to ask.** Questions aren't random. For each user I pick the ones that should shrink the uncertainty in their match scores the most, weighted by how much they care about that dimension.
 - **Both sides have to fit.** A score from u to v isn't enough. Mutual score is the geometric mean of both directions, after normalizing each person's scores against their own pool, so picky and easy-going people end up on the same scale.
 - **Confidence.** Scores come with a variance, so the app can say "62% sure" instead of pretending. A brand-new user starts at 0.
+- **What people do, not just what they say.** Stated preferences and real ones aren't the same thing. Every like or pass is treated as a probit observation and folded in overnight with a moment-matched update (the same trick TrueSkill uses). It only moves a separate "gap" term on top of the stated preference, plus a per-person "bar" for how picky they are, so the answers are never overwritten, only corrected.
 - **Who gets shown to whom.** If everyone just sees their own top 3, popular profiles land in dozens of lists and a lot of people get nothing. Daily matches are assigned with a greedy b-matching instead, so a match is shown to both people and nobody gets more than k a day.
 
 ## Does it work?
@@ -34,6 +35,7 @@ What I take from this:
 
 - Adaptive questions get to the same accuracy with about half the questions (12 vs ~24). The gap closes by day 7 because the question bank is only 48 questions, so the bank needs to grow.
 - After a week the model gets to about 89% of an oracle that knows everyone's true traits (0.69 vs 0.77). The rest is chemistry, and I don't think any questionnaire gets that part.
+- Learning from likes and passes doesn't matter when people answer honestly (0.689 vs 0.691 after four weeks). It does when they don't: if every stated preference is off by noise with std 0.5, questions alone stall at 0.63, and adding decisions pushes that to 0.68 by day 28 with 7% more mutual matches. Without it the model would just keep believing the answers.
 - b-matching drops exposure inequality from a Gini of 0.46 to 0.02 and costs about 3 points of like rate. I think that trade is worth it.
 
 Full numbers are written to `engine/results/latest.json` every time the simulation runs.
@@ -95,7 +97,7 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | | |
 |---|---|
 | `POST /auth/register`, `POST /auth/login` | returns a JWT |
-| `GET /me` | profile, answer count, how much the model knows about you |
+| `GET /me` | profile, answer count, how much the model knows about you, where your likes disagree with your answers |
 | `GET /questions/today` | today's questions (same set all day) |
 | `POST /questions/:id/answer` | `{ self, partner, importance }`, each 1-5 |
 | `GET /matches/today` | today's matches with score, confidence, what fits and what might clash |
@@ -120,5 +122,5 @@ contract/          question bank and fixtures shared by the API and the engine
 ## Next
 
 - Email or push notifications on top of the in-app ones
-- Use likes/passes and chat activity alongside stated answers
+- Use chat activity as a signal too, not only likes and passes
 - Bigger question bank and a proper IRT model once there's real data

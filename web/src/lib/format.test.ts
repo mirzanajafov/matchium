@@ -1,4 +1,4 @@
-import { confidenceLabel, dimensionLabel, joinWords, percent } from "./format";
+import { confidenceLabel, dimensionLabel, joinWords, percent, shiftSentence } from "./format";
 
 describe("format", () => {
   it("joins words like a person would", () => {
@@ -6,6 +6,12 @@ describe("format", () => {
     expect(joinWords(["family"])).toBe("family");
     expect(joinWords(["family", "planning ahead"])).toBe("family and planning ahead");
     expect(joinWords(["a", "b", "c"])).toBe("a, b and c");
+  });
+
+  it("describes what likes revealed", () => {
+    expect(shiftSentence({ dimension: "activity", direction: "less" })).toBe(
+      "You go for less staying active than your answers suggest.",
+    );
   });
 
   it("maps engine dimensions to readable labels", () => {

@@ -14,6 +14,7 @@ IMPORTANCE_ANSWER_NOISE = 0.5
 class Population:
     traits: np.ndarray
     prefs: np.ndarray
+    stated_prefs: np.ndarray
     weights: np.ndarray
     chemistry: np.ndarray
     gender: np.ndarray
@@ -30,6 +31,7 @@ def generate(
     rng: np.random.Generator,
     homophily: float = 0.5,
     chemistry_std: float = 0.6,
+    stated_gap: float = 0.0,
 ) -> Population:
     traits = rng.standard_normal((n_users, n_dims))
     prefs = homophily * traits + np.sqrt(1 - homophily**2) * rng.standard_normal((n_users, n_dims))
@@ -53,7 +55,8 @@ def generate(
 
     eligible = seeks[:, gender] & seeks[:, gender].T
     np.fill_diagonal(eligible, False)
-    return Population(traits, prefs, weights, chemistry, gender, eligible)
+    stated = prefs + stated_gap * rng.standard_normal(prefs.shape) if stated_gap > 0 else prefs
+    return Population(traits, prefs, stated, weights, chemistry, gender, eligible)
 
 
 def predictable_attraction(pop: Population) -> np.ndarray:
@@ -77,7 +80,7 @@ def answer(
     k = question.dimension
     sign = -1.0 if question.reverse else 1.0
     self_answer = _likert(sign * pop.traits[users, k], question.noise, rng)
-    pref_answer = _likert(sign * pop.prefs[users, k], question.noise, rng)
+    pref_answer = _likert(sign * pop.stated_prefs[users, k], question.noise, rng)
     level = 3 + IMPORTANCE_SLOPE * np.log2(pop.weights[users, k])
     level += IMPORTANCE_ANSWER_NOISE * rng.standard_normal(len(users))
     importance = np.clip(np.rint(level), 1, 5).astype(int)

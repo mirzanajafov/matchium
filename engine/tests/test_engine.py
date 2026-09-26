@@ -6,7 +6,7 @@ import pytest
 from matchium import Beliefs, DIMENSIONS, load_bank
 from matchium.allocation import greedy_b_matching, naive_top_k
 from matchium.model import PRIOR_VAR
-from matchium.scoring import confidence, directed_scores, explain, mutual_scores
+from matchium.scoring import confidence, directed_scores, explain, mutual_scores, pair_scores
 from matchium.selection import adaptive, random_order
 from sim.population import answer, attraction, generate
 
@@ -18,6 +18,8 @@ def random_beliefs(rng, n=12, d=len(DIMENSIONS)):
     b.var_self = rng.uniform(0.05, 1.0, (n, d))
     b.var_pref = rng.uniform(0.05, 1.0, (n, d))
     b.log_w_sum = rng.standard_normal((n, d))
+    b.mu_gap = 0.3 * rng.standard_normal((n, d))
+    b.var_gap = rng.uniform(0.05, 0.3, (n, d))
     return b
 
 
@@ -56,12 +58,15 @@ def test_directed_scores_match_brute_force():
     w, d = b.weights, len(DIMENSIONS)
     for u in range(b.n_users):
         for v in range(b.n_users):
-            diff = b.mu_pref[u] - b.mu_self[v]
-            mean = -(w[u] * (diff**2 + b.var_pref[u] + b.var_self[v])).sum() / d
-            s2 = b.var_pref[u] + b.var_self[v]
+            diff = b.mu_pref[u] + b.mu_gap[u] - b.mu_self[v]
+            s2 = b.var_pref[u] + b.var_gap[u] + b.var_self[v]
+            mean = -(w[u] * (diff**2 + s2)).sum() / d
             std = np.sqrt((w[u] ** 2 * (4 * diff**2 * s2 + 2 * s2**2)).sum()) / d
             assert s.mean[u, v] == pytest.approx(mean)
             assert s.std[u, v] == pytest.approx(std)
+    u, v = np.meshgrid(np.arange(b.n_users), np.arange(b.n_users), indexing="ij")
+    mean, std = pair_scores(b, u.ravel(), v.ravel())
+    assert np.allclose(mean, s.mean.ravel()) and np.allclose(std, s.std.ravel())
 
 
 def test_mutual_scores_symmetric_and_masked():

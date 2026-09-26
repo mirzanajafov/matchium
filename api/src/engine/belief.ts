@@ -1,4 +1,14 @@
-export const DIMENSION_COUNT = 8;
+export const DIMENSIONS = [
+  'social_energy',
+  'adventure',
+  'ambition',
+  'family',
+  'tidiness',
+  'planning',
+  'tradition',
+  'activity',
+] as const;
+export const DIMENSION_COUNT = DIMENSIONS.length;
 export const LIKERT_CENTERS = [-1.9, -0.95, 0.0, 0.95, 1.9];
 export const QUANTIZATION_VAR = 0.1;
 export const PRIOR_VAR = 1.0;
