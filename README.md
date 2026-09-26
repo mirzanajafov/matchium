@@ -64,7 +64,15 @@ Web push covers the times the app isn't open: a new message, a mutual like, and 
 
 ## Running it
 
-You need Docker, Node 24 and Python 3.11+.
+The quickest way to see the whole thing is Docker alone:
+
+```bash
+docker compose --profile app up -d --build   # web on http://localhost:3101, API on :3100
+```
+
+That starts Postgres, the API (it migrates and seeds the question bank on start), the web app and the nightly scheduler. Push stays off unless you pass `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`.
+
+For development you need Docker, Node 24 and Python 3.11+.
 
 ```bash
 docker compose up -d
