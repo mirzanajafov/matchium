@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="12">
+<rect width="640" height="360" fill="#ffffff" rx="8"/>
+<text x="56" y="24" font-size="14" font-weight="600" fill="#1d1f1c">Learning from likes and passes</text>
+<line x1="56" x2="465" y1="316.0" y2="316.0" stroke="#e3e1d9"/>
+<text x="48" y="320.0" text-anchor="end" fill="#6b6f68">0.40</text>
+<line x1="56" x2="465" y1="248.0" y2="248.0" stroke="#e3e1d9"/>
+<text x="48" y="252.0" text-anchor="end" fill="#6b6f68">0.50</text>
+<line x1="56" x2="465" y1="180.0" y2="180.0" stroke="#e3e1d9"/>
+<text x="48" y="184.0" text-anchor="end" fill="#6b6f68">0.60</text>
+<line x1="56" x2="465" y1="112.0" y2="112.0" stroke="#e3e1d9"/>
+<text x="48" y="116.0" text-anchor="end" fill="#6b6f68">0.70</text>
+<line x1="56" x2="465" y1="44.0" y2="44.0" stroke="#e3e1d9"/>
+<text x="48" y="48.0" text-anchor="end" fill="#6b6f68">0.80</text>
+<text x="56.0" y="334" text-anchor="middle" fill="#6b6f68">1</text>
+<text x="162.0" y="334" text-anchor="middle" fill="#6b6f68">8</text>
+<text x="252.9" y="334" text-anchor="middle" fill="#6b6f68">14</text>
+<text x="359.0" y="334" text-anchor="middle" fill="#6b6f68">21</text>
+<text x="465.0" y="334" text-anchor="middle" fill="#6b6f68">28</text>
+<text x="260.5" y="354" text-anchor="middle" fill="#6b6f68">day</text>
+<text transform="translate(14 180.0) rotate(-90)" text-anchor="middle" fill="#6b6f68">rank correlation with truth</text>
+<polyline points="56.0,268.8 71.1,180.9 86.3,152.9 101.4,139.6 116.6,131.3 131.7,125.7 146.9,121.7 162.0,119.2 177.2,119.2 192.3,119.2 207.5,119.2 222.6,119.2 237.8,119.2 252.9,119.2 268.1,119.2 283.2,119.2 298.4,119.2 313.5,119.2 328.7,119.2 343.8,119.2 359.0,119.2 374.1,119.2 389.3,119.2 404.4,119.2 419.6,119.2 434.7,119.2 449.9,119.2 465.0,119.2" fill="none" stroke="#8a8f86" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 4"/>
+<line x1="481" x2="501" y1="52" y2="52" stroke="#8a8f86" stroke-width="2.5" stroke-dasharray="5 4"/>
+<text x="507" y="56" fill="#1d1f1c">honest answers</text>
+<polyline points="56.0,290.7 71.1,210.8 86.3,186.9 101.4,173.0 116.6,163.9 131.7,157.4 146.9,152.0 162.0,147.9 177.2,146.4 192.3,144.5 207.5,143.4 222.6,142.2 237.8,140.7 252.9,139.2 268.1,137.9 283.2,136.8 298.4,135.8 313.5,134.7 328.7,133.8 343.8,132.8 359.0,132.0 374.1,131.4 389.3,130.5 404.4,129.8 419.6,129.2 434.7,128.5 449.9,128.0 465.0,127.5" fill="none" stroke="#1f9d63" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="481" x2="501" y1="72" y2="72" stroke="#1f9d63" stroke-width="2.5"/>
+<text x="507" y="76" fill="#1d1f1c">misreported + likes</text>
+<polyline points="56.0,290.7 71.1,211.3 86.3,188.7 101.4,176.8 116.6,169.2 131.7,164.4 146.9,161.0 162.0,158.7 177.2,158.7 192.3,158.7 207.5,158.7 222.6,158.7 237.8,158.7 252.9,158.7 268.1,158.7 283.2,158.7 298.4,158.7 313.5,158.7 328.7,158.7 343.8,158.7 359.0,158.7 374.1,158.7 389.3,158.7 404.4,158.7 419.6,158.7 434.7,158.7 449.9,158.7 465.0,158.7" fill="none" stroke="#c2553a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="481" x2="501" y1="92" y2="92" stroke="#c2553a" stroke-width="2.5"/>
+<text x="507" y="96" fill="#1d1f1c">misreported only</text>
+</svg>
