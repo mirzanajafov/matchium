@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ApiError, api, authedApi } from "@/lib/api";
 import type { PushSubscriptionPayload } from "@/lib/push";
 import { clearSession, getPushEndpoint, getToken, rememberPushEndpoint, setSession } from "@/lib/session";
-import type { AnswerResult, AnswerValues, ChatMessage, ChatThread, Inbox } from "@/lib/types";
+import type { AnswerResult, AnswerValues, ChatMessage, ChatThread, Inbox, ReportReason } from "@/lib/types";
 
 export interface FormState {
   error?: string;
@@ -94,4 +94,8 @@ export async function savePushSubscription(subscription: PushSubscriptionPayload
 export async function removePushSubscription(endpoint: string): Promise<void> {
   await authedApi("/push/subscriptions", { method: "DELETE", body: { endpoint } });
   await rememberPushEndpoint(null);
+}
+
+export async function unmatch(matchId: string, report?: { reason: ReportReason; note?: string }): Promise<void> {
+  await authedApi(`/matches/${encodeURIComponent(matchId)}/unmatch`, { body: report ? { report } : {} });
 }

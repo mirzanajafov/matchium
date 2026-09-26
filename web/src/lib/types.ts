@@ -82,3 +82,5 @@ export interface ChatThread {
   person: { id: string; displayName: string };
   messages: ChatMessage[];
 }
+
+export type ReportReason = "SPAM" | "HARASSMENT" | "FAKE_PROFILE" | "UNDERAGE" | "OTHER";

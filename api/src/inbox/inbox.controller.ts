@@ -20,7 +20,7 @@ export class InboxController {
     const day = utcDay(this.clock.now());
     const [newMatches, unreadChats] = await Promise.all([
       this.prisma.match.count({
-        where: { day, OR: [{ userAId: id }, { userBId: id }], decisions: { none: { userId: id } } },
+        where: { day, closedAt: null, OR: [{ userAId: id }, { userBId: id }], decisions: { none: { userId: id } } },
       }),
       this.chats.unreadCount(id),
     ]);

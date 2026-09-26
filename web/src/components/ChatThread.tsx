@@ -25,6 +25,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, startSending] = useTransition();
+  const [closed, setClosed] = useState(false);
   const latest = useRef(initialMessages.at(-1)?.createdAt);
   const bottom = useRef<HTMLLIElement>(null);
 
@@ -48,6 +49,10 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
     source.addEventListener("message", (event: MessageEvent<string>) => {
       const message = JSON.parse(event.data) as ChatMessage;
       if (active) setMessages((current) => merge(current, [message]));
+    });
+    source.addEventListener("closed", () => {
+      source.close();
+      if (active) setClosed(true);
     });
     source.addEventListener("error", () => {
       if (source.readyState === EventSource.CLOSED && !fallback) {
@@ -101,29 +106,35 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
         <li ref={bottom} aria-hidden="true" />
       </ol>
 
-      <form
-        className="flex gap-2 border-t border-line p-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          send();
-        }}
-      >
-        <input
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          maxLength={1000}
-          placeholder={`Message ${personName}`}
-          aria-label="Message"
-          className="h-11 flex-1 rounded-lg border border-line bg-background px-3 outline-none focus:border-accent"
-        />
-        <button
-          type="submit"
-          disabled={sending || !draft.trim()}
-          className="h-11 rounded-lg bg-foreground px-4 font-medium text-background disabled:opacity-40"
+      {closed ? (
+        <p role="status" className="border-t border-line p-4 text-center text-sm text-muted">
+          This conversation has been closed.
+        </p>
+      ) : (
+        <form
+          className="flex gap-2 border-t border-line p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            send();
+          }}
         >
-          Send
-        </button>
-      </form>
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            maxLength={1000}
+            placeholder={`Message ${personName}`}
+            aria-label="Message"
+            className="h-11 flex-1 rounded-lg border border-line bg-background px-3 outline-none focus:border-accent"
+          />
+          <button
+            type="submit"
+            disabled={sending || !draft.trim()}
+            className="h-11 rounded-lg bg-foreground px-4 font-medium text-background disabled:opacity-40"
+          >
+            Send
+          </button>
+        </form>
+      )}
       {error && (
         <p role="alert" className="px-4 pb-3 text-sm text-warn">
           {error}

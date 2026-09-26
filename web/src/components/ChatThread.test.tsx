@@ -139,4 +139,17 @@ describe("ChatThread", () => {
     });
     expect(screen.getByText("Polled")).toBeInTheDocument();
   });
+
+  it("locks the conversation when the other person unmatches", async () => {
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    const source = FakeEventSource.instances[0]!;
+    expect(screen.getByRole("textbox", { name: "Message" })).toBeInTheDocument();
+
+    await act(async () => source.emit("closed"));
+
+    expect(source.closed).toBe(true);
+    expect(screen.getByRole("status")).toHaveTextContent("This conversation has been closed.");
+    expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+  });
 });
+

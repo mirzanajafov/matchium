@@ -58,6 +58,8 @@ Answers for the same user are written under a row lock on their belief, so answe
 
 The web app never talks to the API from the browser. Pages and form actions run on the Next server, which keeps the JWT in an httpOnly cookie and calls the API with it. The browser never sees the token, and the API doesn't need CORS.
 
+Either person can unmatch at any point, optionally filing a report (spam, harassment, fake profile, possibly underage). The match disappears for both of them, the chat stops accepting messages, an open chat on the other side is told over the stream and locks, and the pair is never matched again because the nightly job skips any pair it has matched before. Reports land in a table for review.
+
 Chat messages are pushed live. When a message is saved the API fires a Postgres `NOTIFY`, every API instance is `LISTEN`ing, and each one forwards it to the people who have that chat open over server-sent events. The web app proxies the stream through a Next route handler so the token still stays on the server. If the stream drops, the page reconnects and fetches anything it missed.
 
 Web push covers the times the app isn't open: a new message, a mutual like, and "your matches are here" after the nightly run. The API signs pushes with its own VAPID keys, so there's no third-party account. The nightly job fires `NOTIFY matches_ready` when it commits, and whichever API instance claims the day first (`UPDATE ... WHERE "notifiedAt" IS NULL RETURNING`) sends the pushes, so running several instances doesn't mean several notifications. Dead subscriptions (404/410 from the push service) are deleted on the spot. The service worker skips the notification if you're already looking at that chat.
@@ -117,6 +119,7 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | `POST /questions/:id/answer` | `{ self, partner, importance }`, each 1-5 |
 | `GET /matches/today` | today's matches with score, confidence, what fits and what might clash |
 | `POST /matches/:id/decision` | `{ like }`, tells you if it's mutual |
+| `POST /matches/:id/unmatch` | closes the match and chat for both people, optionally with `{ report: { reason, note } }` |
 | `GET /chats` | your mutual matches, most recent conversation first |
 | `GET /chats/:id/messages?after=` | messages in a chat, optionally only newer ones |
 | `POST /chats/:id/messages` | `{ body }`, only once you both said yes |

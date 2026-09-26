@@ -486,3 +486,83 @@ describe('push notifications', () => {
     expect(pushes.sent).toHaveLength(2);
   });
 });
+
+describe('unmatch and report', () => {
+  const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  async function chatting() {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
+    const match = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+    for (const who of [alice, bob]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'hey' }).expect(201);
+    return { alice, bob, match };
+  }
+
+  it('closes the chat for both people and keeps it closed', async () => {
+    const { alice, bob, match } = await chatting();
+    const stranger = await register();
+    await http().post(`/matches/${match.id}/unmatch`).set(as(stranger.token)).send({}).expect(404);
+
+    const res = await http().post(`/matches/${match.id}/unmatch`).set(as(alice.token)).send({}).expect(200);
+    expect(res.body).toEqual({ closed: true, reported: false });
+
+    for (const who of [alice, bob]) {
+      expect((await http().get('/chats').set(as(who.token)).expect(200)).body).toEqual([]);
+      expect((await http().get('/matches/today').set(as(who.token)).expect(200)).body.matches).toEqual([]);
+      expect((await http().get('/inbox').set(as(who.token)).expect(200)).body).toEqual({ newMatches: 0, unreadChats: 0 });
+      await http().get(`/chats/${match.id}/messages`).set(as(who.token)).expect(404);
+    }
+    await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'hello?' }).expect(404);
+    await http().post(`/matches/${match.id}/unmatch`).set(as(bob.token)).send({}).expect(200);
+
+    const stored = await prisma.match.findUniqueOrThrow({ where: { id: match.id } });
+    expect(stored.closedById).toBe(alice.id);
+  });
+
+  it('files a report against the other person', async () => {
+    const { alice, bob, match } = await chatting();
+    await http()
+      .post(`/matches/${match.id}/unmatch`)
+      .set(as(alice.token))
+      .send({ report: { reason: 'NOT_A_REASON' } })
+      .expect(400);
+    await http()
+      .post(`/matches/${match.id}/unmatch`)
+      .set(as(alice.token))
+      .send({ report: { reason: 'HARASSMENT', note: 'x'.repeat(501) } })
+      .expect(400);
+
+    const res = await http()
+      .post(`/matches/${match.id}/unmatch`)
+      .set(as(alice.token))
+      .send({ report: { reason: 'HARASSMENT', note: '  kept insulting me  ' } })
+      .expect(200);
+    expect(res.body).toEqual({ closed: true, reported: true });
+    await http().post(`/matches/${match.id}/unmatch`).set(as(alice.token)).send({ report: { reason: 'SPAM' } }).expect(200);
+
+    const reports = await prisma.report.findMany();
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({ reporterId: alice.id, reportedId: bob.id, reason: 'SPAM', note: null });
+  });
+
+  it('ends an open chat stream when the match is closed', async () => {
+    const { alice, bob, match } = await chatting();
+    const server = app.getHttpServer() as import('node:http').Server;
+    if (!server.listening) await app.listen(0);
+    const { port } = server.address() as import('node:net').AddressInfo;
+    const response = await fetch(`http://127.0.0.1:${port}/chats/${match.id}/stream`, {
+      headers: { Authorization: `Bearer ${alice.token}` },
+    });
+    expect(response.status).toBe(200);
+
+    await http().post(`/matches/${match.id}/unmatch`).set(as(bob.token)).send({}).expect(200);
+    const body = await response.text();
+    expect(body).toContain('event: closed');
+  });
+});
+

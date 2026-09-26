@@ -14,6 +14,14 @@ enum Gender {
   NONBINARY
 }
 
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  FAKE_PROFILE
+  UNDERAGE
+  OTHER
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
@@ -34,6 +42,8 @@ model User {
   messages       Message[]
   chatReads      ChatRead[]
   pushes         PushSubscription[]
+  reportsMade    Report[]           @relation("ReportsMade")
+  reportsAgainst Report[]           @relation("ReportsAgainst")
 }
 
 model Question {
@@ -100,12 +110,15 @@ model Match {
   friction   String
   createdAt  DateTime  @default(now())
   notifiedAt DateTime?
+  closedAt   DateTime?
+  closedById String?   @db.Uuid
 
   userA     User            @relation("MatchUserA", fields: [userAId], references: [id], onDelete: Cascade)
   userB     User            @relation("MatchUserB", fields: [userBId], references: [id], onDelete: Cascade)
   decisions MatchDecision[]
   messages  Message[]
   reads     ChatRead[]
+  reports   Report[]
 
   @@unique([userAId, userBId])
   @@index([day, userAId])
@@ -160,4 +173,23 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model Report {
+  id         String       @id @default(uuid()) @db.Uuid
+  matchId    String       @db.Uuid
+  reporterId String       @db.Uuid
+  reportedId String       @db.Uuid
+  reason     ReportReason
+  note       String?
+  createdAt  DateTime     @default(now())
+  reviewedAt DateTime?
+
+  match    Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  reporter User  @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User  @relation("ReportsAgainst", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, reporterId])
+  @@index([reportedId])
+  @@index([reviewedAt])
 }
