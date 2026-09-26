@@ -37,6 +37,7 @@ services:
     environment:
       DATABASE_URL: postgresql://matchium:matchium@postgres:5432/matchium
       JWT_SECRET: ${JWT_SECRET:-local-docker-secret}
+      TRUST_PROXY: uniquelocal
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:push@example.com}
@@ -57,6 +58,7 @@ services:
     profiles: ["app"]
     environment:
       API_URL: http://api:3100
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     ports:
       - "3101:3101"
     depends_on:

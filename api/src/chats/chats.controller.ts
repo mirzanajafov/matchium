@@ -2,6 +2,7 @@ import { Body, Controller, Get, MessageEvent, Param, ParseUUIDPipe, Post, Query,
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Observable } from 'rxjs';
 import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
+import { RateLimit } from '../limits/rate-limit.decorator.js';
 import { ChatsService } from './chats.service.js';
 import { MessagesQueryDto } from './dto/messages-query.dto.js';
 import { SendMessageDto } from './dto/send-message.dto.js';
@@ -23,6 +24,7 @@ export class ChatsController {
   }
 
   @Post(':id/messages')
+  @RateLimit({ name: 'message', by: 'user', limit: 30, windowSeconds: 60 })
   send(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: SendMessageDto) {
     return this.chats.send(user.id, id, dto.body);
   }

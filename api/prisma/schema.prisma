@@ -207,3 +207,12 @@ model Report {
   @@index([reportedId])
   @@index([reviewedAt])
 }
+
+model RateLimit {
+  key         String
+  windowStart DateTime
+  count       Int      @default(1)
+
+  @@id([key, windowStart])
+  @@index([windowStart])
+}

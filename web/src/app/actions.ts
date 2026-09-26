@@ -73,8 +73,13 @@ export async function decide(matchId: string, like: boolean): Promise<{ mutual: 
   return authedApi<{ mutual: boolean }>(`/matches/${encodeURIComponent(matchId)}/decision`, { body: { like } });
 }
 
-export async function sendMessage(matchId: string, body: string): Promise<ChatMessage> {
-  return authedApi<ChatMessage>(`/chats/${encodeURIComponent(matchId)}/messages`, { body: { body } });
+export async function sendMessage(matchId: string, body: string): Promise<ChatMessage | { error: string }> {
+  try {
+    return await authedApi<ChatMessage>(`/chats/${encodeURIComponent(matchId)}/messages`, { body: { body } });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 429) return { error: "You're sending messages too fast. Wait a moment." };
+    throw error;
+  }
 }
 
 export async function fetchMessages(matchId: string, after?: string): Promise<ChatMessage[]> {

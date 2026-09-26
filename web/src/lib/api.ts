@@ -1,4 +1,5 @@
 import "server-only";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getToken } from "./session";
 
@@ -26,12 +27,25 @@ function messageFrom(data: unknown): string | undefined {
   return typeof message === "string" ? message : undefined;
 }
 
+const TRUSTED_PROXY_HOPS = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS ?? 1) || 1);
+
+export function clientFromForwarded(header: string | null, hops = TRUSTED_PROXY_HOPS): string | undefined {
+  const entries = (header ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+  return entries.at(-hops) ?? entries[0];
+}
+
+async function clientAddress(): Promise<string | undefined> {
+  return clientFromForwarded((await headers()).get("x-forwarded-for"));
+}
+
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const client = await clientAddress();
   const response = await fetch(`${API_URL}${path}`, {
     method: options.method ?? (options.body === undefined ? "GET" : "POST"),
     headers: {
       "content-type": "application/json",
       ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+      ...(client ? { "x-forwarded-for": client } : {}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     cache: "no-store",

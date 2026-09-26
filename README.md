@@ -64,6 +64,8 @@ Chat messages are pushed live. When a message is saved the API fires a Postgres 
 
 Web push covers the times the app isn't open: a new message, a mutual like, and "your matches are here" after the nightly run. The API signs pushes with its own VAPID keys, so there's no third-party account. The nightly job fires `NOTIFY matches_ready` when it commits, and whichever API instance claims the day first (`UPDATE ... WHERE "notifiedAt" IS NULL RETURNING`) sends the pushes, so running several instances doesn't mean several notifications. Dead subscriptions (404/410 from the push service) are deleted on the spot. The service worker skips the notification if you're already looking at that chat.
 
+Login, sign-up and sending messages are rate limited: 10 login attempts per account and 30 per address every 15 minutes, 5 sign-ups per address an hour, 30 messages a minute per person. The counters live in Postgres (one `INSERT ... ON CONFLICT DO UPDATE ... RETURNING count` per check), so every API instance sees the same numbers without Redis. Going over returns 429 with `Retry-After`. Because the API only ever sees the Next server, the web app forwards the client address, taking it from the right end of `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`) so a client can't pick its own; the API only believes that header from addresses in `TRUST_PROXY`.
+
 ## Running it
 
 The quickest way to see the whole thing is Docker alone:

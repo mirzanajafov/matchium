@@ -23,6 +23,10 @@ export class Env {
 
   @IsOptional()
   @IsString()
+  TRUST_PROXY: string = 'loopback';
+
+  @IsOptional()
+  @IsString()
   VAPID_PUBLIC_KEY: string = '';
 
   @IsOptional()
