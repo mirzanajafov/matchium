@@ -17,7 +17,7 @@ class DirectedScores:
 
 def directed_scores(beliefs: Beliefs) -> DirectedScores:
     w = beliefs.weights
-    mp, vp = beliefs.mu_pref, beliefs.var_pref
+    mp, vp = beliefs.pref_mean, beliefs.pref_var
     mt, vt = beliefs.mu_self, beliefs.var_self
     d = w.shape[1]
 
@@ -39,7 +39,17 @@ def directed_scores(beliefs: Beliefs) -> DirectedScores:
     return DirectedScores(mean, std)
 
 
-def _standardize(scores: np.ndarray, eligible: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def pair_scores(beliefs: Beliefs, u: np.ndarray, v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    w = beliefs.weights[u]
+    diff = beliefs.pref_mean[u] - beliefs.mu_self[v]
+    spread = beliefs.pref_var[u] + beliefs.var_self[v]
+    d = w.shape[1]
+    mean = -(w * (diff**2 + spread)).sum(1) / d
+    std = np.sqrt((w**2 * (4 * diff**2 * spread + 2 * spread**2)).sum(1)) / d
+    return mean, std
+
+
+def standardize(scores: np.ndarray, eligible: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     masked = np.where(eligible, scores, np.nan)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
@@ -47,11 +57,11 @@ def _standardize(scores: np.ndarray, eligible: np.ndarray) -> tuple[np.ndarray, 
         scale = np.nanstd(masked, axis=1, keepdims=True)
     center = np.where(np.isfinite(center), center, 0.0)
     scale = np.where(np.isfinite(scale) & (scale > 1e-9), scale, 1.0)
-    return (scores - center) / scale, scale
+    return (scores - center) / scale, center, scale
 
 
 def mutual_scores(scores: np.ndarray, eligible: np.ndarray) -> np.ndarray:
-    z, _ = _standardize(scores, eligible)
+    z, _, _ = standardize(scores, eligible)
     p = 1.0 / (1.0 + np.exp(-MUTUAL_SHARPNESS * z))
     return np.where(eligible, np.sqrt(p * p.T), 0.0)
 
@@ -65,8 +75,8 @@ def confidence(directed: DirectedScores, weights: np.ndarray, eligible: np.ndarr
 
 def explain(beliefs: Beliefs, u: int, v: int, top: int = 2) -> dict:
     w = beliefs.weights
-    cost_uv = w[u] * (beliefs.mu_pref[u] - beliefs.mu_self[v]) ** 2
-    cost_vu = w[v] * (beliefs.mu_pref[v] - beliefs.mu_self[u]) ** 2
+    cost_uv = w[u] * (beliefs.pref_mean[u] - beliefs.mu_self[v]) ** 2
+    cost_vu = w[v] * (beliefs.pref_mean[v] - beliefs.mu_self[u]) ** 2
     importance = w[u] + w[v]
     cost = cost_uv + cost_vu
     distance = cost / importance

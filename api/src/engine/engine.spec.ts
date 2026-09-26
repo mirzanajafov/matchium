@@ -1,4 +1,4 @@
-import { BeliefState, DIMENSION_COUNT, certainty, observe, priorBelief } from './belief.js';
+import { BeliefState, DIMENSIONS, certainty, observe, priorBelief } from './belief.js';
 import { QuestionContract, readContract } from './contract.js';
 import { pickQuestions } from './selection.js';
 
@@ -29,7 +29,7 @@ function expectStateClose(actual: BeliefState, expected: BeliefState) {
 
 describe('engine parity with the python reference', () => {
   it('uses the same dimensions', () => {
-    expect(dimensions).toHaveLength(DIMENSION_COUNT);
+    expect(dimensions).toEqual(DIMENSIONS);
   });
 
   scenarios.forEach((scenario, index) => {
@@ -66,7 +66,7 @@ describe('certainty', () => {
 describe('pickQuestions', () => {
   it('never returns answered questions and stops when the bank runs out', () => {
     const answered = new Set(questions.slice(0, -2).map((q) => q.id));
-    const picks = pickQuestions(priorBelief(), questions, answered, 5, Array(DIMENSION_COUNT).fill(1));
+    const picks = pickQuestions(priorBelief(), questions, answered, 5, Array(DIMENSIONS.length).fill(1));
     expect(picks.sort()).toEqual(questions.slice(-2).map((q) => q.id).sort());
   });
 });

@@ -5,8 +5,9 @@ import uuid
 import numpy as np
 import pytest
 
-from jobs.nightly import build_pool, plan, run
+from jobs.nightly import build_pool, learn_decisions, plan, run
 from matchium import DIMENSIONS
+from matchium.model import BAR_PRIOR_MEAN, GAP_PRIOR_VAR
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql://matchium:matchium@localhost:5441/matchium_test"
@@ -56,6 +57,33 @@ def test_plan_respects_capacity_eligibility_and_history():
             degree[uid] = degree.get(uid, 0) + 1
     assert max(degree.values()) <= 3
     assert {users[-2]["id"], users[-1]["id"]} in [{m.user_a, m.user_b} for m in matches]
+
+
+def test_learn_decisions_updates_only_choosers_in_the_pool():
+    rng = np.random.default_rng(3)
+    users = population(rng)
+    pool = build_pool(users, [])
+    outsider = str(uuid.uuid4())
+    updated = learn_decisions(
+        pool, [(users[0]["id"], users[8]["id"], True), (users[9]["id"], users[1]["id"], False), (outsider, users[2]["id"], True)]
+    )
+    assert sorted(updated.tolist()) == [0, 9]
+    assert np.any(pool.beliefs.mu_gap[0] != 0) and np.any(pool.beliefs.mu_gap[9] != 0)
+    assert np.all(pool.beliefs.mu_gap[8] == 0) and pool.beliefs.mu_bar[8] == BAR_PRIOR_MEAN
+    assert learn_decisions(pool, []).size == 0
+
+
+def test_build_pool_reads_stored_revealed_state():
+    rng = np.random.default_rng(4)
+    user = fake_user(rng, "WOMAN", ["MAN"])
+    fresh = build_pool([user], []).beliefs
+    assert np.all(fresh.var_gap == GAP_PRIOR_VAR) and fresh.mu_bar[0] == BAR_PRIOR_MEAN
+
+    d = len(DIMENSIONS)
+    user.update(muGap=[0.1] * d, varGap=[0.2] * d, muBar=1.1, varBar=0.2)
+    stored = build_pool([user], []).beliefs
+    assert np.allclose(stored.pref_mean[0], np.array(user["muPref"]) + 0.1)
+    assert stored.mu_bar[0] == 1.1 and stored.var_bar[0] == 0.2
 
 
 def test_plan_handles_tiny_pools():
@@ -122,3 +150,28 @@ def test_run_writes_matches_once_per_day_and_never_repeats_pairs(conn):
     run(conn, day + dt.timedelta(days=1), per_user=3, min_answers=6)
     pairs = conn.execute('SELECT "userAId", "userBId" FROM "Match"').fetchall()
     assert len(pairs) == len(set(pairs))
+
+
+def test_run_learns_each_decision_once(conn):
+    rng = np.random.default_rng(5)
+    insert_users(conn, population(rng))
+    day = dt.date(2026, 9, 23)
+    run(conn, day, per_user=3, min_answers=6)
+    match_id, chooser = conn.execute(
+        'SELECT id::text, "userAId"::text FROM "Match" WHERE day = %s ORDER BY id LIMIT 1', (day,)
+    ).fetchone()
+    conn.execute(
+        'INSERT INTO "MatchDecision" ("matchId", "userId", liked) VALUES (%s::uuid, %s::uuid, true)', (match_id, chooser)
+    )
+    conn.commit()
+
+    run(conn, day + dt.timedelta(days=1), per_user=3, min_answers=6)
+    learned_at = conn.execute('SELECT "learnedAt" FROM "MatchDecision"').fetchone()[0]
+    mu_gap, mu_bar = conn.execute('SELECT "muGap", "muBar" FROM "Belief" WHERE "userId" = %s::uuid', (chooser,)).fetchone()
+    assert learned_at is not None and len(mu_gap) == len(DIMENSIONS) and mu_bar < BAR_PRIOR_MEAN
+    touched = conn.execute('SELECT count(*) FROM "Belief" WHERE cardinality("muGap") > 0').fetchone()[0]
+    assert touched == 1
+
+    run(conn, day + dt.timedelta(days=2), per_user=3, min_answers=6)
+    again = conn.execute('SELECT "muGap", "muBar" FROM "Belief" WHERE "userId" = %s::uuid', (chooser,)).fetchone()
+    assert again == (mu_gap, mu_bar)

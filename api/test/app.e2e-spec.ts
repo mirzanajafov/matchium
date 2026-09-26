@@ -208,6 +208,13 @@ describe('matches', () => {
     const bobView = await http().get('/matches/today').set('Authorization', `Bearer ${bob.token}`).expect(200);
     expect(bobView.body.matches[0]).toMatchObject({ decision: 'LIKE', mutual: true, person: { id: alice.id } });
 
+    const before = await http().get('/me').set('Authorization', `Bearer ${bob.token}`).expect(200);
+    expect(before.body).toMatchObject({ decisionsLearned: 0, preferenceShifts: [] });
+    await prisma.matchDecision.updateMany({ where: { userId: bob.id }, data: { learnedAt: new Date() } });
+    await prisma.belief.update({ where: { userId: bob.id }, data: { muGap: [0, 0.5, 0, 0, 0, 0, 0, 0], varGap: Array(8).fill(0.2) } });
+    const after = await http().get('/me').set('Authorization', `Bearer ${bob.token}`).expect(200);
+    expect(after.body).toMatchObject({ decisionsLearned: 1, preferenceShifts: [{ dimension: 'adventure', direction: 'more' }] });
+
     clock.nextDay();
     const tomorrow = await http().get('/matches/today').set('Authorization', `Bearer ${alice.token}`).expect(200);
     expect(tomorrow.body.matches).toHaveLength(0);

@@ -4,7 +4,9 @@
     "days": 7,
     "per_day": 6,
     "k_daily": 3,
-    "seed": 7
+    "seed": 7,
+    "long_days": 28,
+    "stated_gap": 0.5
   },
   "random": [
     {
@@ -12,7 +14,7 @@
       "precision_at_10": 0.1467111111111111,
       "mutual_like_rate": 0.1800818553888131,
       "cumulative_mutual_matches": 396,
-      "mean_confidence": 0.17782933718387478,
+      "mean_confidence": 0.06538873692937834,
       "day": 1,
       "questions_answered": 6
     },
@@ -21,7 +23,7 @@
       "precision_at_10": 0.2365925925925926,
       "mutual_like_rate": 0.2887067395264117,
       "cumulative_mutual_matches": 1016,
-      "mean_confidence": 0.3346867214438548,
+      "mean_confidence": 0.1906921642908692,
       "day": 2,
       "questions_answered": 12
     },
@@ -30,7 +32,7 @@
       "precision_at_10": 0.3036740740740741,
       "mutual_like_rate": 0.34287011807447776,
       "cumulative_mutual_matches": 1730,
-      "mean_confidence": 0.45444550359008457,
+      "mean_confidence": 0.2870965008532828,
       "day": 3,
       "questions_answered": 18
     },
@@ -39,7 +41,7 @@
       "precision_at_10": 0.3433555555555555,
       "mutual_like_rate": 0.38276643990929704,
       "cumulative_mutual_matches": 2498,
-      "mean_confidence": 0.5383209729697269,
+      "mean_confidence": 0.3509628201851209,
       "day": 4,
       "questions_answered": 24
     },
@@ -48,7 +50,7 @@
       "precision_at_10": 0.3699629629629629,
       "mutual_like_rate": 0.4267515923566879,
       "cumulative_mutual_matches": 3305,
-      "mean_confidence": 0.5949855060809844,
+      "mean_confidence": 0.39244560132181183,
       "day": 5,
       "questions_answered": 30
     },
@@ -57,7 +59,7 @@
       "precision_at_10": 0.39467407407407407,
       "mutual_like_rate": 0.45049954586739327,
       "cumulative_mutual_matches": 4095,
-      "mean_confidence": 0.6344584581072178,
+      "mean_confidence": 0.4197002377316585,
       "day": 6,
       "questions_answered": 36
     },
@@ -66,7 +68,7 @@
       "precision_at_10": 0.40217777777777775,
       "mutual_like_rate": 0.4641235240690282,
       "cumulative_mutual_matches": 4854,
-      "mean_confidence": 0.6649575957677448,
+      "mean_confidence": 0.4399470357229152,
       "day": 7,
       "questions_answered": 42
     }
@@ -77,7 +79,7 @@
       "precision_at_10": 0.24124444444444446,
       "mutual_like_rate": 0.27692307692307694,
       "cumulative_mutual_matches": 612,
-      "mean_confidence": 0.30952039431852457,
+      "mean_confidence": 0.16558827490681124,
       "day": 1,
       "questions_answered": 6
     },
@@ -86,7 +88,7 @@
       "precision_at_10": 0.33799259259259257,
       "mutual_like_rate": 0.39355424421243757,
       "cumulative_mutual_matches": 1440,
-      "mean_confidence": 0.5102590936047977,
+      "mean_confidence": 0.32714535304466036,
       "day": 2,
       "questions_answered": 12
     },
@@ -95,7 +97,7 @@
       "precision_at_10": 0.3688444444444444,
       "mutual_like_rate": 0.43466424682395643,
       "cumulative_mutual_matches": 2250,
-      "mean_confidence": 0.5821498256188093,
+      "mean_confidence": 0.3802274534376115,
       "day": 3,
       "questions_answered": 18
     },
@@ -104,7 +106,7 @@
       "precision_at_10": 0.3884814814814814,
       "mutual_like_rate": 0.45376246600181325,
       "cumulative_mutual_matches": 3015,
-      "mean_confidence": 0.6203468897343172,
+      "mean_confidence": 0.4073710451066573,
       "day": 4,
       "questions_answered": 24
     },
@@ -113,7 +115,7 @@
       "precision_at_10": 0.39688148148148156,
       "mutual_like_rate": 0.4594104308390023,
       "cumulative_mutual_matches": 3814,
-      "mean_confidence": 0.647296946283701,
+      "mean_confidence": 0.4260630691707593,
       "day": 5,
       "questions_answered": 30
     },
@@ -122,7 +124,7 @@
       "precision_at_10": 0.4038962962962963,
       "mutual_like_rate": 0.45888232621535663,
       "cumulative_mutual_matches": 4533,
-      "mean_confidence": 0.6661600058277745,
+      "mean_confidence": 0.43904346083286133,
       "day": 6,
       "questions_answered": 36
     },
@@ -131,7 +133,7 @@
       "precision_at_10": 0.40657777777777776,
       "mutual_like_rate": 0.47655894401456533,
       "cumulative_mutual_matches": 5212,
-      "mean_confidence": 0.6796792980425713,
+      "mean_confidence": 0.44839840695181127,
       "day": 7,
       "questions_answered": 42
     }
@@ -160,6 +162,580 @@
       "spearman": -0.001007621084043679,
       "precision_at_10": 0.05511851851851852,
       "mutual_like_rate": 0.06326809285389166
+    }
+  },
+  "decisions": {
+    "honest": {
+      "survey": [
+        {
+          "day": 1,
+          "spearman": 0.46947206176122747,
+          "cumulative_mutual_matches": 612
+        },
+        {
+          "day": 2,
+          "spearman": 0.5986787325905228,
+          "cumulative_mutual_matches": 1440
+        },
+        {
+          "day": 3,
+          "spearman": 0.6398016727970895,
+          "cumulative_mutual_matches": 2250
+        },
+        {
+          "day": 4,
+          "spearman": 0.6594137010652442,
+          "cumulative_mutual_matches": 3015
+        },
+        {
+          "day": 5,
+          "spearman": 0.6716422728419719,
+          "cumulative_mutual_matches": 3814
+        },
+        {
+          "day": 6,
+          "spearman": 0.6798272540262575,
+          "cumulative_mutual_matches": 4533
+        },
+        {
+          "day": 7,
+          "spearman": 0.6856680658294406,
+          "cumulative_mutual_matches": 5212
+        },
+        {
+          "day": 8,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 5930
+        },
+        {
+          "day": 9,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 6555
+        },
+        {
+          "day": 10,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 7154
+        },
+        {
+          "day": 11,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 7720
+        },
+        {
+          "day": 12,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 8242
+        },
+        {
+          "day": 13,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 8776
+        },
+        {
+          "day": 14,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 9264
+        },
+        {
+          "day": 15,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 9740
+        },
+        {
+          "day": 16,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 10186
+        },
+        {
+          "day": 17,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 10636
+        },
+        {
+          "day": 18,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 11080
+        },
+        {
+          "day": 19,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 11507
+        },
+        {
+          "day": 20,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 11911
+        },
+        {
+          "day": 21,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 12330
+        },
+        {
+          "day": 22,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 12703
+        },
+        {
+          "day": 23,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 13077
+        },
+        {
+          "day": 24,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 13462
+        },
+        {
+          "day": 25,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 13842
+        },
+        {
+          "day": 26,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 14170
+        },
+        {
+          "day": 27,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 14510
+        },
+        {
+          "day": 28,
+          "spearman": 0.6893434798007153,
+          "cumulative_mutual_matches": 14839
+        }
+      ],
+      "survey_and_decisions": [
+        {
+          "day": 1,
+          "spearman": 0.46947206176122747,
+          "cumulative_mutual_matches": 612
+        },
+        {
+          "day": 2,
+          "spearman": 0.599024501956713,
+          "cumulative_mutual_matches": 1460
+        },
+        {
+          "day": 3,
+          "spearman": 0.6399391437715398,
+          "cumulative_mutual_matches": 2282
+        },
+        {
+          "day": 4,
+          "spearman": 0.6591016453619412,
+          "cumulative_mutual_matches": 3043
+        },
+        {
+          "day": 5,
+          "spearman": 0.6708258097507006,
+          "cumulative_mutual_matches": 3838
+        },
+        {
+          "day": 6,
+          "spearman": 0.6778666597349849,
+          "cumulative_mutual_matches": 4567
+        },
+        {
+          "day": 7,
+          "spearman": 0.6827910454431338,
+          "cumulative_mutual_matches": 5224
+        },
+        {
+          "day": 8,
+          "spearman": 0.686167085434675,
+          "cumulative_mutual_matches": 5877
+        },
+        {
+          "day": 9,
+          "spearman": 0.6857157150606518,
+          "cumulative_mutual_matches": 6528
+        },
+        {
+          "day": 10,
+          "spearman": 0.6860228154465335,
+          "cumulative_mutual_matches": 7136
+        },
+        {
+          "day": 11,
+          "spearman": 0.6862873251535974,
+          "cumulative_mutual_matches": 7727
+        },
+        {
+          "day": 12,
+          "spearman": 0.6864345781981042,
+          "cumulative_mutual_matches": 8260
+        },
+        {
+          "day": 13,
+          "spearman": 0.6868831392968141,
+          "cumulative_mutual_matches": 8818
+        },
+        {
+          "day": 14,
+          "spearman": 0.6870161676567605,
+          "cumulative_mutual_matches": 9301
+        },
+        {
+          "day": 15,
+          "spearman": 0.6874482518681803,
+          "cumulative_mutual_matches": 9789
+        },
+        {
+          "day": 16,
+          "spearman": 0.6876485445020609,
+          "cumulative_mutual_matches": 10239
+        },
+        {
+          "day": 17,
+          "spearman": 0.6877335865056535,
+          "cumulative_mutual_matches": 10677
+        },
+        {
+          "day": 18,
+          "spearman": 0.6878925144663727,
+          "cumulative_mutual_matches": 11124
+        },
+        {
+          "day": 19,
+          "spearman": 0.6881991928297131,
+          "cumulative_mutual_matches": 11541
+        },
+        {
+          "day": 20,
+          "spearman": 0.6885856952373057,
+          "cumulative_mutual_matches": 11915
+        },
+        {
+          "day": 21,
+          "spearman": 0.6888834041748367,
+          "cumulative_mutual_matches": 12324
+        },
+        {
+          "day": 22,
+          "spearman": 0.6890997994465254,
+          "cumulative_mutual_matches": 12731
+        },
+        {
+          "day": 23,
+          "spearman": 0.6894920886223661,
+          "cumulative_mutual_matches": 13131
+        },
+        {
+          "day": 24,
+          "spearman": 0.6899286816975606,
+          "cumulative_mutual_matches": 13505
+        },
+        {
+          "day": 25,
+          "spearman": 0.6903845149956495,
+          "cumulative_mutual_matches": 13873
+        },
+        {
+          "day": 26,
+          "spearman": 0.6905032823783176,
+          "cumulative_mutual_matches": 14200
+        },
+        {
+          "day": 27,
+          "spearman": 0.6907758649499094,
+          "cumulative_mutual_matches": 14550
+        },
+        {
+          "day": 28,
+          "spearman": 0.6910390187194463,
+          "cumulative_mutual_matches": 14908
+        }
+      ]
+    },
+    "misreporting": {
+      "survey": [
+        {
+          "day": 1,
+          "spearman": 0.4371752266057981,
+          "cumulative_mutual_matches": 542
+        },
+        {
+          "day": 2,
+          "spearman": 0.5539339950123814,
+          "cumulative_mutual_matches": 1266
+        },
+        {
+          "day": 3,
+          "spearman": 0.5872507138067635,
+          "cumulative_mutual_matches": 1999
+        },
+        {
+          "day": 4,
+          "spearman": 0.6047646185070849,
+          "cumulative_mutual_matches": 2720
+        },
+        {
+          "day": 5,
+          "spearman": 0.615894544184694,
+          "cumulative_mutual_matches": 3397
+        },
+        {
+          "day": 6,
+          "spearman": 0.6229339126235909,
+          "cumulative_mutual_matches": 4012
+        },
+        {
+          "day": 7,
+          "spearman": 0.627991122952604,
+          "cumulative_mutual_matches": 4622
+        },
+        {
+          "day": 8,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 5251
+        },
+        {
+          "day": 9,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 5775
+        },
+        {
+          "day": 10,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 6280
+        },
+        {
+          "day": 11,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 6780
+        },
+        {
+          "day": 12,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 7274
+        },
+        {
+          "day": 13,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 7763
+        },
+        {
+          "day": 14,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 8218
+        },
+        {
+          "day": 15,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 8669
+        },
+        {
+          "day": 16,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 9107
+        },
+        {
+          "day": 17,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 9529
+        },
+        {
+          "day": 18,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 9921
+        },
+        {
+          "day": 19,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 10312
+        },
+        {
+          "day": 20,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 10701
+        },
+        {
+          "day": 21,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 11042
+        },
+        {
+          "day": 22,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 11392
+        },
+        {
+          "day": 23,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 11746
+        },
+        {
+          "day": 24,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 12102
+        },
+        {
+          "day": 25,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 12430
+        },
+        {
+          "day": 26,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 12738
+        },
+        {
+          "day": 27,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 13064
+        },
+        {
+          "day": 28,
+          "spearman": 0.6313214127880268,
+          "cumulative_mutual_matches": 13359
+        }
+      ],
+      "survey_and_decisions": [
+        {
+          "day": 1,
+          "spearman": 0.4371752266057981,
+          "cumulative_mutual_matches": 542
+        },
+        {
+          "day": 2,
+          "spearman": 0.5547497296841682,
+          "cumulative_mutual_matches": 1277
+        },
+        {
+          "day": 3,
+          "spearman": 0.5898502941656468,
+          "cumulative_mutual_matches": 2025
+        },
+        {
+          "day": 4,
+          "spearman": 0.6102719409749872,
+          "cumulative_mutual_matches": 2737
+        },
+        {
+          "day": 5,
+          "spearman": 0.6236963184363825,
+          "cumulative_mutual_matches": 3443
+        },
+        {
+          "day": 6,
+          "spearman": 0.6333065630381053,
+          "cumulative_mutual_matches": 4085
+        },
+        {
+          "day": 7,
+          "spearman": 0.6411041335716239,
+          "cumulative_mutual_matches": 4773
+        },
+        {
+          "day": 8,
+          "spearman": 0.6471443748501916,
+          "cumulative_mutual_matches": 5378
+        },
+        {
+          "day": 9,
+          "spearman": 0.6494682724462526,
+          "cumulative_mutual_matches": 5971
+        },
+        {
+          "day": 10,
+          "spearman": 0.6521461220843376,
+          "cumulative_mutual_matches": 6534
+        },
+        {
+          "day": 11,
+          "spearman": 0.6538160324717516,
+          "cumulative_mutual_matches": 7085
+        },
+        {
+          "day": 12,
+          "spearman": 0.6556568519363966,
+          "cumulative_mutual_matches": 7625
+        },
+        {
+          "day": 13,
+          "spearman": 0.657846496105219,
+          "cumulative_mutual_matches": 8139
+        },
+        {
+          "day": 14,
+          "spearman": 0.6600261047487218,
+          "cumulative_mutual_matches": 8631
+        },
+        {
+          "day": 15,
+          "spearman": 0.6619375153831483,
+          "cumulative_mutual_matches": 9097
+        },
+        {
+          "day": 16,
+          "spearman": 0.6635989926613326,
+          "cumulative_mutual_matches": 9576
+        },
+        {
+          "day": 17,
+          "spearman": 0.6650598180159727,
+          "cumulative_mutual_matches": 10025
+        },
+        {
+          "day": 18,
+          "spearman": 0.6665595374781025,
+          "cumulative_mutual_matches": 10467
+        },
+        {
+          "day": 19,
+          "spearman": 0.6679083970931421,
+          "cumulative_mutual_matches": 10911
+        },
+        {
+          "day": 20,
+          "spearman": 0.6694099030538131,
+          "cumulative_mutual_matches": 11313
+        },
+        {
+          "day": 21,
+          "spearman": 0.6705282848409179,
+          "cumulative_mutual_matches": 11740
+        },
+        {
+          "day": 22,
+          "spearman": 0.671443446661284,
+          "cumulative_mutual_matches": 12138
+        },
+        {
+          "day": 23,
+          "spearman": 0.6727485360861385,
+          "cumulative_mutual_matches": 12551
+        },
+        {
+          "day": 24,
+          "spearman": 0.673784610298178,
+          "cumulative_mutual_matches": 12916
+        },
+        {
+          "day": 25,
+          "spearman": 0.6746549595929942,
+          "cumulative_mutual_matches": 13284
+        },
+        {
+          "day": 26,
+          "spearman": 0.6757457672164017,
+          "cumulative_mutual_matches": 13653
+        },
+        {
+          "day": 27,
+          "spearman": 0.6764690081526001,
+          "cumulative_mutual_matches": 14007
+        },
+        {
+          "day": 28,
+          "spearman": 0.6772165586814795,
+          "cumulative_mutual_matches": 14347
+        }
+      ]
     }
   }
 }

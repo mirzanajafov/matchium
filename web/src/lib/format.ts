@@ -1,3 +1,5 @@
+import type { PreferenceShift } from "./types";
+
 const DIMENSION_LABELS: Record<string, string> = {
   social_energy: "social energy",
   adventure: "adventure",
@@ -11,6 +13,10 @@ const DIMENSION_LABELS: Record<string, string> = {
 
 export function dimensionLabel(key: string): string {
   return DIMENSION_LABELS[key] ?? key.replaceAll("_", " ");
+}
+
+export function shiftSentence(shift: PreferenceShift): string {
+  return `You go for ${shift.direction} ${dimensionLabel(shift.dimension)} than your answers suggest.`;
 }
 
 export function joinWords(words: string[]): string {

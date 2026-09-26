@@ -7,6 +7,9 @@ QUANTIZATION_VAR = 0.1
 PRIOR_VAR = 1.0
 IMPORTANCE_SLOPE = 1.5
 IMPORTANCE_PRIOR_COUNT = 1.0
+GAP_PRIOR_VAR = 0.25
+BAR_PRIOR_MEAN = 0.84
+BAR_PRIOR_VAR = 0.25
 
 
 def observation_var(question: Question) -> float:
@@ -25,11 +28,23 @@ class Beliefs:
         self.var_pref = np.full((n_users, n_dims), PRIOR_VAR)
         self.log_w_sum = np.zeros((n_users, n_dims))
         self.log_w_count = np.full((n_users, n_dims), IMPORTANCE_PRIOR_COUNT)
+        self.mu_gap = np.zeros((n_users, n_dims))
+        self.var_gap = np.full((n_users, n_dims), GAP_PRIOR_VAR)
+        self.mu_bar = np.full(n_users, BAR_PRIOR_MEAN)
+        self.var_bar = np.full(n_users, BAR_PRIOR_VAR)
         self.answered = np.zeros((n_users, n_questions), dtype=bool)
 
     @property
     def n_users(self) -> int:
         return self.mu_self.shape[0]
+
+    @property
+    def pref_mean(self) -> np.ndarray:
+        return self.mu_pref + self.mu_gap
+
+    @property
+    def pref_var(self) -> np.ndarray:
+        return self.var_pref + self.var_gap
 
     @property
     def weights(self) -> np.ndarray:
