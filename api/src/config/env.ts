@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min, MinLength, validateSync } from 'class-validator';
+import { IsInt, IsOptional, IsString, Matches, Max, Min, MinLength, validateSync } from 'class-validator';
 
 export class Env {
   @IsString()
@@ -20,6 +20,18 @@ export class Env {
   @Min(1)
   @Max(10)
   QUESTIONS_PER_DAY: number = 6;
+
+  @IsOptional()
+  @IsString()
+  VAPID_PUBLIC_KEY: string = '';
+
+  @IsOptional()
+  @IsString()
+  VAPID_PRIVATE_KEY: string = '';
+
+  @IsOptional()
+  @Matches(/^(mailto:|https:\/\/)/)
+  VAPID_SUBJECT: string = 'mailto:push@example.com';
 }
 
 export function validateEnv(raw: Record<string, unknown>): Env {

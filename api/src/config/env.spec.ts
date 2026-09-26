@@ -11,5 +11,6 @@ describe('validateEnv', () => {
   it('rejects missing or invalid values', () => {
     expect(() => validateEnv({ DATABASE_URL: 'x' })).toThrow(/JWT_SECRET/);
     expect(() => validateEnv({ ...base, QUESTIONS_PER_DAY: '50' })).toThrow(/QUESTIONS_PER_DAY/);
+    expect(() => validateEnv({ ...base, VAPID_SUBJECT: 'someone@example.com' })).toThrow(/VAPID_SUBJECT/);
   });
 });

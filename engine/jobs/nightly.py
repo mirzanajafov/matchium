@@ -1,5 +1,6 @@
 import argparse
 import datetime as dt
+import json
 import os
 from dataclasses import dataclass
 
@@ -13,6 +14,7 @@ from matchium.scoring import confidence, directed_scores, explain, mutual_scores
 
 GENDERS = ("WOMAN", "MAN", "NONBINARY")
 LOCK_KEY = "matchium-nightly"
+MATCHES_CHANNEL = "matches_ready"
 
 
 @dataclass
@@ -158,6 +160,8 @@ def run(conn: psycopg.Connection, day: dt.date, per_user: int, min_answers: int)
                 """,
                 [(day, m.user_a, m.user_b, m.score, m.confidence, m.aligned, m.friction) for m in planned],
             )
+        if planned:
+            conn.execute("SELECT pg_notify(%s, %s)", (MATCHES_CHANNEL, json.dumps({"day": day.isoformat()})))
         return len(planned)
 
 

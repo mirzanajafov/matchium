@@ -152,6 +152,24 @@ def test_run_writes_matches_once_per_day_and_never_repeats_pairs(conn):
     assert len(pairs) == len(set(pairs))
 
 
+def test_run_announces_new_matches_after_commit(conn):
+    psycopg = pytest.importorskip("psycopg")
+    insert_users(conn, population(np.random.default_rng(6)))
+    listener = psycopg.connect(TEST_DATABASE_URL, autocommit=True)
+    try:
+        listener.execute("LISTEN matches_ready")
+        day = dt.date(2026, 9, 23)
+        run(conn, day, per_user=3, min_answers=6)
+        conn.commit()
+        received = [n.payload for n in listener.notifies(timeout=5, stop_after=1)]
+        assert received == ['{"day": "2026-09-23"}']
+        run(conn, day, per_user=3, min_answers=6)
+        conn.commit()
+        assert list(listener.notifies(timeout=0.5)) == []
+    finally:
+        listener.close()
+
+
 def test_run_learns_each_decision_once(conn):
     rng = np.random.default_rng(5)
     insert_users(conn, population(rng))

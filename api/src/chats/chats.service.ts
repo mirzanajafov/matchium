@@ -1,12 +1,22 @@
 import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
-import { Observable, concatMap, interval, map, merge } from 'rxjs';
+import { Observable, concatMap, filter, interval, map, merge } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CHAT_CHANNEL, ChatEvent, ChatEvents } from './chat-events.js';
+import { PushService } from '../push/push.service.js';
+import { CHAT_CHANNEL, DbEvents } from '../common/db-events.js';
 
 const publicProfile = { select: { id: true, displayName: true, birthDate: true, city: true } } as const;
 const PAGE_SIZE = 200;
 const HEARTBEAT_MS = 25_000;
+const PREVIEW_LENGTH = 120;
+
+export interface ChatEvent {
+  id: string;
+  matchId: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+}
 
 interface MatchParticipants {
   userAId: string;
@@ -31,7 +41,8 @@ export class ChatsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
-    private readonly events: ChatEvents,
+    private readonly events: DbEvents,
+    private readonly push: PushService,
   ) {}
 
   async list(userId: string) {
@@ -77,17 +88,25 @@ export class ChatsService {
   }
 
   async send(userId: string, matchId: string, body: string) {
-    await this.openChat(userId, matchId);
+    const match = await this.openChat(userId, matchId);
     const row = await this.prisma.message.create({ data: { matchId, senderId: userId, body } });
     await this.markRead(matchId, userId);
     const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
     await this.prisma.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
+    const [sender, recipient] = match.userAId === userId ? [match.userA, match.userB] : [match.userB, match.userA];
+    this.push.notifyInBackground(recipient.id, {
+      title: sender.displayName,
+      body: body.length > PREVIEW_LENGTH ? `${body.slice(0, PREVIEW_LENGTH - 1)}…` : body,
+      url: `/chats/${matchId}`,
+      tag: `chat-${matchId}`,
+    });
     return this.toMessage(row, userId);
   }
 
   async stream(userId: string, matchId: string): Promise<Observable<MessageEvent>> {
     await this.openChat(userId, matchId);
-    const messages = this.events.forMatch(matchId).pipe(
+    const messages = this.events.on<ChatEvent>(CHAT_CHANNEL).pipe(
+      filter((event) => event.matchId === matchId),
       concatMap(async (event): Promise<MessageEvent> => {
         if (event.senderId !== userId) await this.markRead(matchId, userId);
         return { type: 'message', data: this.toMessage({ ...event, createdAt: new Date(event.createdAt) }, userId) };

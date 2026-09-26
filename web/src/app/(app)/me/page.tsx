@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Meter } from "@/components/Meter";
-import { authedApi } from "@/lib/api";
+import { PushToggle } from "@/components/PushToggle";
+import { api, authedApi } from "@/lib/api";
 import { certaintyHint, shiftSentence } from "@/lib/format";
 import type { Gender, Me } from "@/lib/types";
 
@@ -10,7 +11,10 @@ const GENDER_LABELS: Record<Gender, string> = { WOMAN: "Woman", MAN: "Man", NONB
 const SEEKING_LABELS: Record<Gender, string> = { WOMAN: "women", MAN: "men", NONBINARY: "non-binary people" };
 
 export default async function MePage() {
-  const me = await authedApi<Me>("/me");
+  const [me, push] = await Promise.all([
+    authedApi<Me>("/me"),
+    api<{ publicKey: string | null }>("/push/key").catch(() => ({ publicKey: null })),
+  ]);
   const rows = [
     ["Email", me.email],
     ["Born", me.birthDate],
@@ -41,6 +45,11 @@ export default async function MePage() {
           ) : (
             <p className="mt-3 text-sm">So far your likes line up with what you told us.</p>
           )}
+        </section>
+      )}
+      {push.publicKey && (
+        <section className="mt-6 rounded-2xl border border-line bg-surface p-6">
+          <PushToggle publicKey={push.publicKey} />
         </section>
       )}
       <dl className="mt-6 divide-y divide-line rounded-2xl border border-line bg-surface">
