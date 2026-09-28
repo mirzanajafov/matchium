@@ -1,0 +1,41 @@
+services:
+  postgres:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    restart: unless-stopped
+
+  mailpit:
+    profiles: ["dev"]
+
+  minio:
+    ports: !reset []
+    environment:
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    restart: unless-stopped
+
+  matcher:
+    environment:
+      DATABASE_URL: postgresql://matchium:${POSTGRES_PASSWORD}@postgres:5432/matchium
+
+  api:
+    ports: !reset []
+    environment:
+      DATABASE_URL: postgresql://matchium:${POSTGRES_PASSWORD}@postgres:5432/matchium
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      WEB_URL: ${WEB_URL:?set WEB_URL}
+      SMTP_URL: ${SMTP_URL:-}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+
+  web:
+    ports: !reset []
+    environment:
+      TRUSTED_PROXY_HOPS: "1"
+    networks:
+      - default
+      - edge
+
+networks:
+  edge:
+    name: ${EDGE_NETWORK:?set EDGE_NETWORK}
+    external: true

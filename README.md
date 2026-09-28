@@ -121,6 +121,14 @@ The job scores each city on its own, since people are only matched within a city
 
 In a real deployment the job runs on its own: `docker compose --profile jobs up -d` starts a small scheduler container that catches up on start (the job skips days that already have matches) and then runs every day at 03:00 UTC, retrying a few times if the database isn't reachable.
 
+On a server I run it with the production override, which publishes no ports at all and takes every secret from `.env`:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app up -d --build
+```
+
+It needs `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `JWT_SECRET`, `WEB_URL` and `EDGE_NETWORK`, the Docker network of whatever reverse proxy terminates TLS; the web container joins it and the proxy points at `matchium-web:3101`. Email and push stay off until `SMTP_URL` and the VAPID keys are set, and the app hides the email prompts while email is off.
+
 If you touch the engine math or the question bank, regenerate the shared fixtures with `python -m matchium.contract`.
 
 ## API

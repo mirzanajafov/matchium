@@ -1,5 +1,6 @@
 import argparse
 import json
+import secrets
 import urllib.error
 import urllib.request
 
@@ -12,24 +13,30 @@ WOMEN = ["Aysel", "Leyla", "Nigar", "Sabina", "Gunel", "Aynur", "Lala", "Narmin"
 MEN = ["Murad", "Elvin", "Tural", "Rashad", "Orkhan", "Kamran", "Farid", "Ilkin", "Samir", "Emil", "Nijat", "Ramil"]
 
 
-def call(base: str, path: str, body: dict | None = None, token: str | None = None) -> dict:
+def call(base: str, path: str, body: dict | None = None, token: str | None = None, client: str | None = None) -> dict:
+    headers = {"content-type": "application/json"}
+    if token:
+        headers["authorization"] = f"Bearer {token}"
+    if client:
+        headers["x-forwarded-for"] = client
     request = urllib.request.Request(
         base + path,
         data=None if body is None else json.dumps(body).encode(),
-        headers={"content-type": "application/json", **({"authorization": f"Bearer {token}"} if token else {})},
+        headers=headers,
         method="GET" if body is None else "POST",
     )
     with urllib.request.urlopen(request) as response:
         return json.loads(response.read())
 
 
-def sign_in(base: str, profile: dict) -> str:
+def sign_in(base: str, profile: dict, client: str | None) -> str:
     try:
-        return call(base, "/auth/register", profile)["accessToken"]
+        return call(base, "/auth/register", profile, client=client)["accessToken"]
     except urllib.error.HTTPError as error:
         if error.code != 409:
             raise
-        return call(base, "/auth/login", {"email": profile["email"], "password": profile["password"]})["accessToken"]
+        credentials = {"email": profile["email"], "password": profile["password"]}
+        return call(base, "/auth/login", credentials, client=client)["accessToken"]
 
 
 def main():
@@ -38,6 +45,12 @@ def main():
     parser.add_argument("--users", type=int, default=40)
     parser.add_argument("--city", default="Baku")
     parser.add_argument("--seed", type=int, default=3)
+    parser.add_argument("--password", default="demo-password", help="use 'random' to give every demo user a secret one")
+    parser.add_argument(
+        "--own-addresses",
+        action="store_true",
+        help="send each user from its own X-Forwarded-For address; only works from inside the API's trusted network",
+    )
     args = parser.parse_args()
 
     rng = np.random.default_rng(args.seed)
@@ -50,14 +63,15 @@ def main():
         names = WOMEN if woman else MEN
         profile = {
             "email": f"demo{i}@example.com",
-            "password": "demo-password",
+            "password": secrets.token_urlsafe(18) if args.password == "random" else args.password,
             "displayName": names[(i // 2) % len(names)],
             "birthDate": f"{1990 + int(rng.integers(0, 12))}-0{1 + int(rng.integers(0, 9))}-1{int(rng.integers(0, 9))}",
             "gender": "WOMAN" if woman else "MAN",
             "seeking": ["MAN"] if woman else ["WOMAN"],
             "city": args.city,
         }
-        token = sign_in(args.api, profile)
+        client = f"198.18.{i // 250}.{i % 250 + 1}" if args.own_addresses else None
+        token = sign_in(args.api, profile, client)
         today = call(args.api, "/questions/today", token=token)
         for question in today["questions"]:
             if question["answered"]:

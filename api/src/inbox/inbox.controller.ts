@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
 import { ChatsService } from '../chats/chats.service.js';
 import { Clock, utcDay } from '../common/clock.js';
+import { Mailer } from '../mail/mailer.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @ApiTags('inbox')
@@ -13,6 +14,7 @@ export class InboxController {
     private readonly prisma: PrismaService,
     private readonly chats: ChatsService,
     private readonly clock: Clock,
+    private readonly mailer: Mailer,
   ) {}
 
   @Get()
@@ -25,6 +27,11 @@ export class InboxController {
       this.chats.unreadCount(id),
       this.prisma.user.findUniqueOrThrow({ where: { id }, select: { emailVerifiedAt: true } }),
     ]);
-    return { newMatches, unreadChats, emailVerified: user.emailVerifiedAt !== null };
+    return {
+      newMatches,
+      unreadChats,
+      emailVerified: user.emailVerifiedAt !== null,
+      emailEnabled: this.mailer.enabled,
+    };
   }
 }
