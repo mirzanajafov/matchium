@@ -12,6 +12,7 @@ export interface Me {
   certainty: number;
   role: "USER" | "ADMIN";
   emailDigest: boolean;
+  emailVerified: boolean;
   decisionsLearned: number;
   preferenceShifts: PreferenceShift[];
 }
@@ -78,6 +79,7 @@ export interface ChatSummary {
 export interface Inbox {
   newMatches: number;
   unreadChats: number;
+  emailVerified?: boolean;
 }
 
 export interface ChatThread {

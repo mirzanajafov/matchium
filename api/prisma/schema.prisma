@@ -33,18 +33,19 @@ enum ReportReason {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  email        String    @unique
-  passwordHash String
-  displayName  String
-  birthDate    DateTime  @db.Date
-  gender       Gender
-  seeking      Gender[]
-  city         String
-  role         Role      @default(USER)
-  emailDigest  Boolean   @default(true)
-  bannedAt     DateTime?
-  createdAt    DateTime  @default(now())
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique
+  passwordHash    String
+  displayName     String
+  birthDate       DateTime  @db.Date
+  gender          Gender
+  seeking         Gender[]
+  city            String
+  role            Role      @default(USER)
+  emailDigest     Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  bannedAt        DateTime?
+  createdAt       DateTime  @default(now())
 
   belief         Belief?
   answers        Answer[]
@@ -57,6 +58,7 @@ model User {
   pushes         PushSubscription[]
   reportsMade    Report[]           @relation("ReportsMade")
   reportsAgainst Report[]           @relation("ReportsAgainst")
+  sessions       Session[]
 }
 
 model Question {
@@ -216,4 +218,15 @@ model RateLimit {
 
   @@id([key, windowStart])
   @@index([windowStart])
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -18,12 +18,13 @@ export class InboxController {
   @Get()
   async summary(@CurrentUser() { id }: AuthUser) {
     const day = utcDay(this.clock.now());
-    const [newMatches, unreadChats] = await Promise.all([
+    const [newMatches, unreadChats, user] = await Promise.all([
       this.prisma.match.count({
         where: { day, closedAt: null, OR: [{ userAId: id }, { userBId: id }], decisions: { none: { userId: id } } },
       }),
       this.chats.unreadCount(id),
+      this.prisma.user.findUniqueOrThrow({ where: { id }, select: { emailVerifiedAt: true } }),
     ]);
-    return { newMatches, unreadChats };
+    return { newMatches, unreadChats, emailVerified: user.emailVerifiedAt !== null };
   }
 }

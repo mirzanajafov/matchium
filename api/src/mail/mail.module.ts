@@ -9,6 +9,6 @@ import { Mailer, SmtpMailer } from './mailer.js';
   imports: [ChatsModule],
   controllers: [MailController],
   providers: [DigestService, { provide: Mailer, useClass: SmtpMailer }],
-  exports: [DigestService],
+  exports: [DigestService, Mailer],
 })
 export class MailModule {}

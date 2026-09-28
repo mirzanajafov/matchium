@@ -341,15 +341,15 @@ describe('inbox', () => {
     const withBob = await create(bob.id);
     await create(carl.id);
 
-    expect(await inbox(alice.token)).toEqual({ newMatches: 2, unreadChats: 0 });
+    expect(await inbox(alice.token)).toMatchObject({ newMatches: 2, unreadChats: 0 });
 
     await http().post(`/matches/${withBob.id}/decision`).set(as(alice.token)).send({ like: true }).expect(200);
     await http().post(`/matches/${withBob.id}/decision`).set(as(bob.token)).send({ like: true }).expect(200);
-    expect(await inbox(alice.token)).toEqual({ newMatches: 1, unreadChats: 1 });
-    expect(await inbox(bob.token)).toEqual({ newMatches: 0, unreadChats: 1 });
+    expect(await inbox(alice.token)).toMatchObject({ newMatches: 1, unreadChats: 1 });
+    expect(await inbox(bob.token)).toMatchObject({ newMatches: 0, unreadChats: 1 });
 
     await http().get(`/chats/${withBob.id}/messages`).set(as(alice.token)).expect(200);
-    expect(await inbox(alice.token)).toEqual({ newMatches: 1, unreadChats: 0 });
+    expect(await inbox(alice.token)).toMatchObject({ newMatches: 1, unreadChats: 0 });
 
     await http().post(`/chats/${withBob.id}/messages`).set(as(bob.token)).send({ body: 'Hi!' }).expect(201);
     expect((await inbox(bob.token)).unreadChats).toBe(0);
@@ -531,7 +531,7 @@ describe('unmatch and report', () => {
     for (const who of [alice, bob]) {
       expect((await http().get('/chats').set(as(who.token)).expect(200)).body).toEqual([]);
       expect((await http().get('/matches/today').set(as(who.token)).expect(200)).body.matches).toEqual([]);
-      expect((await http().get('/inbox').set(as(who.token)).expect(200)).body).toEqual({ newMatches: 0, unreadChats: 0 });
+      expect((await http().get('/inbox').set(as(who.token)).expect(200)).body).toMatchObject({ newMatches: 0, unreadChats: 0 });
       await http().get(`/chats/${match.id}/messages`).set(as(who.token)).expect(404);
     }
     await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'hello?' }).expect(404);
@@ -770,6 +770,7 @@ describe('rate limits', () => {
 
 describe('email digest', () => {
   const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+  const digests = () => mails.sent.filter((m) => m.headers?.['List-Unsubscribe']);
 
   async function nightlyPair() {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
@@ -783,6 +784,7 @@ describe('email digest', () => {
         data: { day: new Date('2026-09-23'), userAId: a.id, userBId: b.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
       });
     }
+    await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
     return { alice, bob, carol };
   }
 
@@ -797,10 +799,15 @@ describe('email digest', () => {
     await http().patch('/me/preferences').set(as(carol.token)).send({ emailDigest: 'no' }).expect(400);
     expect((await http().get('/me').set(as(carol.token)).expect(200)).body.emailDigest).toBe(false);
 
+    const dan = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Dan' });
+    await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: dan.id, userBId: bob.id, score: 0.5, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+
     await app.get(MatchNotifier).deliver('2026-09-23');
 
-    expect(mails.sent.map((m) => m.to)).toEqual([alice.email]);
-    const [mail] = mails.sent;
+    expect(digests().map((m) => m.to)).toEqual([alice.email]);
+    const [mail] = digests();
     expect(mail!.subject).toBe('1 new match today');
     expect(mail!.headers).toMatchObject({ 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' });
     expect(pushes.sent.map((p) => p.message.tag)).toEqual(['matches']);
@@ -809,7 +816,7 @@ describe('email digest', () => {
   it('unsubscribes with the link from the email, and that link is not a login', async () => {
     const { alice } = await nightlyPair();
     await app.get(MatchNotifier).deliver('2026-09-23');
-    const toAlice = mails.sent.find((m) => m.to === alice.email)!;
+    const toAlice = digests().find((m) => m.to === alice.email)!;
     const token = new URL(toAlice.headers!['List-Unsubscribe']!.slice(1, -1)).searchParams.get('token')!;
 
     await http().get('/me').set(as(token)).expect(401);
@@ -817,6 +824,74 @@ describe('email digest', () => {
     await http().post('/email/unsubscribe').query({ token: alice.token }).expect(400);
     await http().post('/email/unsubscribe').query({ token }).expect(200);
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailDigest).toBe(false);
+  });
+});
+
+describe('account security', () => {
+  const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+  const linkToken = (text: string, path: string) =>
+    new URL(text.split(/\s+/).find((word) => word.includes(path))!).searchParams.get('token')!;
+
+  it('confirms the email from the link sent at sign-up', async () => {
+    const alice = await register();
+    const sent = mails.sent.find((m) => m.to === alice.email)!;
+    expect(sent.subject).toBe('Confirm your email for Matchium');
+    expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailVerified).toBe(false);
+    expect((await http().get('/inbox').set(as(alice.token)).expect(200)).body.emailVerified).toBe(false);
+
+    const token = linkToken(sent.text, '/verify-email');
+    await http().get('/me').set(as(token)).expect(401);
+    await http().post('/auth/verify-email').send({ token: alice.token }).expect(400);
+    await http().post('/auth/verify-email').send({ token }).expect(200);
+    expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailVerified).toBe(true);
+    await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(409);
+  });
+
+  it('resends the confirmation a few times, then waits', async () => {
+    const alice = await register();
+    for (let i = 0; i < 3; i += 1) await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(204);
+    await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(429);
+    expect(mails.sent.filter((m) => m.to === alice.email)).toHaveLength(4);
+  });
+
+  it('logs out one device without touching the others', async () => {
+    const alice = await register();
+    const login = () => http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200);
+    const phone = (await login()).body.accessToken as string;
+    const laptop = (await login()).body.accessToken as string;
+
+    await http().post('/auth/logout').set(as(phone)).expect(204);
+    await http().get('/me').set(as(phone)).expect(401);
+    await http().get('/me').set(as(laptop)).expect(200);
+    await http().post('/auth/logout').expect(401);
+  });
+
+  it('resets a forgotten password once and signs every device out', async () => {
+    const alice = await register();
+    mails.sent = [];
+    await http().post('/auth/password/forgot').send({ email: 'nobody@example.com' }).expect(204);
+    expect(mails.sent).toHaveLength(0);
+
+    await http().post('/auth/password/forgot').send({ email: alice.email.toUpperCase() }).expect(204);
+    const sent = mails.sent.find((m) => m.to === alice.email)!;
+    expect(sent.subject).toBe('Reset your Matchium password');
+    const token = linkToken(sent.text, '/reset-password');
+
+    await http().post('/auth/password/reset').send({ token: alice.token, password: 'a new password' }).expect(400);
+    await http().post('/auth/password/reset').send({ token, password: 'short' }).expect(400);
+    await http().post('/auth/password/reset').send({ token, password: 'a new password' }).expect(204);
+    await http().post('/auth/password/reset').send({ token, password: 'another password' }).expect(400);
+
+    await http().get('/me').set(as(alice.token)).expect(401);
+    await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(401);
+    const fresh = await http().post('/auth/login').send({ email: alice.email, password: 'a new password' }).expect(200);
+    expect((await http().get('/me').set(as(fresh.body.accessToken)).expect(200)).body.emailVerified).toBe(true);
+  });
+
+  it('limits reset requests per address', async () => {
+    const alice = await register();
+    for (let i = 0; i < 3; i += 1) await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
+    await http().post('/auth/password/forgot').send({ email: alice.email }).expect(429);
   });
 });
 

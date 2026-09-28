@@ -6,6 +6,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthUser } from './current-user.decorator.js';
 import { ADMIN_ONLY, IS_PUBLIC } from './public.decorator.js';
 
+interface AccessClaims {
+  sub: string;
+  sid?: string;
+  purpose?: string;
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
@@ -21,22 +27,26 @@ export class JwtAuthGuard implements CanActivate {
     const request = ctx.switchToHttp().getRequest<Request & { user?: AuthUser }>();
     const [scheme, token] = request.headers.authorization?.split(' ') ?? [];
     if (scheme !== 'Bearer' || !token) throw new UnauthorizedException();
-    let userId: string;
+
+    let claims: AccessClaims;
     try {
-      const payload = await this.jwt.verifyAsync<{ sub: string; purpose?: string }>(token);
-      if (payload.purpose !== undefined) throw new UnauthorizedException();
-      userId = payload.sub;
+      claims = await this.jwt.verifyAsync<AccessClaims>(token);
     } catch {
       throw new UnauthorizedException();
     }
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, role: true, bannedAt: true },
+    if (claims.purpose !== undefined || !claims.sid) throw new UnauthorizedException();
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: claims.sid },
+      select: { revokedAt: true, user: { select: { id: true, role: true, bannedAt: true } } },
     });
-    if (!user || user.bannedAt) throw new UnauthorizedException();
+    const user = session?.user;
+    if (!session || session.revokedAt || !user || user.id !== claims.sub || user.bannedAt) {
+      throw new UnauthorizedException();
+    }
     const adminOnly = this.reflector.getAllAndOverride<boolean>(ADMIN_ONLY, [ctx.getHandler(), ctx.getClass()]);
     if (adminOnly && user.role !== 'ADMIN') throw new ForbiddenException();
-    request.user = { id: user.id, role: user.role };
+    request.user = { id: user.id, role: user.role, sessionId: claims.sid };
     return true;
   }
 }

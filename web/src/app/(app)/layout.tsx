@@ -2,6 +2,7 @@ import { unstable_rethrow } from "next/navigation";
 import type { ReactNode } from "react";
 import { logout } from "@/app/actions";
 import { AppNav } from "@/components/AppNav";
+import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { Logo } from "@/components/Logo";
 import { authedApi } from "@/lib/api";
 import type { Inbox } from "@/lib/types";
@@ -29,6 +30,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         </form>
       </header>
       <AppNav initial={inbox} />
+      {inbox.emailVerified === false && <VerifyEmailBanner />}
       <main className="mt-8 flex-1">{children}</main>
     </div>
   );
