@@ -25,9 +25,9 @@ def random_beliefs(rng, n=12, d=len(DIMENSIONS)):
 
 def test_bank_shape():
     bank = load_bank()
-    assert len(bank) == 48
-    assert len({q.id for q in bank}) == 48
-    assert Counter(q.dimension for q in bank) == {k: 6 for k in range(len(DIMENSIONS))}
+    assert len(bank) == 96
+    assert len({q.id for q in bank}) == 96
+    assert Counter(q.dimension for q in bank) == {k: 12 for k in range(len(DIMENSIONS))}
 
 
 def test_observe_moves_mean_and_shrinks_variance():
