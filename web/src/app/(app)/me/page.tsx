@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { logoutEverywhere } from "@/app/actions";
 import { BioForm } from "@/components/BioForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { EmailDigestToggle } from "@/components/EmailDigestToggle";
@@ -78,6 +79,11 @@ export default async function MePage() {
         <a href="/api/me/export" download className="block text-sm font-medium text-accent-ink hover:underline">
           Download everything we have on you (JSON)
         </a>
+        <form action={logoutEverywhere}>
+          <button type="submit" className="text-sm font-medium text-muted hover:text-foreground">
+            Sign out of all devices
+          </button>
+        </form>
         <DeleteAccountForm />
       </section>
     </>

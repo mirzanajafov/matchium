@@ -10,6 +10,7 @@ function report(overrides: Partial<AdminReport> = {}): AdminReport {
     displayName,
     email: `${displayName.toLowerCase()}@example.com`,
     joinedAt: "2026-09-01T00:00:00.000Z",
+    deleted: false,
     banned: false,
     reportsAgainst: 0,
   });
@@ -57,4 +58,18 @@ describe("ReportCard", () => {
     expect(screen.getByText(/Banned on 26 Sept 2026/)).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
+
+  it("keeps showing a report after the reported account is gone", () => {
+    render(
+      <ReportCard
+        report={report({
+          matchedOn: null,
+          reported: { ...report().reported, id: null, joinedAt: null, deleted: true },
+        })}
+      />,
+    );
+    expect(screen.getByText("account deleted")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Block mallory@example.com" })).toBeInTheDocument();
+  });
 });
+

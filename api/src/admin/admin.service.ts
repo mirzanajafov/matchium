@@ -4,7 +4,6 @@ import type { ReportOutcome } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const PAGE_SIZE = 50;
-const EVIDENCE_MESSAGES = 50;
 const person = {
   select: {
     id: true,
@@ -13,9 +12,23 @@ const person = {
     createdAt: true,
     bannedAt: true,
     photos: { select: { id: true }, orderBy: { createdAt: 'asc' } },
-    _count: { select: { reportsAgainst: true } },
   },
 } as const;
+
+interface Account {
+  id: string;
+  displayName: string;
+  email: string;
+  createdAt: Date;
+  bannedAt: Date | null;
+  photos: { id: string }[];
+}
+
+export interface Evidence {
+  from: 'reporter' | 'reported';
+  body: string;
+  sentAt: string;
+}
 
 @Injectable()
 export class AdminService {
@@ -26,17 +39,14 @@ export class AdminService {
       where: { reviewedAt: status === 'open' ? null : { not: null } },
       orderBy: { createdAt: status === 'open' ? 'asc' : 'desc' },
       take: PAGE_SIZE,
-      include: {
-        reporter: person,
-        reported: person,
-        match: {
-          select: {
-            day: true,
-            messages: { orderBy: { createdAt: 'desc' }, take: EVIDENCE_MESSAGES },
-          },
-        },
-      },
+      include: { reporter: person, reported: person, match: { select: { day: true } } },
     });
+    const counts = await this.prisma.report.groupBy({
+      by: ['reportedEmail'],
+      where: { reportedEmail: { in: [...new Set(rows.map((r) => r.reportedEmail))] } },
+      _count: { _all: true },
+    });
+    const against = new Map(counts.map((c) => [c.reportedEmail, c._count._all]));
 
     return rows.map((row) => ({
       id: row.id,
@@ -45,14 +55,14 @@ export class AdminService {
       createdAt: row.createdAt.toISOString(),
       reviewedAt: row.reviewedAt?.toISOString() ?? null,
       outcome: row.outcome,
-      matchedOn: row.match.day.toISOString().slice(0, 10),
-      reporter: this.person(row.reporter),
-      reported: this.person(row.reported),
-      messages: row.match.messages.reverse().map((m) => ({
-        from: m.senderId === row.reportedId ? 'reported' : 'reporter',
-        body: m.body,
-        sentAt: m.createdAt.toISOString(),
-      })),
+      matchedOn: row.match?.day.toISOString().slice(0, 10) ?? null,
+      reporter: row.reporter ? this.account(row.reporter) : this.gone('Deleted account', ''),
+      reported: {
+        ...(row.reported ? this.account(row.reported) : this.gone(row.reportedName, row.reportedEmail)),
+        banned: row.reported ? row.reported.bannedAt !== null : row.outcome === 'BANNED',
+        reportsAgainst: against.get(row.reportedEmail) ?? 1,
+      },
+      messages: row.evidence as unknown as Evidence[],
     }));
   }
 
@@ -70,13 +80,16 @@ export class AdminService {
       if (claimed.count === 0) throw new ConflictException('This report was already reviewed');
       if (outcome !== 'BANNED') return [];
 
-      const userId = report.reportedId;
-      await tx.user.update({ where: { id: userId }, data: { bannedAt: now } });
       await tx.report.updateMany({
-        where: { reportedId: userId, reviewedAt: null },
+        where: { reportedEmail: report.reportedEmail, reviewedAt: null },
         data: { reviewedAt: now, reviewedBy: adminId, outcome: 'BANNED' },
       });
+      const userId = report.reportedId;
+      if (!userId) return [];
+
+      await tx.user.update({ where: { id: userId }, data: { bannedAt: now } });
       await tx.pushSubscription.deleteMany({ where: { userId } });
+      await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
       const open = await tx.match.findMany({
         where: { closedAt: null, OR: [{ userAId: userId }, { userBId: userId }] },
         select: { id: true },
@@ -93,23 +106,29 @@ export class AdminService {
     return { outcome, closedMatches: closedMatches.length };
   }
 
-  private person(p: {
-    id: string;
-    displayName: string;
-    email: string;
-    createdAt: Date;
-    bannedAt: Date | null;
-    photos: { id: string }[];
-    _count: { reportsAgainst: number };
-  }) {
+  private account(p: Account) {
     return {
-      id: p.id,
+      id: p.id as string | null,
       displayName: p.displayName,
       email: p.email,
-      joinedAt: p.createdAt.toISOString(),
+      joinedAt: p.createdAt.toISOString() as string | null,
+      deleted: false,
       banned: p.bannedAt !== null,
-      reportsAgainst: p._count.reportsAgainst,
+      reportsAgainst: 0,
       photos: p.photos.map((photo) => photo.id),
+    };
+  }
+
+  private gone(displayName: string, email: string) {
+    return {
+      id: null,
+      displayName,
+      email,
+      joinedAt: null,
+      deleted: true,
+      banned: false,
+      reportsAgainst: 0,
+      photos: [] as string[],
     };
   }
 }

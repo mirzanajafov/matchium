@@ -193,23 +193,27 @@ model PushSubscription {
 }
 
 model Report {
-  id         String         @id @default(uuid()) @db.Uuid
-  matchId    String         @db.Uuid
-  reporterId String         @db.Uuid
-  reportedId String         @db.Uuid
-  reason     ReportReason
-  note       String?
-  createdAt  DateTime       @default(now())
-  reviewedAt DateTime?
-  reviewedBy String?        @db.Uuid
-  outcome    ReportOutcome?
+  id            String         @id @default(uuid()) @db.Uuid
+  matchId       String?        @db.Uuid
+  reporterId    String?        @db.Uuid
+  reportedId    String?        @db.Uuid
+  reason        ReportReason
+  note          String?
+  reportedName  String         @default("")
+  reportedEmail String         @default("")
+  evidence      Json           @default("[]")
+  createdAt     DateTime       @default(now())
+  reviewedAt    DateTime?
+  reviewedBy    String?        @db.Uuid
+  outcome       ReportOutcome?
 
-  match    Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  reporter User  @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
-  reported User  @relation("ReportsAgainst", fields: [reportedId], references: [id], onDelete: Cascade)
+  match    Match? @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  reporter User?  @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: SetNull)
+  reported User?  @relation("ReportsAgainst", fields: [reportedId], references: [id], onDelete: SetNull)
 
   @@unique([matchId, reporterId])
   @@index([reportedId])
+  @@index([reportedEmail])
   @@index([reviewedAt])
 }
 

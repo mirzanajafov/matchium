@@ -211,3 +211,9 @@ export async function saveBio(_: FormState, formData: FormData): Promise<FormSta
   return { done: true, values: { bio } };
 }
 
+export async function logoutEverywhere(): Promise<void> {
+  await authedApi("/auth/logout-all", { method: "POST" });
+  await clearSession();
+  redirect("/login");
+}
+

@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { Clock } from '../src/common/clock.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { SessionSweeper } from '../src/auth/session-sweeper.js';
 import { RateLimiter } from '../src/limits/rate-limiter.js';
 import { type Mail, Mailer } from '../src/mail/mailer.js';
 import { PhotoStore } from '../src/photos/photo-store.js';
@@ -993,6 +994,66 @@ describe('photos and bio', () => {
 
     await http().delete('/me').set(as(alice.token)).send({ password: 'correct horse battery' }).expect(204);
     expect(photos.objects.size).toBe(0);
+  });
+});
+
+describe('safety after deletion', () => {
+  const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  it('keeps a report and its evidence when the reported person deletes their account, and keeps them out', async () => {
+    const admin = await register();
+    await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
+    const mallory = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Mallory' });
+    const match = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: mallory.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+    for (const who of [alice, mallory]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    await http().post(`/chats/${match.id}/messages`).set(as(mallory.token)).send({ body: 'wire me 500 AZN' }).expect(201);
+    await http().post(`/matches/${match.id}/unmatch`).set(as(alice.token)).send({ report: { reason: 'SPAM' } }).expect(200);
+
+    await http().delete('/me').set(as(mallory.token)).send({ password: 'correct horse battery' }).expect(204);
+
+    const [report] = (await http().get('/admin/reports').set(as(admin.token)).expect(200)).body;
+    expect(report).toMatchObject({
+      matchedOn: null,
+      reported: { id: null, deleted: true, displayName: 'Mallory', email: mallory.email, reportsAgainst: 1 },
+      messages: [{ from: 'reported', body: 'wire me 500 AZN' }],
+    });
+
+    await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'BANNED' }).expect(200);
+    const again = await http()
+      .post('/auth/register')
+      .send({ email: mallory.email.toUpperCase(), password: 'another password', displayName: 'M', birthDate: '1990-01-01', gender: 'MAN', seeking: ['WOMAN'], city: 'Baku' })
+      .expect(403);
+    expect(again.body.message).toMatch(/can't be used/);
+  });
+
+  it('signs out every device at once', async () => {
+    const alice = await register();
+    const second = (await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200)).body
+      .accessToken as string;
+    await http().post('/auth/logout-all').set(as(alice.token)).expect(204);
+    await http().get('/me').set(as(alice.token)).expect(401);
+    await http().get('/me').set(as(second)).expect(401);
+  });
+
+  it('sweeps revoked and expired sessions but keeps live ones', async () => {
+    const alice = await register();
+    const now = clock.now().getTime();
+    const day = 24 * 60 * 60 * 1000;
+    await prisma.session.createMany({
+      data: [
+        { userId: alice.id, createdAt: new Date(now - 3 * day), revokedAt: new Date(now - 2 * day) },
+        { userId: alice.id, createdAt: new Date(now - 9 * day) },
+        { userId: alice.id, createdAt: new Date(now - day), revokedAt: new Date(now - 60 * 1000) },
+      ],
+    });
+    expect(await app.get(SessionSweeper).sweep()).toBe(2);
+    expect(await prisma.session.count({ where: { userId: alice.id } })).toBe(2);
+    await http().get('/me').set(as(alice.token)).expect(200);
   });
 });
 
