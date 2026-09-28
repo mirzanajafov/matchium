@@ -124,3 +124,18 @@ export async function resolveReport(reportId: string, outcome: "DISMISSED" | "BA
   revalidatePath("/admin");
 }
 
+export async function unsubscribeEmail(token: string): Promise<{ done: boolean; error?: string }> {
+  try {
+    await api(`/email/unsubscribe?token=${encodeURIComponent(token)}`, { method: "POST" });
+    return { done: true };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 400) return { done: false, error: "This link doesn't work anymore." };
+    throw error;
+  }
+}
+
+export async function setEmailDigest(enabled: boolean): Promise<void> {
+  await authedApi("/me/preferences", { method: "PATCH", body: { emailDigest: enabled } });
+  revalidatePath("/me");
+}
+

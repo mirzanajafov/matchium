@@ -64,6 +64,8 @@ Chat messages are pushed live. When a message is saved the API fires a Postgres 
 
 Web push covers the times the app isn't open: a new message, a mutual like, and "your matches are here" after the nightly run. The API signs pushes with its own VAPID keys, so there's no third-party account. The nightly job fires `NOTIFY matches_ready` when it commits, and whichever API instance claims the day first (`UPDATE ... WHERE "notifiedAt" IS NULL RETURNING`) sends the pushes, so running several instances doesn't mean several notifications. Dead subscriptions (404/410 from the push service) are deleted on the spot. The service worker skips the notification if you're already looking at that chat.
 
+People who haven't turned push on get one email instead when their matches are ready, with the unread chat count. It goes out over plain SMTP, so any provider works (Brevo's and Resend's free tiers are enough for this), and locally `docker compose up -d` starts Mailpit, where you can read what was sent at http://localhost:8027. Every email has a signed unsubscribe link and the one-click `List-Unsubscribe` headers. The unsubscribe page only acts when you press its button, so link scanners in mail clients can't unsubscribe anyone, and the unsubscribe token can't be used to log in.
+
 Login, sign-up and sending messages are rate limited: 10 login attempts per account and 30 per address every 15 minutes, 5 sign-ups per address an hour, 30 messages a minute per person. The counters live in Postgres (one `INSERT ... ON CONFLICT DO UPDATE ... RETURNING count` per check), so every API instance sees the same numbers without Redis. Going over returns 429 with `Retry-After`. Because the API only ever sees the Next server, the web app forwards the client address, taking it from the right end of `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`) so a client can't pick its own; the API only believes that header from addresses in `TRUST_PROXY`.
 
 ## Running it
@@ -131,6 +133,8 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | `POST /chats/:id/messages` | `{ body }`, only once you both said yes |
 | `GET /chats/:id/stream` | server-sent events with new messages as they arrive |
 | `GET /inbox` | how many new matches and unread chats you have |
+| `PATCH /me/preferences` | `{ emailDigest }` |
+| `POST /email/unsubscribe?token=` | stops match emails, used by the link in the email |
 | `GET /push/key` | the VAPID public key, or `null` if push is off |
 | `POST /push/subscriptions`, `DELETE /push/subscriptions` | register or drop this browser for push |
 

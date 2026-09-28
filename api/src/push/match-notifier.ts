@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { Subscription, concatMap, from, map, merge } from 'rxjs';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
 import { DbEvents, MATCHES_CHANNEL } from '../common/db-events.js';
+import { DigestService } from '../mail/digest.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from './push.service.js';
 
@@ -19,6 +20,7 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
     private readonly events: DbEvents,
     private readonly push: PushService,
     private readonly clock: Clock,
+    private readonly digest: DigestService,
   ) {}
 
   onModuleInit() {
@@ -49,14 +51,15 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
       GROUP BY person`;
 
     await Promise.all(
-      claimed.map(({ userId, count }) =>
-        this.push.notify(userId, {
+      claimed.map(async ({ userId, count }) => {
+        const pushed = await this.push.notify(userId, {
           title: 'Your matches are here',
           body: count === 1 ? 'You have a new match today.' : `You have ${count} new matches today.`,
           url: '/today',
           tag: 'matches',
-        }),
-      ),
+        });
+        if (pushed === 0) await this.digest.send(userId, count);
+      }),
     );
     return claimed.length;
   }

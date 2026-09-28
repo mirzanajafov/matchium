@@ -42,6 +42,7 @@ model User {
   seeking      Gender[]
   city         String
   role         Role      @default(USER)
+  emailDigest  Boolean   @default(true)
   bannedAt     DateTime?
   createdAt    DateTime  @default(now())
 

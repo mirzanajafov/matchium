@@ -11,6 +11,7 @@ export interface Me {
   answerCount: number;
   certainty: number;
   role: "USER" | "ADMIN";
+  emailDigest: boolean;
   decisionsLearned: number;
   preferenceShifts: PreferenceShift[];
 }

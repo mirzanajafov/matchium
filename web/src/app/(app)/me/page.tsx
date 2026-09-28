@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
+import { EmailDigestToggle } from "@/components/EmailDigestToggle";
 import { Meter } from "@/components/Meter";
 import { PushToggle } from "@/components/PushToggle";
 import { api, authedApi } from "@/lib/api";
@@ -54,11 +55,10 @@ export default async function MePage() {
           )}
         </section>
       )}
-      {push.publicKey && (
-        <section className="mt-6 rounded-2xl border border-line bg-surface p-6">
-          <PushToggle publicKey={push.publicKey} />
-        </section>
-      )}
+      <section className="mt-6 space-y-6 rounded-2xl border border-line bg-surface p-6">
+        {push.publicKey && <PushToggle publicKey={push.publicKey} />}
+        <EmailDigestToggle enabled={me.emailDigest} />
+      </section>
       <dl className="mt-6 divide-y divide-line rounded-2xl border border-line bg-surface">
         {rows.map(([label, value]) => (
           <div key={label} className="flex justify-between gap-4 px-6 py-3 text-sm">

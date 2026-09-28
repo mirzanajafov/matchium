@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Header } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Header, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
 import { beliefState } from '../common/belief-row.js';
@@ -8,6 +8,7 @@ import { preferenceShifts } from '../engine/revealed.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountService } from './account.service.js';
 import { DeleteAccountDto } from './dto/delete-account.dto.js';
+import { PreferencesDto } from './dto/preferences.dto.js';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -33,6 +34,7 @@ export class UsersController {
       seeking: user.seeking,
       city: user.city,
       role: user.role,
+      emailDigest: user.emailDigest,
       answerCount: user.belief?.answerCount ?? 0,
       certainty: user.belief ? Number(certainty(beliefState(user.belief)).toFixed(3)) : 0,
       decisionsLearned,
@@ -44,6 +46,12 @@ export class UsersController {
   @Header('Cache-Control', 'no-store')
   export(@CurrentUser() { id }: AuthUser) {
     return this.account.export(id);
+  }
+
+  @Patch('preferences')
+  async preferences(@CurrentUser() { id }: AuthUser, @Body() dto: PreferencesDto) {
+    const user = await this.prisma.user.update({ where: { id }, data: { emailDigest: dto.emailDigest } });
+    return { emailDigest: user.emailDigest };
   }
 
   @Delete()

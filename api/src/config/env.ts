@@ -27,6 +27,18 @@ export class Env {
 
   @IsOptional()
   @IsString()
+  SMTP_URL: string = '';
+
+  @IsOptional()
+  @IsString()
+  MAIL_FROM: string = 'Matchium <hello@matchium.local>';
+
+  @IsOptional()
+  @IsString()
+  WEB_URL: string = 'http://localhost:3101';
+
+  @IsOptional()
+  @IsString()
   VAPID_PUBLIC_KEY: string = '';
 
   @IsOptional()

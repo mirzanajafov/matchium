@@ -6,6 +6,7 @@ import { configureApp } from '../src/app.setup.js';
 import { Clock } from '../src/common/clock.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { RateLimiter } from '../src/limits/rate-limiter.js';
+import { type Mail, Mailer } from '../src/mail/mailer.js';
 import { MatchNotifier } from '../src/push/match-notifier.js';
 import { type Delivery, type PushMessage, PushSender, type PushTarget } from '../src/push/push-sender.js';
 
@@ -37,6 +38,17 @@ let app: INestApplication;
 let prisma: PrismaService;
 let clock: FixedClock;
 let pushes: FakePushSender;
+let mails: FakeMailer;
+
+class FakeMailer extends Mailer {
+  readonly enabled = true;
+  sent: Mail[] = [];
+
+  send(mail: Mail): Promise<void> {
+    this.sent.push(mail);
+    return Promise.resolve();
+  }
+}
 let counter = 0;
 
 function http() {
@@ -63,11 +75,14 @@ async function register(overrides: Record<string, unknown> = {}) {
 beforeAll(async () => {
   clock = new FixedClock();
   pushes = new FakePushSender();
+  mails = new FakeMailer();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(PushSender)
     .useValue(pushes)
+    .overrideProvider(Mailer)
+    .useValue(mails)
     .compile();
   app = configureApp(moduleRef.createNestApplication());
   await app.init();
@@ -78,6 +93,7 @@ beforeEach(async () => {
   await prisma.$executeRawUnsafe('TRUNCATE "User", "RateLimit" CASCADE');
   clock.current = new Date('2026-09-23T09:00:00Z');
   pushes.sent = [];
+  mails.sent = [];
   pushes.gone.clear();
 });
 
@@ -749,6 +765,58 @@ describe('rate limits', () => {
     await prisma.rateLimit.create({ data: { key: 'fresh', windowStart: new Date('2026-09-23T08:00:00Z') } });
     await app.get(RateLimiter).cleanup();
     expect((await prisma.rateLimit.findMany()).map((r) => r.key)).toEqual(['fresh']);
+  });
+});
+
+describe('email digest', () => {
+  const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  async function nightlyPair() {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
+    const carol = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Carol' });
+    for (const [a, b] of [
+      [alice, bob],
+      [carol, bob],
+    ] as const) {
+      await prisma.match.create({
+        data: { day: new Date('2026-09-23'), userAId: a.id, userBId: b.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      });
+    }
+    return { alice, bob, carol };
+  }
+
+  it('emails people without push, skips people with push or who opted out', async () => {
+    const { alice, bob, carol } = await nightlyPair();
+    await http()
+      .post('/push/subscriptions')
+      .set(as(bob.token))
+      .send({ endpoint: 'https://push.example.com/send/bob', keys: { p256dh: 'k', auth: 'a' } })
+      .expect(204);
+    await http().patch('/me/preferences').set(as(carol.token)).send({ emailDigest: false }).expect(200);
+    await http().patch('/me/preferences').set(as(carol.token)).send({ emailDigest: 'no' }).expect(400);
+    expect((await http().get('/me').set(as(carol.token)).expect(200)).body.emailDigest).toBe(false);
+
+    await app.get(MatchNotifier).deliver('2026-09-23');
+
+    expect(mails.sent.map((m) => m.to)).toEqual([alice.email]);
+    const [mail] = mails.sent;
+    expect(mail!.subject).toBe('1 new match today');
+    expect(mail!.headers).toMatchObject({ 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' });
+    expect(pushes.sent.map((p) => p.message.tag)).toEqual(['matches']);
+  });
+
+  it('unsubscribes with the link from the email, and that link is not a login', async () => {
+    const { alice } = await nightlyPair();
+    await app.get(MatchNotifier).deliver('2026-09-23');
+    const toAlice = mails.sent.find((m) => m.to === alice.email)!;
+    const token = new URL(toAlice.headers!['List-Unsubscribe']!.slice(1, -1)).searchParams.get('token')!;
+
+    await http().get('/me').set(as(token)).expect(401);
+    await http().post('/email/unsubscribe').query({ token: 'nonsense' }).expect(400);
+    await http().post('/email/unsubscribe').query({ token: alice.token }).expect(400);
+    await http().post('/email/unsubscribe').query({ token }).expect(200);
+    expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailDigest).toBe(false);
   });
 });
 
