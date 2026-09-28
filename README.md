@@ -111,6 +111,8 @@ npm test
 
 To have someone to match with locally, `python -m jobs.seed_demo --users 40` creates simulated users through the API and has them answer today's questions (log in as any of them with `demo0@example.com` / `demo-password`). Then run the nightly job.
 
+The job scores each city on its own, since people are only matched within a city. That gives exactly the same matches as one big pool but memory grows with the largest city instead of the whole user base: 66 MB instead of 2.3 GB for 6,000 users across 6 cities.
+
 In a real deployment the job runs on its own: `docker compose --profile jobs up -d` starts a small scheduler container that catches up on start (the job skips days that already have matches) and then runs every day at 03:00 UTC, retrying a few times if the database isn't reachable.
 
 If you touch the engine math or the question bank, regenerate the shared fixtures with `python -m matchium.contract`.

@@ -35,6 +35,17 @@ class PlannedMatch:
     friction: str
 
 
+def city_key(user: dict) -> str:
+    return user["city"].strip().lower()
+
+
+def by_city(users: list[dict]) -> list[list[dict]]:
+    groups: dict[str, list[dict]] = {}
+    for user in users:
+        groups.setdefault(city_key(user), []).append(user)
+    return [groups[key] for key in sorted(groups)]
+
+
 def build_pool(users: list[dict], history: list[tuple[str, str]]) -> Pool:
     n = len(users)
     ids = [u["id"] for u in users]
@@ -55,7 +66,7 @@ def build_pool(users: list[dict], history: list[tuple[str, str]]) -> Pool:
 
     gender = np.array([GENDERS.index(u["gender"]) for u in users], dtype=int)
     seeks = np.array([[g in u["seeking"] for g in GENDERS] for u in users], dtype=bool).reshape(n, len(GENDERS))
-    city = np.array([u["city"].strip().lower() for u in users])
+    city = np.array([city_key(u) for u in users])
     eligible = seeks[:, gender] & seeks[:, gender].T & (city[:, None] == city[None, :])
     np.fill_diagonal(eligible, False)
 
@@ -113,7 +124,7 @@ def load_users(conn: psycopg.Connection, min_answers: int) -> list[dict]:
     return [dict(zip(keys, row)) for row in rows]
 
 
-def apply_decisions(conn: psycopg.Connection, pool: Pool) -> int:
+def apply_decisions(conn: psycopg.Connection, pools: list[Pool]) -> int:
     rows = conn.execute(
         """
         SELECT d."matchId"::text, d."userId"::text,
@@ -126,15 +137,18 @@ def apply_decisions(conn: psycopg.Connection, pool: Pool) -> int:
     ).fetchall()
     if not rows:
         return 0
-    updated = learn_decisions(pool, [(chooser, target, liked) for _, chooser, target, liked in rows])
-    b = pool.beliefs
+    decisions = [(chooser, target, liked) for _, chooser, target, liked in rows]
+    updates = []
+    for pool in pools:
+        b = pool.beliefs
+        updates += [
+            (b.mu_gap[i].tolist(), b.var_gap[i].tolist(), float(b.mu_bar[i]), float(b.var_bar[i]), pool.ids[i])
+            for i in learn_decisions(pool, decisions)
+        ]
     with conn.cursor() as cur:
         cur.executemany(
             'UPDATE "Belief" SET "muGap" = %s, "varGap" = %s, "muBar" = %s, "varBar" = %s WHERE "userId" = %s::uuid',
-            [
-                (b.mu_gap[i].tolist(), b.var_gap[i].tolist(), float(b.mu_bar[i]), float(b.var_bar[i]), pool.ids[i])
-                for i in updated
-            ],
+            updates,
         )
         cur.executemany(
             'UPDATE "MatchDecision" SET "learnedAt" = now() WHERE "matchId" = %s::uuid AND "userId" = %s::uuid',
@@ -149,9 +163,9 @@ def run(conn: psycopg.Connection, day: dt.date, per_user: int, min_answers: int)
         if conn.execute('SELECT 1 FROM "Match" WHERE day = %s LIMIT 1', (day,)).fetchone():
             return 0
         history = conn.execute('SELECT "userAId"::text, "userBId"::text FROM "Match"').fetchall()
-        pool = build_pool(load_users(conn, min_answers), history)
-        apply_decisions(conn, pool)
-        planned = plan(pool, per_user)
+        pools = [build_pool(group, history) for group in by_city(load_users(conn, min_answers))]
+        apply_decisions(conn, pools)
+        planned = [match for pool in pools for match in plan(pool, per_user)]
         with conn.cursor() as cur:
             cur.executemany(
                 """
