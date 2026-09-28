@@ -28,6 +28,7 @@ export function ReportCard({ report }: { report: AdminReport }) {
           <span className="ml-1 rounded-full bg-warn-soft px-2 text-warn">{reported.reportsAgainst} reports</span>
         )}
         {reported.banned && <span className="ml-1 rounded-full bg-line px-2">banned</span>}
+        {reported.deleted && <span className="ml-1 rounded-full bg-line px-2">account deleted</span>}
       </p>
       {report.note && <blockquote className="mt-2 border-l-2 border-line pl-3 text-muted">{report.note}</blockquote>}
 
@@ -64,7 +65,7 @@ export function ReportCard({ report }: { report: AdminReport }) {
               I read the conversation
             </label>
             <button type="submit" className="h-10 rounded-lg bg-warn px-4 font-medium text-white">
-              Ban {reported.displayName}
+              {reported.deleted ? `Block ${reported.email}` : `Ban ${reported.displayName}`}
             </button>
           </form>
         </div>

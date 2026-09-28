@@ -92,10 +92,11 @@ export interface ChatThread {
 export type ReportReason = "SPAM" | "HARASSMENT" | "FAKE_PROFILE" | "UNDERAGE" | "OTHER";
 
 export interface ReportedPerson {
-  id: string;
+  id: string | null;
   displayName: string;
   email: string;
-  joinedAt: string;
+  joinedAt: string | null;
+  deleted: boolean;
   banned: boolean;
   reportsAgainst: number;
 }
@@ -107,7 +108,7 @@ export interface AdminReport {
   createdAt: string;
   reviewedAt: string | null;
   outcome: "DISMISSED" | "BANNED" | null;
-  matchedOn: string;
+  matchedOn: string | null;
   reporter: ReportedPerson;
   reported: ReportedPerson;
   messages: { from: "reporter" | "reported"; body: string; sentAt: string }[];

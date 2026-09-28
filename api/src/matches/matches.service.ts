@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import type { ReportDto } from './dto/unmatch.dto.js';
 
+const EVIDENCE_MESSAGES = 50;
 const publicProfile = {
   select: { id: true, displayName: true, birthDate: true, city: true, bio: true, photos: photoSelect },
 } as const;
@@ -94,9 +95,27 @@ export class MatchesService {
         data: { closedAt: new Date(), closedById: userId },
       });
       if (report) {
+        const [reported, messages] = await Promise.all([
+          tx.user.findUniqueOrThrow({ where: { id: otherId }, select: { displayName: true, email: true } }),
+          tx.message.findMany({ where: { matchId }, orderBy: { createdAt: 'desc' }, take: EVIDENCE_MESSAGES }),
+        ]);
+        const evidence = messages.reverse().map((m) => ({
+          from: m.senderId === otherId ? 'reported' : 'reporter',
+          body: m.body,
+          sentAt: m.createdAt.toISOString(),
+        }));
         await tx.report.upsert({
           where: { matchId_reporterId: { matchId, reporterId: userId } },
-          create: { matchId, reporterId: userId, reportedId: otherId, reason: report.reason, note: report.note },
+          create: {
+            matchId,
+            reporterId: userId,
+            reportedId: otherId,
+            reason: report.reason,
+            note: report.note,
+            reportedName: reported.displayName,
+            reportedEmail: reported.email,
+            evidence,
+          },
           update: { reason: report.reason, note: report.note ?? null },
         });
       }

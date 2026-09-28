@@ -16,6 +16,12 @@ export class SessionController {
     await this.auth.logout(user.sessionId);
   }
 
+  @Post('logout-all')
+  @HttpCode(204)
+  async logoutEverywhere(@CurrentUser() user: AuthUser) {
+    await this.auth.logoutEverywhere(user.id);
+  }
+
   @Post('verify-email/resend')
   @HttpCode(204)
   @RateLimit({ name: 'verify-resend', by: 'user', limit: 3, windowSeconds: 3600 })

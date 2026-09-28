@@ -52,11 +52,14 @@ export class AuthService implements OnModuleInit {
     if (ageOn(birthDate, this.clock.now()) < MINIMUM_AGE) {
       throw new BadRequestException(`You must be at least ${MINIMUM_AGE} to join`);
     }
+    const email = dto.email.toLowerCase();
+    const banned = await this.prisma.report.findFirst({ where: { reportedEmail: email, outcome: 'BANNED' } });
+    if (banned) throw new ForbiddenException("This email can't be used to sign up");
     let user: { id: string; email: string; displayName: string };
     try {
       user = await this.prisma.user.create({
         data: {
-          email: dto.email.toLowerCase(),
+          email,
           passwordHash: await argon2.hash(dto.password),
           displayName: dto.displayName.trim(),
           birthDate,
@@ -87,6 +90,10 @@ export class AuthService implements OnModuleInit {
       where: { id: sessionId, revokedAt: null },
       data: { revokedAt: this.clock.now() },
     });
+  }
+
+  async logoutEverywhere(userId: string) {
+    await this.prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: this.clock.now() } });
   }
 
   async resendVerification(userId: string) {
