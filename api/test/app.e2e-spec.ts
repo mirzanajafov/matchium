@@ -983,6 +983,25 @@ describe('photos and bio', () => {
     await http().get(`/photos/${id}`).set(as(bob.token)).expect(404);
   });
 
+  it('keeps upload order, lets you pick the main photo and closes gaps after a delete', async () => {
+    const alice = await register();
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i += 1) ids.push((await upload(alice.token)).body.id);
+    const order = async () => (await http().get('/me').set(as(alice.token)).expect(200)).body.photos.map((p: { id: string }) => p.id);
+    expect(await order()).toEqual(ids);
+
+    await http().post(`/me/photos/${ids[2]}/main`).set(as(alice.token)).expect(204);
+    expect(await order()).toEqual([ids[2], ids[0], ids[1]]);
+
+    await http().delete(`/me/photos/${ids[0]}`).set(as(alice.token)).expect(204);
+    expect(await order()).toEqual([ids[2], ids[1]]);
+    const positions = await prisma.photo.findMany({ where: { userId: alice.id }, orderBy: { position: 'asc' } });
+    expect(positions.map((p) => p.position)).toEqual([0, 1]);
+
+    const bob = await register();
+    await http().post(`/me/photos/${ids[1]}/main`).set(as(bob.token)).expect(404);
+  });
+
   it('deletes photos, rejects long bios and cleans storage when the account goes', async () => {
     const alice = await register();
     const first = (await upload(alice.token)).body.id;

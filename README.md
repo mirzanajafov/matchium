@@ -60,7 +60,7 @@ Answers for the same user are written under a row lock on their belief, so answe
 
 The web app never talks to the API from the browser. Pages and form actions run on the Next server, which keeps the JWT in an httpOnly cookie and calls the API with it. The browser never sees the token, and the API doesn't need CORS.
 
-People can add up to four photos and a short bio. Every upload is decoded and re-encoded with sharp: the camera rotation is applied, it's shrunk to at most 1080×1350, saved as WebP, and all metadata is dropped, including GPS, which on a dating app can be someone's home address. Photos live in a private S3 bucket (MinIO locally, started by `docker compose up -d`) and are served through the API, which only hands them to the owner, people they're currently matched with, and admins; the web app proxies them so the token still never reaches the browser.
+People can add up to four photos, pick which one leads, and write a short bio. The browser scales photos down to 2160px before sending them (a 7 MB phone photo goes out as about 1.4 MB, and the canvas drops its metadata on the way), and every upload is decoded and re-encoded with sharp: the camera rotation is applied, it's shrunk to at most 1080×1350, saved as WebP, and all metadata is dropped, including GPS, which on a dating app can be someone's home address. Photos live in a private S3 bucket (MinIO locally, started by `docker compose up -d`) and are served through the API, which only hands them to the owner, people they're currently matched with, and admins; the web app proxies them so the token still never reaches the browser.
 
 Either person can unmatch at any point, optionally filing a report (spam, harassment, fake profile, possibly underage). The match disappears for both of them, the chat stops accepting messages, an open chat on the other side is told over the stream and locks, and the pair is never matched again because the nightly job skips any pair it has matched before. Reports go to a small moderation queue at `/admin`, where an admin sees both people, the note and the conversation, and either dismisses the report or bans the account. A ban locks the person out on their next request, closes every open match they have, resolves any other reports against them and keeps them out of the nightly run. A report keeps a copy of the reported person's name, email and the last 50 messages from the moment it was filed, so deleting the account doesn't delete the evidence, and an email that was banned can't be used to sign up again. There's no endpoint that makes someone an admin; that's `npm run admin:grant -- <email>` on the server.
 
@@ -150,6 +150,7 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 | `PATCH /me/preferences` | `{ emailDigest }` |
 | `PATCH /me/profile` | `{ bio }`, up to 300 characters |
 | `POST /me/photos`, `DELETE /me/photos/:id` | multipart `photo`, up to 4, 8 MB each |
+| `POST /me/photos/:id/main` | move a photo to the front |
 | `GET /photos/:id` | the image, only if you're allowed to see it |
 | `POST /email/unsubscribe?token=` | stops match emails, used by the link in the email |
 | `GET /push/key` | the VAPID public key, or `null` if push is off |

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { AuthUser } from '../auth/current-user.decorator.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PhotoStore } from './photo-store.js';
 import { processPhoto } from './process-photo.js';
@@ -30,7 +31,8 @@ export class PhotosService {
   async upload(userId: string, input: Buffer | undefined): Promise<PhotoRef> {
     if (!this.store.enabled) throw new ServiceUnavailableException('Photo uploads are not set up');
     if (!input?.length) throw new BadRequestException('Attach a photo');
-    if ((await this.prisma.photo.count({ where: { userId } })) >= MAX_PHOTOS) {
+    const existing = await this.prisma.photo.count({ where: { userId } });
+    if (existing >= MAX_PHOTOS) {
       throw new ConflictException(`You can have up to ${MAX_PHOTOS} photos`);
     }
     const processed = await processPhoto(input);
@@ -39,7 +41,7 @@ export class PhotosService {
     const key = `${userId}/${randomUUID()}.webp`;
     await this.store.put(key, processed.data, WEBP);
     const photo = await this.prisma.photo.create({
-      data: { userId, key, width: processed.width, height: processed.height },
+      data: { userId, key, width: processed.width, height: processed.height, position: existing },
     });
     return { id: photo.id, width: photo.width, height: photo.height };
   }
@@ -47,8 +49,27 @@ export class PhotosService {
   async remove(userId: string, photoId: string) {
     const photo = await this.prisma.photo.findFirst({ where: { id: photoId, userId } });
     if (!photo) throw new NotFoundException('Photo not found');
-    await this.prisma.photo.delete({ where: { id: photo.id } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.photo.delete({ where: { id: photo.id } });
+      await this.renumber(tx, userId, []);
+    });
     await this.store.delete([photo.key]);
+  }
+
+  async makeMain(userId: string, photoId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      const photo = await tx.photo.findFirst({ where: { id: photoId, userId } });
+      if (!photo) throw new NotFoundException('Photo not found');
+      await this.renumber(tx, userId, [photoId]);
+    });
+  }
+
+  private async renumber(tx: Prisma.TransactionClient, userId: string, first: string[]) {
+    const photos = await tx.photo.findMany({ where: { userId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+    const ordered = [...photos.filter((p) => first.includes(p.id)), ...photos.filter((p) => !first.includes(p.id))];
+    for (const [position, photo] of ordered.entries()) {
+      if (photo.position !== position) await tx.photo.update({ where: { id: photo.id }, data: { position } });
+    }
   }
 
   async read(viewer: AuthUser, photoId: string): Promise<Buffer> {
@@ -86,6 +107,6 @@ export function photoRefs(photos: { id: string; width: number; height: number }[
 }
 
 export const photoSelect = {
-  select: { id: true, width: true, height: true },
-  orderBy: { createdAt: 'asc' },
-} as const;
+  select: { id: true, width: true, height: true } as const,
+  orderBy: [{ position: 'asc' as const }, { createdAt: 'asc' as const }],
+};
