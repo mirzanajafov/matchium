@@ -5,10 +5,12 @@ import { beliefState } from '../common/belief-row.js';
 import { isoDay } from '../common/clock.js';
 import { certainty } from '../engine/belief.js';
 import { preferenceShifts } from '../engine/revealed.js';
+import { photoRefs, photoSelect } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccountService } from './account.service.js';
 import { DeleteAccountDto } from './dto/delete-account.dto.js';
 import { PreferencesDto } from './dto/preferences.dto.js';
+import { ProfileDto } from './dto/profile.dto.js';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -22,7 +24,7 @@ export class UsersController {
   @Get()
   async me(@CurrentUser() { id }: AuthUser) {
     const [user, decisionsLearned] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id }, include: { belief: true } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id }, include: { belief: true, photos: photoSelect } }),
       this.prisma.matchDecision.count({ where: { userId: id, learnedAt: { not: null } } }),
     ]);
     return {
@@ -33,6 +35,8 @@ export class UsersController {
       gender: user.gender,
       seeking: user.seeking,
       city: user.city,
+      bio: user.bio ?? '',
+      photos: photoRefs(user.photos),
       role: user.role,
       emailDigest: user.emailDigest,
       emailVerified: user.emailVerifiedAt !== null,
@@ -47,6 +51,12 @@ export class UsersController {
   @Header('Cache-Control', 'no-store')
   export(@CurrentUser() { id }: AuthUser) {
     return this.account.export(id);
+  }
+
+  @Patch('profile')
+  async profile(@CurrentUser() { id }: AuthUser, @Body() dto: ProfileDto) {
+    const user = await this.prisma.user.update({ where: { id }, data: { bio: dto.bio || null } });
+    return { bio: user.bio ?? '' };
   }
 
   @Patch('preferences')

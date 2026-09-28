@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ApiError, api, authedApi } from "@/lib/api";
+import { ApiError, api, authedApi, uploadToApi } from "@/lib/api";
 import type { PushSubscriptionPayload } from "@/lib/push";
 import { clearSession, getPushEndpoint, getToken, rememberPushEndpoint, setSession } from "@/lib/session";
 import type { AnswerResult, AnswerValues, ChatMessage, ChatThread, Inbox, ReportReason } from "@/lib/types";
@@ -176,5 +176,38 @@ export async function resendVerification(): Promise<{ sent: boolean; error?: str
     if (error instanceof ApiError && error.status === 409) return { sent: false, error: "Your email is already confirmed." };
     throw error;
   }
+}
+
+export async function uploadPhoto(_: FormState, formData: FormData): Promise<FormState> {
+  const photo = formData.get("photo");
+  if (!(photo instanceof File) || photo.size === 0) return { error: "Pick a photo first." };
+  if (photo.size > 8 * 1024 * 1024) return { error: "That photo is over 8 MB." };
+  const form = new FormData();
+  form.set("photo", photo);
+  try {
+    await uploadToApi("/me/photos", form);
+  } catch (error) {
+    if (error instanceof ApiError && error.status < 500) return { error: friendly(error) };
+    throw error;
+  }
+  revalidatePath("/me");
+  return { done: true };
+}
+
+export async function deletePhoto(photoId: string): Promise<void> {
+  await authedApi(`/me/photos/${encodeURIComponent(photoId)}`, { method: "DELETE" });
+  revalidatePath("/me");
+}
+
+export async function saveBio(_: FormState, formData: FormData): Promise<FormState> {
+  const bio = String(formData.get("bio") ?? "");
+  try {
+    await authedApi("/me/profile", { method: "PATCH", body: { bio } });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 400) return { error: "Keep it under 300 characters.", values: { bio } };
+    throw error;
+  }
+  revalidatePath("/me");
+  return { done: true, values: { bio } };
 }
 

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { decide } from "@/app/actions";
 import { confidenceCaption, dimensionLabel, joinWords, percent } from "@/lib/format";
+import { Avatar } from "./Avatar";
+import { PhotoStrip } from "./PhotoStrip";
 import type { Match } from "@/lib/types";
 
 export function MatchCard({ match }: { match: Match }) {
@@ -27,13 +29,17 @@ export function MatchCard({ match }: { match: Match }) {
   }
 
   return (
-    <article className="rounded-2xl border border-line bg-surface p-6">
+    <article className="overflow-hidden rounded-2xl border border-line bg-surface p-6">
+      <PhotoStrip name={person.displayName} photos={person.photos} />
       <header className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">
-            {person.displayName}, {person.age}
-          </h2>
-          <p className="text-sm text-muted">{person.city}</p>
+        <div className="flex items-center gap-3">
+          {person.photos.length === 0 && <Avatar name={person.displayName} photo={null} size={44} />}
+          <div>
+            <h2 className="text-lg font-semibold">
+              {person.displayName}, {person.age}
+            </h2>
+            <p className="text-sm text-muted">{person.city}</p>
+          </div>
         </div>
         <div className="text-right">
           <p className="font-mono text-2xl font-semibold tabular-nums">{percent(match.score)}%</p>
@@ -42,6 +48,8 @@ export function MatchCard({ match }: { match: Match }) {
           </p>
         </div>
       </header>
+
+      {person.bio && <p className="mt-4 text-sm whitespace-pre-line">{person.bio}</p>}
 
       <ul className="mt-5 space-y-2 text-sm">
         <li className="rounded-lg bg-accent-soft px-3 py-2 text-accent-ink">

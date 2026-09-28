@@ -1,11 +1,14 @@
 import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
 import { Observable, concatMap, filter, interval, map, merge, takeWhile } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
+import { photoSelect } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import { CHAT_CHANNEL, DbEvents } from '../common/db-events.js';
 
-const publicProfile = { select: { id: true, displayName: true, birthDate: true, city: true } } as const;
+const publicProfile = {
+  select: { id: true, displayName: true, birthDate: true, city: true, photos: { ...photoSelect, take: 1 } },
+} as const;
 const PAGE_SIZE = 200;
 const HEARTBEAT_MS = 25_000;
 const PREVIEW_LENGTH = 120;
@@ -69,7 +72,13 @@ export class ChatsService {
         return {
           id: match.id,
           matchedOn: isoDay(match.day),
-          person: { id: person.id, displayName: person.displayName, age: ageOn(person.birthDate, now), city: person.city },
+          person: {
+            id: person.id,
+            displayName: person.displayName,
+            age: ageOn(person.birthDate, now),
+            city: person.city,
+            photo: person.photos[0]?.id ?? null,
+          },
           lastMessage: last ? this.toMessage(last, userId) : null,
           unread: this.isUnread(match, userId),
         };
@@ -91,7 +100,7 @@ export class ChatsService {
     });
     await this.markRead(matchId, userId);
     return {
-      person: { id: person.id, displayName: person.displayName },
+      person: { id: person.id, displayName: person.displayName, photo: person.photos[0]?.id ?? null },
       messages: rows.map((row) => this.toMessage(row, userId)),
     };
   }

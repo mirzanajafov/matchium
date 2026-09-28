@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Avatar } from "@/components/Avatar";
 import { ChatThread } from "@/components/ChatThread";
 import { UnmatchPanel } from "@/components/UnmatchPanel";
 import { ApiError, authedApi } from "@/lib/api";
@@ -26,7 +27,10 @@ export default async function ChatPage({ params }: PageProps<"/chats/[id]">) {
       <Link href="/chats" className="text-sm text-muted hover:text-foreground">
         All chats
       </Link>
-      <h1 className="mt-2 text-2xl font-semibold">{thread.person.displayName}</h1>
+      <h1 className="mt-2 flex items-center gap-3 text-2xl font-semibold">
+        <Avatar name={thread.person.displayName} photo={thread.person.photo} size={40} />
+        {thread.person.displayName}
+      </h1>
       <div className="mt-6">
         <ChatThread matchId={id} personName={thread.person.displayName} initialMessages={thread.messages} />
       </div>

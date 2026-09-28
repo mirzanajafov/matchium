@@ -7,6 +7,8 @@ import { Clock } from '../src/common/clock.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { RateLimiter } from '../src/limits/rate-limiter.js';
 import { type Mail, Mailer } from '../src/mail/mailer.js';
+import { PhotoStore } from '../src/photos/photo-store.js';
+import sharp from 'sharp';
 import { MatchNotifier } from '../src/push/match-notifier.js';
 import { type Delivery, type PushMessage, PushSender, type PushTarget } from '../src/push/push-sender.js';
 
@@ -39,6 +41,27 @@ let prisma: PrismaService;
 let clock: FixedClock;
 let pushes: FakePushSender;
 let mails: FakeMailer;
+let photos: FakePhotoStore;
+
+class FakePhotoStore extends PhotoStore {
+  readonly enabled = true;
+  objects = new Map<string, Buffer>();
+
+  put(key: string, body: Buffer): Promise<void> {
+    this.objects.set(key, body);
+    return Promise.resolve();
+  }
+
+  get(key: string): Promise<Buffer> {
+    const body = this.objects.get(key);
+    return body ? Promise.resolve(body) : Promise.reject(new Error('missing'));
+  }
+
+  delete(keys: string[]): Promise<void> {
+    for (const key of keys) this.objects.delete(key);
+    return Promise.resolve();
+  }
+}
 
 class FakeMailer extends Mailer {
   readonly enabled = true;
@@ -76,6 +99,7 @@ beforeAll(async () => {
   clock = new FixedClock();
   pushes = new FakePushSender();
   mails = new FakeMailer();
+  photos = new FakePhotoStore();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(Clock)
     .useValue(clock)
@@ -83,6 +107,8 @@ beforeAll(async () => {
     .useValue(pushes)
     .overrideProvider(Mailer)
     .useValue(mails)
+    .overrideProvider(PhotoStore)
+    .useValue(photos)
     .compile();
   app = configureApp(moduleRef.createNestApplication());
   await app.init();
@@ -94,6 +120,7 @@ beforeEach(async () => {
   clock.current = new Date('2026-09-23T09:00:00Z');
   pushes.sent = [];
   mails.sent = [];
+  photos.objects.clear();
   pushes.gone.clear();
 });
 
@@ -892,6 +919,80 @@ describe('account security', () => {
     const alice = await register();
     for (let i = 0; i < 3; i += 1) await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
     await http().post('/auth/password/forgot').send({ email: alice.email }).expect(429);
+  });
+});
+
+describe('photos and bio', () => {
+  const as = (token: string) => ({ Authorization: `Bearer ${token}` });
+  const jpeg = () =>
+    sharp({ create: { width: 1600, height: 1200, channels: 3, background: '#8a6' } })
+      .withExif({ IFD0: { Make: 'PhoneCo' } })
+      .jpeg()
+      .toBuffer();
+
+  async function upload(token: string) {
+    return http().post('/me/photos').set(as(token)).attach('photo', await jpeg(), 'me.jpg');
+  }
+
+  it('stores a cleaned-up copy and lists it on the profile', async () => {
+    const alice = await register();
+    const res = await upload(alice.token);
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ width: 1080, height: 810 });
+
+    const me = await http().get('/me').set(as(alice.token)).expect(200);
+    expect(me.body.photos).toEqual([{ id: res.body.id, width: 1080, height: 810 }]);
+    const [stored] = [...photos.objects.values()];
+    expect((await sharp(stored!).metadata()).exif).toBeUndefined();
+
+    const image = await http().get(`/photos/${res.body.id}`).set(as(alice.token)).buffer(true).expect(200);
+    expect(image.headers['content-type']).toBe('image/webp');
+    expect(image.headers['cache-control']).toBe('private, max-age=3600');
+  });
+
+  it('rejects junk and caps the number of photos', async () => {
+    const alice = await register();
+    await http().post('/me/photos').set(as(alice.token)).attach('photo', Buffer.from('nope'), 'x.jpg').expect(400);
+    await http().post('/me/photos').set(as(alice.token)).expect(400);
+    for (let i = 0; i < 4; i += 1) expect((await upload(alice.token)).status).toBe(201);
+    expect((await upload(alice.token)).status).toBe(409);
+  });
+
+  it('shows photos only to people you are matched with', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
+    const stranger = await register();
+    const admin = await register();
+    await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
+    const { id } = (await upload(alice.token)).body;
+    await http().patch('/me/profile').set(as(alice.token)).send({ bio: '  Climbing, bad puns, good coffee.  ' }).expect(200);
+
+    await http().get(`/photos/${id}`).set(as(bob.token)).expect(404);
+    const match = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+    });
+    await http().get(`/photos/${id}`).set(as(bob.token)).expect(200);
+    await http().get(`/photos/${id}`).set(as(stranger.token)).expect(404);
+    await http().get(`/photos/${id}`).set(as(admin.token)).expect(200);
+
+    const today = await http().get('/matches/today').set(as(bob.token)).expect(200);
+    expect(today.body.matches[0].person).toMatchObject({ bio: 'Climbing, bad puns, good coffee.', photos: [{ id }] });
+
+    await http().post(`/matches/${match.id}/unmatch`).set(as(bob.token)).send({}).expect(200);
+    await http().get(`/photos/${id}`).set(as(bob.token)).expect(404);
+  });
+
+  it('deletes photos, rejects long bios and cleans storage when the account goes', async () => {
+    const alice = await register();
+    const first = (await upload(alice.token)).body.id;
+    await upload(alice.token);
+    await http().delete(`/me/photos/${first}`).set(as(alice.token)).expect(204);
+    await http().delete(`/me/photos/${first}`).set(as(alice.token)).expect(404);
+    expect(photos.objects.size).toBe(1);
+    await http().patch('/me/profile').set(as(alice.token)).send({ bio: 'x'.repeat(301) }).expect(400);
+
+    await http().delete('/me').set(as(alice.token)).send({ password: 'correct horse battery' }).expect(204);
+    expect(photos.objects.size).toBe(0);
   });
 });
 

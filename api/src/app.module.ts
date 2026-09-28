@@ -9,6 +9,7 @@ import { HealthController } from './health.controller.js';
 import { InboxModule } from './inbox/inbox.module.js';
 import { LimitsModule } from './limits/limits.module.js';
 import { MailModule } from './mail/mail.module.js';
+import { PhotosModule } from './photos/photos.module.js';
 import { MatchesModule } from './matches/matches.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { PushModule } from './push/push.module.js';
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module.js';
     PrismaModule,
     PushModule,
     MailModule,
+    PhotosModule,
     LimitsModule,
     AuthModule,
     UsersModule,

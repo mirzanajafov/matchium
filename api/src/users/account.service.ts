@@ -3,6 +3,7 @@ import * as argon2 from 'argon2';
 import { beliefState } from '../common/belief-row.js';
 import { Clock, isoDay } from '../common/clock.js';
 import { DIMENSIONS } from '../engine/belief.js';
+import { PhotosService } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class AccountService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly photos: PhotosService,
   ) {}
 
   async export(userId: string) {
@@ -23,6 +25,7 @@ export class AccountService {
         messages: { orderBy: { createdAt: 'asc' } },
         reportsMade: { orderBy: { createdAt: 'asc' } },
         pushes: { select: { endpoint: true, createdAt: true } },
+        photos: { select: { id: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -44,8 +47,10 @@ export class AccountService {
         gender: user.gender,
         seeking: user.seeking,
         city: user.city,
+        bio: user.bio,
         joinedAt: user.createdAt.toISOString(),
       },
+      photos: user.photos.map((p) => ({ id: p.id, uploadedAt: p.createdAt.toISOString() })),
       answers: user.answers.map((a) => ({
         question: a.question.text,
         you: a.self,
@@ -74,7 +79,9 @@ export class AccountService {
   async delete(userId: string, password: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true } });
     if (!(await argon2.verify(user.passwordHash, password))) throw new ForbiddenException('Wrong password');
+    const keys = await this.photos.keys(userId);
     await this.prisma.user.delete({ where: { id: userId } });
+    await this.photos.discard(keys).catch(() => undefined);
   }
 
   private model(row: Parameters<typeof beliefState>[0] & { muGap: number[] }) {
