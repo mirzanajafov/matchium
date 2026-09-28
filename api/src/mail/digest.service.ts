@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ChatsService } from '../chats/chats.service.js';
+import { emailsSent } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { digestEmail } from './digest-email.js';
 import { Mailer } from './mailer.js';
@@ -44,8 +45,10 @@ export class DigestService {
         ...mail,
         headers: { 'List-Unsubscribe': `<${oneClickUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
       });
+      emailsSent.inc({ kind: 'digest', result: 'sent' });
       return true;
     } catch (error) {
+      emailsSent.inc({ kind: 'digest', result: 'failed' });
       this.log.warn(`Digest to ${userId} failed: ${(error as Error).message}`);
       return false;
     }

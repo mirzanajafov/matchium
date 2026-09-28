@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { pushDeliveries } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { type PushMessage, PushSender } from './push-sender.js';
 import type { SubscriptionDto } from './dto/subscription.dto.js';
@@ -42,6 +43,7 @@ export class PushService {
       await this.prisma.pushSubscription.deleteMany({ where: { id: { in: gone.map((t) => t.id) } } });
     }
     for (const result of results) {
+      pushDeliveries.inc({ result: result.status === 'fulfilled' ? result.value : 'failed' });
       if (result.status === 'rejected') this.log.warn(`Push delivery failed: ${String(result.reason)}`);
     }
     return results.filter((r) => r.status === 'fulfilled' && r.value === 'sent').length;

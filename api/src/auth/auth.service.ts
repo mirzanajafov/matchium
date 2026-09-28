@@ -14,6 +14,7 @@ import { Clock, ageOn } from '../common/clock.js';
 import { priorBelief } from '../engine/belief.js';
 import { passwordResetEmail, verificationEmail } from '../mail/account-emails.js';
 import { Mailer } from '../mail/mailer.js';
+import { emailsSent } from '../observability/metrics.js';
 import { isUniqueViolation } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RESET_PURPOSE, VERIFY_PURPOSE, passwordStamp } from './account-tokens.js';
@@ -118,7 +119,7 @@ export class AuthService implements OnModuleInit {
       { sub: user.id, purpose: RESET_PURPOSE, stamp: passwordStamp(user.passwordHash) },
       { expiresIn: '30m' },
     );
-    await this.deliver(user.email, passwordResetEmail(user.displayName, `${this.webUrl}/reset-password?token=${token}`));
+    await this.deliver('reset', user.email, passwordResetEmail(user.displayName, `${this.webUrl}/reset-password?token=${token}`));
   }
 
   async resetPassword(token: string, password: string) {
@@ -141,13 +142,15 @@ export class AuthService implements OnModuleInit {
   private async sendVerification(user: { id: string; email: string; displayName: string }) {
     if (!this.mailer.enabled) return;
     const token = this.jwt.sign({ sub: user.id, purpose: VERIFY_PURPOSE, email: user.email }, { expiresIn: '3d' });
-    await this.deliver(user.email, verificationEmail(user.displayName, `${this.webUrl}/verify-email?token=${token}`));
+    await this.deliver('verify', user.email, verificationEmail(user.displayName, `${this.webUrl}/verify-email?token=${token}`));
   }
 
-  private async deliver(to: string, mail: { subject: string; text: string; html: string }) {
+  private async deliver(kind: string, to: string, mail: { subject: string; text: string; html: string }) {
     try {
       await this.mailer.send({ to, ...mail });
+      emailsSent.inc({ kind, result: 'sent' });
     } catch (error) {
+      emailsSent.inc({ kind, result: 'failed' });
       this.log.warn(`Account email failed: ${(error as Error).message}`);
     }
   }

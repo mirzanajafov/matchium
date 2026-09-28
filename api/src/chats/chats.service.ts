@@ -1,7 +1,8 @@
 import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
-import { Observable, concatMap, filter, interval, map, merge, takeWhile } from 'rxjs';
+import { Observable, concatMap, defer, filter, finalize, interval, map, merge, takeWhile } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
 import { photoSelect } from '../photos/photos.service.js';
+import { openStreams } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import { CHAT_CHANNEL, DbEvents } from '../common/db-events.js';
@@ -132,7 +133,11 @@ export class ChatsService {
       }),
     );
     const heartbeat = interval(HEARTBEAT_MS).pipe(map((): MessageEvent => ({ type: 'ping', data: '' })));
-    return merge(messages, heartbeat).pipe(takeWhile((event) => event.type !== 'closed', true));
+    const stream = merge(messages, heartbeat).pipe(takeWhile((event) => event.type !== 'closed', true));
+    return defer(() => {
+      openStreams.inc();
+      return stream.pipe(finalize(() => openStreams.dec()));
+    });
   }
 
   private mutualMatches(userId: string) {
