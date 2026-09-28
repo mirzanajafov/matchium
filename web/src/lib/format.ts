@@ -34,6 +34,24 @@ export function confidenceLabel(value: number): string {
   return "Fairly sure";
 }
 
+export function confidenceCaption(value: number): string {
+  const label = confidenceLabel(value);
+  return value < 0.1 ? label : `${label} · ${percent(value)}% confidence`;
+}
+
+const DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const FULL_DATE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+
+export function shortDate(isoDay: string, today = new Date()): string {
+  const date = new Date(`${isoDay}T00:00:00Z`);
+  const text = DAY.format(date);
+  return date.getUTCFullYear() === today.getUTCFullYear() ? text : `${text} ${date.getUTCFullYear()}`;
+}
+
+export function longDate(isoDay: string): string {
+  return FULL_DATE.format(new Date(`${isoDay}T00:00:00Z`));
+}
+
 export function certaintyHint(value: number): string {
   if (value < 0.15) return "We barely know you yet. A few days of questions changes that fast.";
   if (value < 0.5) return "Starting to get a picture. Keep going, the early answers matter most.";

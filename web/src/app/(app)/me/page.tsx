@@ -5,7 +5,7 @@ import { EmailDigestToggle } from "@/components/EmailDigestToggle";
 import { Meter } from "@/components/Meter";
 import { PushToggle } from "@/components/PushToggle";
 import { api, authedApi } from "@/lib/api";
-import { certaintyHint, shiftSentence } from "@/lib/format";
+import { certaintyHint, longDate, shiftSentence } from "@/lib/format";
 import type { Gender, Me } from "@/lib/types";
 
 export const metadata: Metadata = { title: "You" };
@@ -20,7 +20,7 @@ export default async function MePage() {
   ]);
   const rows = [
     ["Email", me.email],
-    ["Born", me.birthDate],
+    ["Born", longDate(me.birthDate)],
     ["City", me.city],
     ["Gender", GENDER_LABELS[me.gender]],
     ["Interested in", me.seeking.map((g) => SEEKING_LABELS[g]).join(", ")],

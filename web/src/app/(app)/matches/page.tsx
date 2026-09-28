@@ -29,7 +29,10 @@ export default async function MatchesPage() {
               </Link>
             </p>
           ) : (
-            <p>No matches today. New ones are picked every night, so check back tomorrow morning.</p>
+            <p>
+              No match good enough today. We&apos;d rather skip a day than send you a weak one. New ones are picked every
+              night.
+            </p>
           )}
         </div>
       ) : (
@@ -38,6 +41,11 @@ export default async function MatchesPage() {
             <MatchCard key={match.id} match={match} />
           ))}
         </div>
+      )}
+      {matches.length > 0 && matches.length < 3 && (
+        <p className="mt-4 text-sm text-muted">
+          Only {matches.length === 1 ? "one" : "two"} today. We skip pairs that fit poorly instead of filling the slots.
+        </p>
       )}
     </>
   );

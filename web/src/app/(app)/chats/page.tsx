@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { authedApi } from "@/lib/api";
+import { shortDate } from "@/lib/format";
 import type { ChatSummary } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Chats" };
@@ -25,7 +26,7 @@ export default async function ChatsPage() {
                     {chat.unread && <span className="size-2 rounded-full bg-accent" aria-label="Unread" />}
                     {chat.person.displayName}, {chat.person.age}
                   </span>
-                  <span className="text-xs text-muted">matched {chat.matchedOn}</span>
+                  <span className="text-xs text-muted">matched {shortDate(chat.matchedOn)}</span>
                 </div>
                 <p className={`mt-0.5 truncate text-sm ${chat.unread ? "text-foreground" : "text-muted"}`}>
                   {chat.lastMessage
