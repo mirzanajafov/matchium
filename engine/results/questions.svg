@@ -24,10 +24,10 @@
 <text x="465.0" y="334" text-anchor="middle" fill="#6b6f68">7</text>
 <text x="260.5" y="354" text-anchor="middle" fill="#6b6f68">day (6 questions a day)</text>
 <text transform="translate(14 180.0) rotate(-90)" text-anchor="middle" fill="#6b6f68">rank correlation with truth</text>
-<polyline points="56.0,193.8 124.2,135.3 192.3,116.6 260.5,107.7 328.7,102.2 396.8,98.5 465.0,95.8" fill="none" stroke="#1f9d63" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="56.0,193.8 124.2,135.3 192.3,116.5 260.5,106.4 328.7,99.7 396.8,94.9 465.0,91.8" fill="none" stroke="#1f9d63" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
 <line x1="481" x2="501" y1="52" y2="52" stroke="#1f9d63" stroke-width="2.5"/>
 <text x="507" y="56" fill="#1d1f1c">adaptive</text>
-<polyline points="56.0,279.5 124.2,199.9 192.3,156.6 260.5,130.1 328.7,114.6 396.8,105.4 465.0,98.9" fill="none" stroke="#8a8f86" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="56.0,280.1 124.2,204.6 192.3,164.2 260.5,137.8 328.7,120.4 396.8,109.0 465.0,102.3" fill="none" stroke="#8a8f86" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
 <line x1="481" x2="501" y1="72" y2="72" stroke="#8a8f86" stroke-width="2.5"/>
 <text x="507" y="76" fill="#1d1f1c">random order</text>
 <polyline points="56.0,59.1 465.0,59.1" fill="none" stroke="#1d1f1c" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 4"/>
