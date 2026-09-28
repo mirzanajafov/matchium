@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { decide } from "@/app/actions";
-import { confidenceLabel, dimensionLabel, joinWords, percent } from "@/lib/format";
+import { confidenceCaption, dimensionLabel, joinWords, percent } from "@/lib/format";
 import type { Match } from "@/lib/types";
 
 export function MatchCard({ match }: { match: Match }) {
@@ -38,7 +38,7 @@ export function MatchCard({ match }: { match: Match }) {
         <div className="text-right">
           <p className="font-mono text-2xl font-semibold tabular-nums">{percent(match.score)}%</p>
           <p className="text-xs text-muted">
-            {confidenceLabel(match.confidence)} · {percent(match.confidence)}% sure
+            {confidenceCaption(match.confidence)}
           </p>
         </div>
       </header>

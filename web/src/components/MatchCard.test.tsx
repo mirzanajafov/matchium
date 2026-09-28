@@ -26,7 +26,7 @@ describe("MatchCard", () => {
     render(<MatchCard match={match} />);
     expect(screen.getByRole("heading", { name: "Aysel, 29" })).toBeInTheDocument();
     expect(screen.getByText("81%")).toBeInTheDocument();
-    expect(screen.getByText("Getting clearer · 42% sure")).toBeInTheDocument();
+    expect(screen.getByText("Getting clearer · 42% confidence")).toBeInTheDocument();
     expect(screen.getByText("You're on the same page about family and planning ahead.")).toBeInTheDocument();
     expect(screen.getByText("You might see adventure differently.")).toBeInTheDocument();
   });

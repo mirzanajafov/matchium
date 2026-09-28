@@ -16,19 +16,21 @@ export function NavLink({ href, badge = 0, children }: NavLinkProps) {
       href={href}
       aria-current={active ? "page" : undefined}
       aria-label={badge > 0 ? `${children}, ${badge} new` : undefined}
-      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 transition-colors ${
+      className={`flex flex-1 items-center justify-center rounded-lg py-2 transition-colors ${
         active ? "bg-foreground text-background" : "text-muted hover:text-foreground"
       }`}
     >
-      {children}
-      {badge > 0 && (
-        <span
-          aria-hidden="true"
-          className="min-w-5 rounded-full bg-accent px-1.5 text-xs leading-5 text-white dark:text-background"
-        >
-          {badge}
-        </span>
-      )}
+      <span className="relative">
+        {children}
+        {badge > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-2 left-full ml-0.5 min-w-4 rounded-full bg-accent px-1 text-center text-[10px] leading-4 font-semibold text-white dark:text-background"
+          >
+            {badge}
+          </span>
+        )}
+      </span>
     </Link>
   );
 }

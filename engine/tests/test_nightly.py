@@ -103,6 +103,13 @@ def test_scoring_city_by_city_gives_the_same_matches_as_one_big_pool():
     assert whole == split and len(whole) > 0
 
 
+def test_plan_skips_pairs_below_the_score_floor():
+    rng = np.random.default_rng(9)
+    users = population(rng)
+    matches = plan(build_pool(users, []), per_user=3)
+    assert matches and min(m.score for m in matches) >= 0.3
+
+
 def test_plan_handles_tiny_pools():
     rng = np.random.default_rng(1)
     assert plan(build_pool([], []), 3) == []

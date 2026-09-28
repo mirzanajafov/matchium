@@ -8,7 +8,7 @@ import numpy as np
 import psycopg
 
 from matchium import DIMENSIONS, Beliefs
-from matchium.allocation import greedy_b_matching
+from matchium.allocation import MIN_MUTUAL_SCORE, greedy_b_matching
 from matchium.revealed import Decisions, learn, pool_spread
 from matchium.scoring import confidence, directed_scores, explain, mutual_scores
 
@@ -96,7 +96,7 @@ def plan(pool: Pool, per_user: int) -> list[PlannedMatch]:
     mutual = mutual_scores(directed.mean, pool.eligible)
     conf = confidence(directed, pool.beliefs.weights, pool.eligible)
     planned = []
-    for u, v in greedy_b_matching(mutual, pool.eligible, pool.shown, per_user):
+    for u, v in greedy_b_matching(mutual, pool.eligible, pool.shown, per_user, MIN_MUTUAL_SCORE):
         a, b = sorted((int(u), int(v)), key=lambda i: pool.ids[i])
         why = explain(pool.beliefs, a, b)
         planned.append(

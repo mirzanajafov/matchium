@@ -6,6 +6,8 @@ The idea: you answer a handful of questions every day, and the app gets a better
 
 It's split into a matching engine in Python (plus a simulator I use to test it), a NestJS API, and a Next.js web app.
 
+![Today's questions, a match with its explanation, and a chat](docs/screenshots/app.png)
+
 ## How matching works
 
 Every question has three parts: your answer, the answer you'd want from a partner, and how much it matters to you. The engine keeps a Gaussian belief per user for each of 8 dimensions (social energy, adventure, ambition, family, tidiness, planning, tradition, activity), both for "who I am" and "who I want". Each answer is a Kalman-style update, so it's cheap and every number can be explained.
@@ -16,7 +18,7 @@ A few things I spent most of the time on:
 - **Both sides have to fit.** A score from u to v isn't enough. Mutual score is the geometric mean of both directions, after normalizing each person's scores against their own pool, so picky and easy-going people end up on the same scale.
 - **Confidence.** Scores come with a variance, so the app can say "62% sure" instead of pretending. A brand-new user starts at 0.
 - **What people do, not just what they say.** Stated preferences and real ones aren't the same thing. Every like or pass is treated as a probit observation and folded in overnight with a moment-matched update (the same trick TrueSkill uses). It only moves a separate "gap" term on top of the stated preference, plus a per-person "bar" for how picky they are, so the answers are never overwritten, only corrected.
-- **Who gets shown to whom.** If everyone just sees their own top 3, popular profiles land in dozens of lists and a lot of people get nothing. Daily matches are assigned with a greedy b-matching instead, so a match is shown to both people and nobody gets more than k a day.
+- **Who gets shown to whom.** If everyone just sees their own top 3, popular profiles land in dozens of lists and a lot of people get nothing. Daily matches are assigned with a greedy b-matching instead, so a match is shown to both people and nobody gets more than k a day. Pairs below a minimum mutual score are skipped even if that leaves a slot empty. In the simulator that floor costs nothing, but in a small city on launch week it's the difference between one decent match and three where one is a 3% fit.
 
 ## Does it work?
 

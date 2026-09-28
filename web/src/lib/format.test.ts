@@ -1,4 +1,4 @@
-import { confidenceLabel, dimensionLabel, joinWords, percent, shiftSentence } from "./format";
+import { confidenceCaption, confidenceLabel, dimensionLabel, joinWords, longDate, percent, shiftSentence, shortDate } from "./format";
 
 describe("format", () => {
   it("joins words like a person would", () => {
@@ -26,5 +26,18 @@ describe("format", () => {
     expect(confidenceLabel(0.1)).toBe("Early guess");
     expect(confidenceLabel(0.45)).toBe("Getting clearer");
     expect(confidenceLabel(0.9)).toBe("Fairly sure");
+  });
+
+  it("hides a meaningless percentage on very early guesses", () => {
+    expect(confidenceCaption(0.04)).toBe("Early guess");
+    expect(confidenceCaption(0.17)).toBe("Early guess · 17% confidence");
+    expect(confidenceCaption(0.72)).toBe("Fairly sure · 72% confidence");
+  });
+
+  it("writes dates the way people read them", () => {
+    const today = new Date("2026-09-28T12:00:00Z");
+    expect(shortDate("2026-09-23", today)).toBe("23 Sept");
+    expect(shortDate("2025-12-31", today)).toBe("31 Dec 2025");
+    expect(longDate("1993-04-16")).toBe("16 April 1993");
   });
 });
