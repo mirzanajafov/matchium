@@ -35,6 +35,7 @@ export class UsersController {
       city: user.city,
       role: user.role,
       emailDigest: user.emailDigest,
+      emailVerified: user.emailVerifiedAt !== null,
       answerCount: user.belief?.answerCount ?? 0,
       certainty: user.belief ? Number(certainty(beliefState(user.belief)).toFixed(3)) : 0,
       decisionsLearned,

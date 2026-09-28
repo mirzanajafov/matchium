@@ -9,6 +9,7 @@ import type { AnswerResult, AnswerValues, ChatMessage, ChatThread, Inbox, Report
 
 export interface FormState {
   error?: string;
+  done?: boolean;
   values?: Record<string, string>;
 }
 
@@ -61,6 +62,7 @@ export async function logout(): Promise<void> {
   if (token && endpoint) {
     await api("/push/subscriptions", { method: "DELETE", body: { endpoint }, token }).catch(() => undefined);
   }
+  if (token) await api("/auth/logout", { method: "POST", token }).catch(() => undefined);
   await clearSession();
   redirect("/");
 }
@@ -137,5 +139,42 @@ export async function unsubscribeEmail(token: string): Promise<{ done: boolean; 
 export async function setEmailDigest(enabled: boolean): Promise<void> {
   await authedApi("/me/preferences", { method: "PATCH", body: { emailDigest: enabled } });
   revalidatePath("/me");
+}
+
+export async function requestPasswordReset(_: FormState, formData: FormData): Promise<FormState> {
+  const email = field(formData, "email");
+  try {
+    await api("/auth/password/forgot", { body: { email } });
+  } catch (error) {
+    if (error instanceof ApiError && error.status < 500) return { error: friendly(error), values: { email } };
+    throw error;
+  }
+  return { done: true, values: { email } };
+}
+
+export async function resetPassword(token: string, _: FormState, formData: FormData): Promise<FormState> {
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) return { error: "Use at least 8 characters." };
+  try {
+    await api("/auth/password/reset", { body: { token, password } });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 400) {
+      return { error: "This link has expired or was already used. Ask for a new one." };
+    }
+    if (error instanceof ApiError && error.status < 500) return { error: friendly(error) };
+    throw error;
+  }
+  return { done: true };
+}
+
+export async function resendVerification(): Promise<{ sent: boolean; error?: string }> {
+  try {
+    await authedApi("/auth/verify-email/resend", { method: "POST" });
+    return { sent: true };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 429) return { sent: false, error: "We just sent a few. Check your inbox." };
+    if (error instanceof ApiError && error.status === 409) return { sent: false, error: "Your email is already confirmed." };
+    throw error;
+  }
 }
 

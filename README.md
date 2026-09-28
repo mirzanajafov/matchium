@@ -66,6 +66,8 @@ Web push covers the times the app isn't open: a new message, a mutual like, and 
 
 People who haven't turned push on get one email instead when their matches are ready, with the unread chat count. It goes out over plain SMTP, so any provider works (Brevo's and Resend's free tiers are enough for this), and locally `docker compose up -d` starts Mailpit, where you can read what was sent at http://localhost:8027. Every email has a signed unsubscribe link and the one-click `List-Unsubscribe` headers. The unsubscribe page only acts when you press its button, so link scanners in mail clients can't unsubscribe anyone, and the unsubscribe token can't be used to log in.
 
+Every login creates a session row and the JWT carries its id. The guard already loads the user on each request, so it checks the session in the same query: logging out ends that device right away, and a password reset ends all of them. Sign-up sends a confirmation email, and match emails only go to confirmed addresses, so nobody gets mail because someone else typed their address. Forgot-password answers the same way whether or not the account exists; the reset link is signed with a stamp of the current password hash, so it stops working the moment it's used.
+
 Login, sign-up and sending messages are rate limited: 10 login attempts per account and 30 per address every 15 minutes, 5 sign-ups per address an hour, 30 messages a minute per person. The counters live in Postgres (one `INSERT ... ON CONFLICT DO UPDATE ... RETURNING count` per check), so every API instance sees the same numbers without Redis. Going over returns 429 with `Retry-After`. Because the API only ever sees the Next server, the web app forwards the client address, taking it from the right end of `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`) so a client can't pick its own; the API only believes that header from addresses in `TRUST_PROXY`.
 
 ## Running it
@@ -117,7 +119,10 @@ If you touch the engine math or the question bank, regenerate the shared fixture
 
 | | |
 |---|---|
-| `POST /auth/register`, `POST /auth/login` | returns a JWT |
+| `POST /auth/register`, `POST /auth/login` | returns a JWT tied to a session |
+| `POST /auth/logout` | ends this session only |
+| `POST /auth/verify-email`, `POST /auth/verify-email/resend` | confirm the address from the emailed link |
+| `POST /auth/password/forgot`, `POST /auth/password/reset` | emailed reset link, single use, 30 minutes |
 | `GET /me` | profile, answer count, how much the model knows about you, where your likes disagree with your answers |
 | `GET /me/export` | everything stored about you as JSON (never the other person's messages) |
 | `DELETE /me` | `{ password }`, deletes the account and everything tied to it |

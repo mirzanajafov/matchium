@@ -27,9 +27,9 @@ export class DigestService {
     if (!this.mailer.enabled) return false;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, displayName: true, emailDigest: true, bannedAt: true },
+      select: { email: true, displayName: true, emailDigest: true, emailVerifiedAt: true, bannedAt: true },
     });
-    if (!user?.emailDigest || user.bannedAt) return false;
+    if (!user?.emailDigest || !user.emailVerifiedAt || user.bannedAt) return false;
 
     const unreadChats = await this.chats.unreadCount(userId);
     if (newMatches === 0 && unreadChats === 0) return false;
