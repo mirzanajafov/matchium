@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         </form>
       </header>
       <AppNav initial={inbox} />
-      {inbox.emailVerified === false && <VerifyEmailBanner />}
+      {inbox.emailEnabled && inbox.emailVerified === false && <VerifyEmailBanner />}
       <main className="mt-8 flex-1">{children}</main>
     </div>
   );

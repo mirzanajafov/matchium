@@ -82,6 +82,7 @@ export interface Inbox {
   newMatches: number;
   unreadChats: number;
   emailVerified?: boolean;
+  emailEnabled?: boolean;
 }
 
 export interface ChatThread {

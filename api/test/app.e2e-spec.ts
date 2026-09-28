@@ -865,7 +865,7 @@ describe('account security', () => {
     const sent = mails.sent.find((m) => m.to === alice.email)!;
     expect(sent.subject).toBe('Confirm your email for Matchium');
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailVerified).toBe(false);
-    expect((await http().get('/inbox').set(as(alice.token)).expect(200)).body.emailVerified).toBe(false);
+    expect((await http().get('/inbox').set(as(alice.token)).expect(200)).body).toMatchObject({ emailVerified: false, emailEnabled: true });
 
     const token = linkToken(sent.text, '/verify-email');
     await http().get('/me').set(as(token)).expect(401);
