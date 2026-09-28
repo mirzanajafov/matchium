@@ -16,6 +16,13 @@ services:
       interval: 5s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: matchium-mailpit
+    ports:
+      - "1027:1025"
+      - "8027:8025"
+
   matcher:
     build: ./engine
     container_name: matchium-matcher
@@ -41,6 +48,8 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:push@example.com}
+      SMTP_URL: ${SMTP_URL:-smtp://mailpit:1025}
+      WEB_URL: ${WEB_URL:-http://localhost:3101}
     ports:
       - "3100:3100"
     depends_on:
