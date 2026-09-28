@@ -37,6 +37,12 @@ export class PhotosController {
     await this.photos.remove(user.id, id);
   }
 
+  @Post('me/photos/:id/main')
+  @HttpCode(204)
+  async makeMain(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    await this.photos.makeMain(user.id, id);
+  }
+
   @Get('photos/:id')
   @Header('Cache-Control', 'private, max-age=3600')
   async read(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {

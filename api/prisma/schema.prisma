@@ -243,9 +243,10 @@ model Photo {
   key       String   @unique
   width     Int
   height    Int
+  position  Int      @default(0)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
+  @@index([userId, position])
 }

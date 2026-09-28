@@ -217,3 +217,8 @@ export async function logoutEverywhere(): Promise<void> {
   redirect("/login");
 }
 
+export async function makeMainPhoto(photoId: string): Promise<void> {
+  await authedApi(`/me/photos/${encodeURIComponent(photoId)}/main`, { method: "POST" });
+  revalidatePath("/me");
+}
+
