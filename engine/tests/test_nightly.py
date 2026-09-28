@@ -5,7 +5,7 @@ import uuid
 import numpy as np
 import pytest
 
-from jobs.nightly import build_pool, learn_decisions, plan, run
+from jobs.nightly import build_pool, by_city, learn_decisions, plan, run
 from matchium import DIMENSIONS
 from matchium.model import BAR_PRIOR_MEAN, GAP_PRIOR_VAR
 
@@ -84,6 +84,23 @@ def test_build_pool_reads_stored_revealed_state():
     stored = build_pool([user], []).beliefs
     assert np.allclose(stored.pref_mean[0], np.array(user["muPref"]) + 0.1)
     assert stored.mu_bar[0] == 1.1 and stored.var_bar[0] == 0.2
+
+
+def key(m):
+    return (m.user_a, m.user_b, round(m.score, 12), round(m.confidence, 12))
+
+
+def test_scoring_city_by_city_gives_the_same_matches_as_one_big_pool():
+    rng = np.random.default_rng(8)
+    users = [fake_user(rng, g, [o], city=c) for c in ("Baku", "Ganja", " baku", "Sumqayit") for g, o in (("WOMAN", "MAN"), ("MAN", "WOMAN")) for _ in range(4)]
+    history = [(users[0]["id"], users[1]["id"])]
+
+    whole = sorted(map(key, plan(build_pool(users, history), per_user=3)))
+    groups = by_city(users)
+    split = sorted(key(m) for group in groups for m in plan(build_pool(group, history), per_user=3))
+
+    assert [len(g) for g in groups] == [16, 8, 8]
+    assert whole == split and len(whole) > 0
 
 
 def test_plan_handles_tiny_pools():
