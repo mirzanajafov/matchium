@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BioForm } from "@/components/BioForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { EmailDigestToggle } from "@/components/EmailDigestToggle";
 import { Meter } from "@/components/Meter";
+import { ProfilePhotos } from "@/components/ProfilePhotos";
 import { PushToggle } from "@/components/PushToggle";
 import { api, authedApi } from "@/lib/api";
 import { certaintyHint, longDate, shiftSentence } from "@/lib/format";
@@ -35,6 +37,10 @@ export default async function MePage() {
           Moderation queue
         </Link>
       )}
+      <section className="mt-6 space-y-6 rounded-2xl border border-line bg-surface p-6">
+        <ProfilePhotos photos={me.photos} />
+        <BioForm bio={me.bio} />
+      </section>
       <section className="mt-6 rounded-2xl border border-line bg-surface p-6">
         <Meter value={me.certainty} label="How well we know you" caption={certaintyHint(me.certainty)} />
       </section>

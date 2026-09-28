@@ -8,6 +8,8 @@ export interface Me {
   gender: Gender;
   seeking: Gender[];
   city: string;
+  bio: string;
+  photos: PhotoRef[];
   answerCount: number;
   certainty: number;
   role: "USER" | "ADMIN";
@@ -51,7 +53,7 @@ export interface Match {
   confidence: number;
   aligned: string[];
   friction: string;
-  person: { id: string; displayName: string; age: number; city: string };
+  person: { id: string; displayName: string; age: number; city: string; bio: string; photos: PhotoRef[] };
   decision: "LIKE" | "PASS" | null;
   mutual: boolean;
 }
@@ -71,7 +73,7 @@ export interface ChatMessage {
 export interface ChatSummary {
   id: string;
   matchedOn: string;
-  person: { id: string; displayName: string; age: number; city: string };
+  person: { id: string; displayName: string; age: number; city: string; photo: string | null };
   lastMessage: ChatMessage | null;
   unread: boolean;
 }
@@ -83,7 +85,7 @@ export interface Inbox {
 }
 
 export interface ChatThread {
-  person: { id: string; displayName: string };
+  person: { id: string; displayName: string; photo: string | null };
   messages: ChatMessage[];
 }
 
@@ -109,4 +111,10 @@ export interface AdminReport {
   reporter: ReportedPerson;
   reported: ReportedPerson;
   messages: { from: "reporter" | "reported"; body: string; sentAt: string }[];
+}
+
+export interface PhotoRef {
+  id: string;
+  width: number;
+  height: number;
 }

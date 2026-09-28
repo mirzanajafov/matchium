@@ -12,7 +12,7 @@ const match: Match = {
   confidence: 0.42,
   aligned: ["family", "planning"],
   friction: "adventure",
-  person: { id: "p1", displayName: "Aysel", age: 29, city: "Baku" },
+  person: { id: "p1", displayName: "Aysel", age: 29, city: "Baku", bio: "", photos: [] },
   decision: null,
   mutual: false,
 };
@@ -51,4 +51,30 @@ describe("MatchCard", () => {
     render(<MatchCard match={{ ...match, decision: "LIKE" }} />);
     expect(screen.getByText("You said yes. We'll let you know if it's mutual.")).toBeInTheDocument();
   });
+
+  it("shows photos and the bio when there are some, initials otherwise", () => {
+    const withPhotos = {
+      ...match,
+      person: {
+        ...match.person,
+        bio: "Weekend hikes, weekday spreadsheets.",
+        photos: [
+          { id: "11111111-1111-4111-8111-111111111111", width: 1080, height: 1350 },
+          { id: "22222222-2222-4222-8222-222222222222", width: 1080, height: 1350 },
+        ],
+      },
+    };
+    const { unmount } = render(<MatchCard match={withPhotos} />);
+    expect(screen.getByRole("img", { name: "Aysel, photo 1 of 2" })).toHaveAttribute(
+      "src",
+      "/api/photos/11111111-1111-4111-8111-111111111111",
+    );
+    expect(screen.getByText("Weekend hikes, weekday spreadsheets.")).toBeInTheDocument();
+    unmount();
+
+    render(<MatchCard match={match} />);
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.getByText("A")).toBeInTheDocument();
+  });
 });
+

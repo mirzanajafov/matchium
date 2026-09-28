@@ -55,6 +55,27 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   return data as T;
 }
 
+export async function uploadToApi<T>(path: string, form: FormData): Promise<T> {
+  const token = await getToken();
+  if (!token) redirect("/login");
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+    body: form,
+    cache: "no-store",
+  });
+  const data: unknown = await response.json().catch(() => null);
+  if (response.status === 401) redirect("/session/expired");
+  if (!response.ok) throw new ApiError(response.status, messageFrom(data) ?? response.statusText);
+  return data as T;
+}
+
+export async function openApiImage(path: string): Promise<Response> {
+  const token = await getToken();
+  if (!token) return new Response(null, { status: 401 });
+  return fetch(`${API_URL}${path}`, { headers: { authorization: `Bearer ${token}` }, cache: "no-store" });
+}
+
 export async function authedApi<T>(path: string, options: Omit<RequestOptions, "token"> = {}): Promise<T> {
   const token = await getToken();
   if (!token) redirect("/login");

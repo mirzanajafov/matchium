@@ -12,6 +12,7 @@ const person = {
     email: true,
     createdAt: true,
     bannedAt: true,
+    photos: { select: { id: true }, orderBy: { createdAt: 'asc' } },
     _count: { select: { reportsAgainst: true } },
   },
 } as const;
@@ -98,6 +99,7 @@ export class AdminService {
     email: string;
     createdAt: Date;
     bannedAt: Date | null;
+    photos: { id: string }[];
     _count: { reportsAgainst: number };
   }) {
     return {
@@ -107,6 +109,7 @@ export class AdminService {
       joinedAt: p.createdAt.toISOString(),
       banned: p.bannedAt !== null,
       reportsAgainst: p._count.reportsAgainst,
+      photos: p.photos.map((photo) => photo.id),
     };
   }
 }

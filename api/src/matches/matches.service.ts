@@ -2,11 +2,14 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Clock, ageOn, isoDay, utcDay } from '../common/clock.js';
 import { CHAT_CHANNEL } from '../common/db-events.js';
 import { isUniqueViolation } from '../prisma/errors.js';
+import { photoRefs, photoSelect } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import type { ReportDto } from './dto/unmatch.dto.js';
 
-const publicProfile = { select: { id: true, displayName: true, birthDate: true, city: true } } as const;
+const publicProfile = {
+  select: { id: true, displayName: true, birthDate: true, city: true, bio: true, photos: photoSelect },
+} as const;
 
 @Injectable()
 export class MatchesService {
@@ -42,6 +45,8 @@ export class MatchesService {
             displayName: person.displayName,
             age: ageOn(person.birthDate, now),
             city: person.city,
+            bio: person.bio ?? '',
+            photos: photoRefs(person.photos),
           },
           decision: mine ? (mine.liked ? 'LIKE' : 'PASS') : null,
           mutual: Boolean(mine?.liked && theirs?.liked),
