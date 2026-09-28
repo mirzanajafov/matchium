@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../auth/current-user.decorator.js';
 import { type LimitRule, RATE_LIMITS } from './rate-limit.decorator.js';
+import { rateLimited } from '../observability/metrics.js';
 import { RateLimiter } from './rate-limiter.js';
 
 function subject(rule: LimitRule, request: Request & { user?: AuthUser }): string | undefined {
@@ -36,6 +37,7 @@ export class RateLimitGuard implements CanActivate {
       if (!who) continue;
       const verdict = await this.limiter.hit(`${rule.name}:${rule.by}:${who}`, rule.limit, rule.windowSeconds);
       if (!verdict.allowed) {
+        rateLimited.inc({ rule: rule.name });
         http.getResponse<Response>().setHeader('Retry-After', String(verdict.retryAfterSeconds));
         throw new HttpException(
           `Too many attempts, try again in ${wait(verdict.retryAfterSeconds)}`,

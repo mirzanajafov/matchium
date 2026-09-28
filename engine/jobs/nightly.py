@@ -1,7 +1,9 @@
 import argparse
 import datetime as dt
 import json
+import logging
 import os
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -15,6 +17,7 @@ from matchium.scoring import confidence, directed_scores, explain, mutual_scores
 GENDERS = ("WOMAN", "MAN", "NONBINARY")
 LOCK_KEY = "matchium-nightly"
 MATCHES_CHANNEL = "matches_ready"
+log = logging.getLogger("matchium.nightly")
 
 
 @dataclass
@@ -163,8 +166,9 @@ def run(conn: psycopg.Connection, day: dt.date, per_user: int, min_answers: int)
         if conn.execute('SELECT 1 FROM "Match" WHERE day = %s LIMIT 1', (day,)).fetchone():
             return 0
         history = conn.execute('SELECT "userAId"::text, "userBId"::text FROM "Match"').fetchall()
+        started = time.perf_counter()
         pools = [build_pool(group, history) for group in by_city(load_users(conn, min_answers))]
-        apply_decisions(conn, pools)
+        learned = apply_decisions(conn, pools)
         planned = [match for pool in pools for match in plan(pool, per_user)]
         with conn.cursor() as cur:
             cur.executemany(
@@ -176,6 +180,20 @@ def run(conn: psycopg.Connection, day: dt.date, per_user: int, min_answers: int)
             )
         if planned:
             conn.execute("SELECT pg_notify(%s, %s)", (MATCHES_CHANNEL, json.dumps({"day": day.isoformat()})))
+        log.info(
+            json.dumps(
+                {
+                    "event": "nightly",
+                    "day": day.isoformat(),
+                    "users": sum(len(p.ids) for p in pools),
+                    "cities": len(pools),
+                    "largest_city": max((len(p.ids) for p in pools), default=0),
+                    "decisions_learned": learned,
+                    "matches": len(planned),
+                    "seconds": round(time.perf_counter() - started, 3),
+                }
+            )
+        )
         return len(planned)
 
 

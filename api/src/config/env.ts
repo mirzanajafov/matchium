@@ -27,6 +27,10 @@ export class Env {
 
   @IsOptional()
   @IsString()
+  METRICS_TOKEN: string = '';
+
+  @IsOptional()
+  @IsString()
   SMTP_URL: string = '';
 
   @IsOptional()

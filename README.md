@@ -74,6 +74,8 @@ Every login creates a session row and the JWT carries its id. The guard already 
 
 Login, sign-up and sending messages are rate limited: 10 login attempts per account and 30 per address every 15 minutes, 5 sign-ups per address an hour, 30 messages a minute per person. The counters live in Postgres (one `INSERT ... ON CONFLICT DO UPDATE ... RETURNING count` per check), so every API instance sees the same numbers without Redis. Going over returns 429 with `Retry-After`. Because the API only ever sees the Next server, the web app forwards the client address, taking it from the right end of `X-Forwarded-For` (`TRUSTED_PROXY_HOPS`) so a client can't pick its own; the API only believes that header from addresses in `TRUST_PROXY`.
 
+With `LOG_JSON=true` the API logs one JSON line per request (method, route template, status, ms) plus its own events, and the nightly job logs a JSON summary per run (users, cities, largest city, decisions learned, matches, seconds). `GET /metrics` serves Prometheus metrics when `METRICS_TOKEN` is set and is a 404 otherwise: request counts and latency by route template (so ids never become label values), push and email results, rate-limit refusals and open chat streams.
+
 ## Running it
 
 The quickest way to see the whole thing is Docker alone:

@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 import os
 import uuid
 
@@ -205,6 +206,15 @@ def test_run_announces_new_matches_after_commit(conn):
         assert list(listener.notifies(timeout=0.5)) == []
     finally:
         listener.close()
+
+
+def test_run_logs_a_summary(conn, caplog):
+    insert_users(conn, population(np.random.default_rng(10)))
+    with caplog.at_level("INFO", logger="matchium.nightly"):
+        created = run(conn, dt.date(2026, 9, 23), per_user=3, min_answers=6)
+    summary = json.loads(caplog.records[-1].getMessage())
+    assert summary["event"] == "nightly" and summary["matches"] == created
+    assert summary["cities"] == 2 and summary["users"] == 18 and summary["largest_city"] == 16
 
 
 def test_run_learns_each_decision_once(conn):
