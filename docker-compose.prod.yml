@@ -35,6 +35,26 @@ services:
       - default
       - edge
 
+  backup:
+    build: ./deploy/backup
+    container_name: matchium-backup
+    profiles: ["app"]
+    user: "${BACKUP_UID:-1000}:${BACKUP_GID:-1000}"
+    environment:
+      PGHOST: postgres
+      PGUSER: matchium
+      PGDATABASE: matchium
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      RUN_AT: ${BACKUP_AT:-04:00}
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - photos:/photos:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 networks:
   edge:
     name: ${EDGE_NETWORK:?set EDGE_NETWORK}
