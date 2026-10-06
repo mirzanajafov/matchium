@@ -85,7 +85,7 @@ services:
     container_name: matchium-web
     profiles: ["app"]
     environment:
-      API_URL: http://api:3100
+      API_URL: http://matchium-api:3100
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     ports:
       - "3101:3101"
