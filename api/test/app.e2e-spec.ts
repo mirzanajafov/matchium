@@ -141,15 +141,40 @@ describe('auth', () => {
     const user = await register();
     await http()
       .post('/auth/register')
-      .send({ email: user.email.toUpperCase(), password: 'another password', displayName: 'X', birthDate: '1990-01-01', gender: 'MAN', seeking: ['WOMAN'], city: 'Baku' })
+      .send({
+        email: user.email.toUpperCase(),
+        password: 'another password',
+        displayName: 'X',
+        birthDate: '1990-01-01',
+        gender: 'MAN',
+        seeking: ['WOMAN'],
+        city: 'Baku',
+      })
       .expect(409);
     await http()
       .post('/auth/register')
-      .send({ email: 'kid@example.com', password: 'long enough', displayName: 'Kid', birthDate: '2010-01-01', gender: 'MAN', seeking: ['WOMAN'], city: 'Baku' })
+      .send({
+        email: 'kid@example.com',
+        password: 'long enough',
+        displayName: 'Kid',
+        birthDate: '2010-01-01',
+        gender: 'MAN',
+        seeking: ['WOMAN'],
+        city: 'Baku',
+      })
       .expect(400);
     await http()
       .post('/auth/register')
-      .send({ email: 'x@example.com', password: 'long enough', displayName: 'X', birthDate: '1990-01-01', gender: 'ROBOT', seeking: [], city: 'Baku', admin: true })
+      .send({
+        email: 'x@example.com',
+        password: 'long enough',
+        displayName: 'X',
+        birthDate: '1990-01-01',
+        gender: 'ROBOT',
+        seeking: [],
+        city: 'Baku',
+        admin: true,
+      })
       .expect(400);
   });
 
@@ -169,7 +194,9 @@ describe('daily questions', () => {
     expect(first.body.questions).toHaveLength(6);
     expect(first.body.remaining).toBe(6);
     const again = await http().get('/questions/today').set(auth).expect(200);
-    expect(again.body.questions.map((q: { id: string }) => q.id)).toEqual(first.body.questions.map((q: { id: string }) => q.id));
+    expect(again.body.questions.map((q: { id: string }) => q.id)).toEqual(
+      first.body.questions.map((q: { id: string }) => q.id),
+    );
 
     const questionId = first.body.questions[0].id;
     const answer = await http()
@@ -180,13 +207,25 @@ describe('daily questions', () => {
     expect(answer.body.remaining).toBe(5);
     expect(answer.body.certainty).toBeGreaterThan(0);
 
-    await http().post(`/questions/${questionId}/answer`).set(auth).send({ self: 1, partner: 1, importance: 1 }).expect(409);
-    await http().post(`/questions/${questionId}/answer`).set(auth).send({ self: 9, partner: 1, importance: 1 }).expect(400);
+    await http()
+      .post(`/questions/${questionId}/answer`)
+      .set(auth)
+      .send({ self: 1, partner: 1, importance: 1 })
+      .expect(409);
+    await http()
+      .post(`/questions/${questionId}/answer`)
+      .set(auth)
+      .send({ self: 9, partner: 1, importance: 1 })
+      .expect(400);
 
     const outside = await prisma.question.findFirstOrThrow({
       where: { id: { notIn: first.body.questions.map((q: { id: string }) => q.id) } },
     });
-    await http().post(`/questions/${outside.id}/answer`).set(auth).send({ self: 3, partner: 3, importance: 3 }).expect(404);
+    await http()
+      .post(`/questions/${outside.id}/answer`)
+      .set(auth)
+      .send({ self: 3, partner: 3, importance: 3 })
+      .expect(404);
 
     const me = await http().get('/me').set(auth).expect(200);
     expect(me.body.answerCount).toBe(1);
@@ -267,8 +306,16 @@ describe('matches', () => {
       .expect(200);
     expect(second.body.mutual).toBe(true);
 
-    await http().post(`/matches/${match.id}/decision`).set('Authorization', `Bearer ${alice.token}`).send({ like: false }).expect(409);
-    await http().post(`/matches/${match.id}/decision`).set('Authorization', `Bearer ${eve.token}`).send({ like: true }).expect(404);
+    await http()
+      .post(`/matches/${match.id}/decision`)
+      .set('Authorization', `Bearer ${alice.token}`)
+      .send({ like: false })
+      .expect(409);
+    await http()
+      .post(`/matches/${match.id}/decision`)
+      .set('Authorization', `Bearer ${eve.token}`)
+      .send({ like: true })
+      .expect(404);
 
     const bobView = await http().get('/matches/today').set('Authorization', `Bearer ${bob.token}`).expect(200);
     expect(bobView.body.matches[0]).toMatchObject({ decision: 'LIKE', mutual: true, person: { id: alice.id } });
@@ -276,9 +323,15 @@ describe('matches', () => {
     const before = await http().get('/me').set('Authorization', `Bearer ${bob.token}`).expect(200);
     expect(before.body).toMatchObject({ decisionsLearned: 0, preferenceShifts: [] });
     await prisma.matchDecision.updateMany({ where: { userId: bob.id }, data: { learnedAt: new Date() } });
-    await prisma.belief.update({ where: { userId: bob.id }, data: { muGap: [0, 0.5, 0, 0, 0, 0, 0, 0], varGap: Array(8).fill(0.2) } });
+    await prisma.belief.update({
+      where: { userId: bob.id },
+      data: { muGap: [0, 0.5, 0, 0, 0, 0, 0, 0], varGap: Array(8).fill(0.2) },
+    });
     const after = await http().get('/me').set('Authorization', `Bearer ${bob.token}`).expect(200);
-    expect(after.body).toMatchObject({ decisionsLearned: 1, preferenceShifts: [{ dimension: 'adventure', direction: 'more' }] });
+    expect(after.body).toMatchObject({
+      decisionsLearned: 1,
+      preferenceShifts: [{ dimension: 'adventure', direction: 'more' }],
+    });
 
     clock.nextDay();
     const tomorrow = await http().get('/matches/today').set('Authorization', `Bearer ${alice.token}`).expect(200);
@@ -315,7 +368,11 @@ describe('chats', () => {
     await http().post(`/matches/${match.id}/decision`).set(as(bob.token)).send({ like: true }).expect(200);
     const chats = await http().get('/chats').set(as(alice.token)).expect(200);
     expect(chats.body).toEqual([
-      expect.objectContaining({ id: match.id, person: expect.objectContaining({ displayName: 'Bob' }), lastMessage: null }),
+      expect.objectContaining({
+        id: match.id,
+        person: expect.objectContaining({ displayName: 'Bob' }),
+        lastMessage: null,
+      }),
     ]);
   });
 
@@ -326,7 +383,11 @@ describe('chats', () => {
       await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
     }
 
-    const sent = await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: '  Hey Bob!  ' }).expect(201);
+    const sent = await http()
+      .post(`/chats/${match.id}/messages`)
+      .set(as(alice.token))
+      .send({ body: '  Hey Bob!  ' })
+      .expect(201);
     expect(sent.body).toMatchObject({ body: 'Hey Bob!', fromMe: true });
     await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'Hi Alice' }).expect(201);
 
@@ -350,7 +411,11 @@ describe('chats', () => {
     await http().get(`/chats/${match.id}/messages`).set(as(stranger.token)).expect(404);
     await http().post(`/chats/${match.id}/messages`).set(as(stranger.token)).send({ body: 'hello' }).expect(404);
     await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: '   ' }).expect(400);
-    await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: 'x'.repeat(1001) }).expect(400);
+    await http()
+      .post(`/chats/${match.id}/messages`)
+      .set(as(alice.token))
+      .send({ body: 'x'.repeat(1001) })
+      .expect(400);
     await http().get(`/chats/${match.id}/messages`).query({ after: 'yesterday' }).set(as(alice.token)).expect(400);
   });
 });
@@ -364,7 +429,15 @@ describe('inbox', () => {
     const inbox = async (token: string) => (await http().get('/inbox').set(as(token)).expect(200)).body;
     const create = (other: string) =>
       prisma.match.create({
-        data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: other, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+        data: {
+          day: new Date('2026-09-23'),
+          userAId: alice.id,
+          userBId: other,
+          score: 0.6,
+          confidence: 0.4,
+          aligned: ['family'],
+          friction: 'tidiness',
+        },
       });
     const withBob = await create(bob.id);
     await create(carl.id);
@@ -423,7 +496,15 @@ describe('chat stream', () => {
     const stranger = await register();
     const as = (token: string) => ({ Authorization: `Bearer ${token}` });
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
 
     expect((await openStream(match.id, alice.token)).status).toBe(403);
@@ -458,7 +539,15 @@ describe('push notifications', () => {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
     const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     return { alice, bob, match };
   }
@@ -472,7 +561,11 @@ describe('push notifications', () => {
       .set(as(alice.token))
       .send({ ...subscription(1), endpoint: 'http://push.example.com/insecure' })
       .expect(400);
-    await http().post('/push/subscriptions').set(as(alice.token)).send({ endpoint: subscription(1).endpoint, keys: {} }).expect(400);
+    await http()
+      .post('/push/subscriptions')
+      .set(as(alice.token))
+      .send({ endpoint: subscription(1).endpoint, keys: {} })
+      .expect(400);
     await http().post('/push/subscriptions').set(as(alice.token)).send(subscription(1)).expect(204);
     await http().post('/push/subscriptions').set(as(alice.token)).send(subscription(1)).expect(204);
     expect(await prisma.pushSubscription.count({ where: { userId: alice.id } })).toBe(1);
@@ -486,9 +579,17 @@ describe('push notifications', () => {
     const row = await prisma.pushSubscription.findUniqueOrThrow({ where: { endpoint: subscription(2).endpoint } });
     expect(row.userId).toBe(bob.id);
 
-    await http().delete('/push/subscriptions').set(as(alice.token)).send({ endpoint: subscription(2).endpoint }).expect(204);
+    await http()
+      .delete('/push/subscriptions')
+      .set(as(alice.token))
+      .send({ endpoint: subscription(2).endpoint })
+      .expect(204);
     expect(await prisma.pushSubscription.count()).toBe(1);
-    await http().delete('/push/subscriptions').set(as(bob.token)).send({ endpoint: subscription(2).endpoint }).expect(204);
+    await http()
+      .delete('/push/subscriptions')
+      .set(as(bob.token))
+      .send({ endpoint: subscription(2).endpoint })
+      .expect(204);
     expect(await prisma.pushSubscription.count()).toBe(0);
   });
 
@@ -503,7 +604,11 @@ describe('push notifications', () => {
     expect(sentTo(subscription(3).endpoint)[0]).toMatchObject({ title: "It's mutual", url: `/chats/${match.id}` });
     expect(sentTo(subscription(4).endpoint)).toHaveLength(0);
 
-    await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'Coffee on Saturday?' }).expect(201);
+    await http()
+      .post(`/chats/${match.id}/messages`)
+      .set(as(bob.token))
+      .send({ body: 'Coffee on Saturday?' })
+      .expect(201);
     await vi.waitFor(() => expect(sentTo(subscription(3).endpoint)).toHaveLength(2));
     expect(sentTo(subscription(3).endpoint)[1]).toEqual({
       title: 'Bob',
@@ -513,23 +618,33 @@ describe('push notifications', () => {
     });
 
     pushes.gone.add(subscription(3).endpoint);
-    await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'x'.repeat(300) }).expect(201);
+    await http()
+      .post(`/chats/${match.id}/messages`)
+      .set(as(bob.token))
+      .send({ body: 'x'.repeat(300) })
+      .expect(201);
     await vi.waitFor(async () => expect(await prisma.pushSubscription.count({ where: { userId: alice.id } })).toBe(0));
   });
 
-  it('reports a mutual like once and tells whoever liked first when both say yes at the same moment', { repeats: 4 }, async () => {
-    const { alice, bob, match } = await mutualPair();
-    await http().post('/push/subscriptions').set(as(alice.token)).send(subscription(7)).expect(204);
-    await http().post('/push/subscriptions').set(as(bob.token)).send(subscription(8)).expect(204);
+  it(
+    'reports a mutual like once and tells whoever liked first when both say yes at the same moment',
+    { repeats: 4 },
+    async () => {
+      const { alice, bob, match } = await mutualPair();
+      await http().post('/push/subscriptions').set(as(alice.token)).send(subscription(7)).expect(204);
+      await http().post('/push/subscriptions').set(as(bob.token)).send(subscription(8)).expect(204);
 
-    const [aliceLike, bobLike] = await Promise.all(
-      [alice, bob].map((person) => http().post(`/matches/${match.id}/decision`).set(as(person.token)).send({ like: true }).expect(200)),
-    );
-    expect([aliceLike.body.mutual, bobLike.body.mutual].filter(Boolean)).toHaveLength(1);
-    const firstToLike = aliceLike.body.mutual ? subscription(8) : subscription(7);
-    await vi.waitFor(() => expect(sentTo(firstToLike.endpoint)).toHaveLength(1));
-    expect(pushes.sent).toHaveLength(1);
-  });
+      const [aliceLike, bobLike] = await Promise.all(
+        [alice, bob].map((person) =>
+          http().post(`/matches/${match.id}/decision`).set(as(person.token)).send({ like: true }).expect(200),
+        ),
+      );
+      expect([aliceLike.body.mutual, bobLike.body.mutual].filter(Boolean)).toHaveLength(1);
+      const firstToLike = aliceLike.body.mutual ? subscription(8) : subscription(7);
+      await vi.waitFor(() => expect(sentTo(firstToLike.endpoint)).toHaveLength(1));
+      expect(pushes.sent).toHaveLength(1);
+    },
+  );
 
   it('announces the nightly matches once, even if the signal arrives twice', async () => {
     const { alice, bob } = await mutualPair();
@@ -553,7 +668,15 @@ describe('unmatch and report', () => {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
     const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     for (const who of [alice, bob]) {
       await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
@@ -573,7 +696,10 @@ describe('unmatch and report', () => {
     for (const who of [alice, bob]) {
       expect((await http().get('/chats').set(as(who.token)).expect(200)).body).toEqual([]);
       expect((await http().get('/matches/today').set(as(who.token)).expect(200)).body.matches).toEqual([]);
-      expect((await http().get('/inbox').set(as(who.token)).expect(200)).body).toMatchObject({ newMatches: 0, unreadChats: 0 });
+      expect((await http().get('/inbox').set(as(who.token)).expect(200)).body).toMatchObject({
+        newMatches: 0,
+        unreadChats: 0,
+      });
       await http().get(`/chats/${match.id}/messages`).set(as(who.token)).expect(404);
     }
     await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'hello?' }).expect(404);
@@ -603,7 +729,11 @@ describe('unmatch and report', () => {
       .send({ report: { reason: 'HARASSMENT', note: '  kept insulting me  ' } })
       .expect(200);
     expect(res.body).toEqual({ closed: true, reported: true });
-    await http().post(`/matches/${match.id}/unmatch`).set(as(alice.token)).send({ report: { reason: 'SPAM' } }).expect(200);
+    await http()
+      .post(`/matches/${match.id}/unmatch`)
+      .set(as(alice.token))
+      .send({ report: { reason: 'SPAM' } })
+      .expect(200);
 
     const reports = await prisma.report.findMany();
     expect(reports).toHaveLength(1);
@@ -634,9 +764,21 @@ describe('account data', () => {
     const bob = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Bob' });
     const today = await http().get('/questions/today').set(as(alice.token)).expect(200);
     const first = today.body.questions[0];
-    await http().post(`/questions/${first.id}/answer`).set(as(alice.token)).send({ self: 4, partner: 2, importance: 5 }).expect(201);
+    await http()
+      .post(`/questions/${first.id}/answer`)
+      .set(as(alice.token))
+      .send({ self: 4, partner: 2, importance: 5 })
+      .expect(201);
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     for (const who of [alice, bob]) {
       await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
@@ -651,9 +793,13 @@ describe('account data', () => {
     const res = await http().get('/me/export').set(as(alice.token)).expect(200);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body.profile).toMatchObject({ email: alice.email, displayName: 'Alice', city: 'Baku' });
-    expect(res.body.answers).toEqual([expect.objectContaining({ question: question.text, you: 4, partner: 2, importance: 5 })]);
+    expect(res.body.answers).toEqual([
+      expect.objectContaining({ question: question.text, you: 4, partner: 2, importance: 5 }),
+    ]);
     expect(Object.keys(res.body.model)).toHaveLength(8);
-    expect(res.body.matches).toEqual([expect.objectContaining({ day: '2026-09-23', with: 'Bob', yourDecision: 'LIKE', mutual: true, closed: false })]);
+    expect(res.body.matches).toEqual([
+      expect.objectContaining({ day: '2026-09-23', with: 'Bob', yourDecision: 'LIKE', mutual: true, closed: false }),
+    ]);
     expect(res.body.messagesSent.map((m: { body: string }) => m.body)).toEqual(['hi Bob']);
     expect(JSON.stringify(res.body)).not.toContain('hi Alice');
     expect(JSON.stringify(res.body)).not.toContain('passwordHash');
@@ -685,10 +831,26 @@ describe('moderation', () => {
     const mallory = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Mallory' });
     const carol = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Carol' });
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: mallory.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: mallory.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     const other = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: carol.id, userBId: mallory.id, score: 0.5, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: carol.id,
+        userBId: mallory.id,
+        score: 0.5,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     for (const who of [alice, mallory]) {
       await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
@@ -734,10 +896,17 @@ describe('moderation', () => {
       .send({ outcome: 'BANNED' })
       .expect(200);
     expect(res.body).toEqual({ outcome: 'BANNED', closedMatches: 1 });
-    await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'DISMISSED' }).expect(409);
+    await http()
+      .post(`/admin/reports/${report.id}/resolve`)
+      .set(as(admin.token))
+      .send({ outcome: 'DISMISSED' })
+      .expect(409);
 
     await http().get('/me').set(as(mallory.token)).expect(401);
-    const login = await http().post('/auth/login').send({ email: mallory.email, password: 'correct horse battery' }).expect(403);
+    const login = await http()
+      .post('/auth/login')
+      .send({ email: mallory.email, password: 'correct horse battery' })
+      .expect(403);
     expect(login.body.message).toMatch(/suspended/);
     expect((await prisma.match.findUniqueOrThrow({ where: { id: other.id } })).closedAt).not.toBeNull();
     expect((await http().get('/matches/today').set(as(carol.token)).expect(200)).body.matches).toEqual([]);
@@ -749,7 +918,11 @@ describe('moderation', () => {
   it('dismisses without touching the account', async () => {
     const { admin, mallory } = await reported();
     const [report] = (await http().get('/admin/reports').set(as(admin.token)).expect(200)).body;
-    await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'DISMISSED' }).expect(200);
+    await http()
+      .post(`/admin/reports/${report.id}/resolve`)
+      .set(as(admin.token))
+      .send({ outcome: 'DISMISSED' })
+      .expect(200);
     await http().get('/me').set(as(mallory.token)).expect(200);
     await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'NOPE' }).expect(400);
   });
@@ -761,7 +934,11 @@ describe('rate limits', () => {
   it('slows down password guessing per account and tells you when to retry', async () => {
     const alice = await register();
     for (let i = 0; i < 10; i += 1) {
-      await http().post('/auth/login').set('X-Forwarded-For', `10.0.0.${i}`).send({ email: alice.email, password: 'wrong password' }).expect(401);
+      await http()
+        .post('/auth/login')
+        .set('X-Forwarded-For', `10.0.0.${i}`)
+        .send({ email: alice.email, password: 'wrong password' })
+        .expect(401);
     }
     const blocked = await http()
       .post('/auth/login')
@@ -780,7 +957,15 @@ describe('rate limits', () => {
       http()
         .post('/auth/register')
         .set('X-Forwarded-For', ip)
-        .send({ email: `bulk${n}@example.com`, password: 'long enough', displayName: 'Bulk', birthDate: '1990-01-01', gender: 'MAN', seeking: ['WOMAN'], city: 'Baku' });
+        .send({
+          email: `bulk${n}@example.com`,
+          password: 'long enough',
+          displayName: 'Bulk',
+          birthDate: '1990-01-01',
+          gender: 'MAN',
+          seeking: ['WOMAN'],
+          city: 'Baku',
+        });
     for (let n = 0; n < 5; n += 1) await signup(n, '203.0.113.7').expect(201);
     await signup(5, '203.0.113.7').expect(429);
     await signup(6, '198.51.100.4').expect(201);
@@ -790,17 +975,37 @@ describe('rate limits', () => {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
     const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     for (const who of [alice, bob]) {
       await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
     }
     for (let i = 0; i < 30; i += 1) {
-      await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: `hi ${i}` }).expect(201);
+      await http()
+        .post(`/chats/${match.id}/messages`)
+        .set(as(bob.token))
+        .send({ body: `hi ${i}` })
+        .expect(201);
     }
-    const res = await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'one more' }).expect(429);
+    const res = await http()
+      .post(`/chats/${match.id}/messages`)
+      .set(as(bob.token))
+      .send({ body: 'one more' })
+      .expect(429);
     expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
-    await http().post(`/chats/${match.id}/messages`).set(as(alice.token)).send({ body: 'still fine for me' }).expect(201);
+    await http()
+      .post(`/chats/${match.id}/messages`)
+      .set(as(alice.token))
+      .send({ body: 'still fine for me' })
+      .expect(201);
   });
 
   it('cleans up old windows', async () => {
@@ -824,7 +1029,15 @@ describe('email digest', () => {
       [carol, bob],
     ] as const) {
       await prisma.match.create({
-        data: { day: new Date('2026-09-23'), userAId: a.id, userBId: b.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+        data: {
+          day: new Date('2026-09-23'),
+          userAId: a.id,
+          userBId: b.id,
+          score: 0.6,
+          confidence: 0.4,
+          aligned: ['family'],
+          friction: 'tidiness',
+        },
       });
     }
     await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
@@ -844,7 +1057,15 @@ describe('email digest', () => {
 
     const dan = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Dan' });
     await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: dan.id, userBId: bob.id, score: 0.5, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: dan.id,
+        userBId: bob.id,
+        score: 0.5,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
 
     await app.get(MatchNotifier).deliver('2026-09-23');
@@ -880,7 +1101,10 @@ describe('account security', () => {
     const sent = mails.sent.find((m) => m.to === alice.email)!;
     expect(sent.subject).toBe('Confirm your email for Matchium');
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailVerified).toBe(false);
-    expect((await http().get('/inbox').set(as(alice.token)).expect(200)).body).toMatchObject({ emailVerified: false, emailEnabled: true });
+    expect((await http().get('/inbox').set(as(alice.token)).expect(200)).body).toMatchObject({
+      emailVerified: false,
+      emailEnabled: true,
+    });
 
     const token = linkToken(sent.text, '/verify-email');
     await http().get('/me').set(as(token)).expect(401);
@@ -899,7 +1123,8 @@ describe('account security', () => {
 
   it('logs out one device without touching the others', async () => {
     const alice = await register();
-    const login = () => http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200);
+    const login = () =>
+      http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200);
     const phone = (await login()).body.accessToken as string;
     const laptop = (await login()).body.accessToken as string;
 
@@ -947,7 +1172,10 @@ describe('photos and bio', () => {
       .toBuffer();
 
   async function upload(token: string) {
-    return http().post('/me/photos').set(as(token)).attach('photo', await jpeg(), 'me.jpg');
+    return http()
+      .post('/me/photos')
+      .set(as(token))
+      .attach('photo', await jpeg(), 'me.jpg');
   }
 
   it('stores a cleaned-up copy and lists it on the profile', async () => {
@@ -981,11 +1209,23 @@ describe('photos and bio', () => {
     const admin = await register();
     await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
     const { id } = (await upload(alice.token)).body;
-    await http().patch('/me/profile').set(as(alice.token)).send({ bio: '  Climbing, bad puns, good coffee.  ' }).expect(200);
+    await http()
+      .patch('/me/profile')
+      .set(as(alice.token))
+      .send({ bio: '  Climbing, bad puns, good coffee.  ' })
+      .expect(200);
 
     await http().get(`/photos/${id}`).set(as(bob.token)).expect(404);
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     await http().get(`/photos/${id}`).set(as(bob.token)).expect(200);
     await http().get(`/photos/${id}`).set(as(stranger.token)).expect(404);
@@ -1002,7 +1242,8 @@ describe('photos and bio', () => {
     const alice = await register();
     const ids: string[] = [];
     for (let i = 0; i < 3; i += 1) ids.push((await upload(alice.token)).body.id);
-    const order = async () => (await http().get('/me').set(as(alice.token)).expect(200)).body.photos.map((p: { id: string }) => p.id);
+    const order = async () =>
+      (await http().get('/me').set(as(alice.token)).expect(200)).body.photos.map((p: { id: string }) => p.id);
     expect(await order()).toEqual(ids);
 
     await http().post(`/me/photos/${ids[2]}/main`).set(as(alice.token)).expect(204);
@@ -1024,7 +1265,11 @@ describe('photos and bio', () => {
     await http().delete(`/me/photos/${first}`).set(as(alice.token)).expect(204);
     await http().delete(`/me/photos/${first}`).set(as(alice.token)).expect(404);
     expect(photos.objects.size).toBe(1);
-    await http().patch('/me/profile').set(as(alice.token)).send({ bio: 'x'.repeat(301) }).expect(400);
+    await http()
+      .patch('/me/profile')
+      .set(as(alice.token))
+      .send({ bio: 'x'.repeat(301) })
+      .expect(400);
 
     await http().delete('/me').set(as(alice.token)).send({ password: 'correct horse battery' }).expect(204);
     expect(photos.objects.size).toBe(0);
@@ -1040,13 +1285,29 @@ describe('safety after deletion', () => {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Alice' });
     const mallory = await register({ gender: 'MAN', seeking: ['WOMAN'], displayName: 'Mallory' });
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: mallory.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: mallory.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     for (const who of [alice, mallory]) {
       await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
     }
-    await http().post(`/chats/${match.id}/messages`).set(as(mallory.token)).send({ body: 'wire me 500 AZN' }).expect(201);
-    await http().post(`/matches/${match.id}/unmatch`).set(as(alice.token)).send({ report: { reason: 'SPAM' } }).expect(200);
+    await http()
+      .post(`/chats/${match.id}/messages`)
+      .set(as(mallory.token))
+      .send({ body: 'wire me 500 AZN' })
+      .expect(201);
+    await http()
+      .post(`/matches/${match.id}/unmatch`)
+      .set(as(alice.token))
+      .send({ report: { reason: 'SPAM' } })
+      .expect(200);
 
     await http().delete('/me').set(as(mallory.token)).send({ password: 'correct horse battery' }).expect(204);
 
@@ -1057,18 +1318,31 @@ describe('safety after deletion', () => {
       messages: [{ from: 'reported', body: 'wire me 500 AZN' }],
     });
 
-    await http().post(`/admin/reports/${report.id}/resolve`).set(as(admin.token)).send({ outcome: 'BANNED' }).expect(200);
+    await http()
+      .post(`/admin/reports/${report.id}/resolve`)
+      .set(as(admin.token))
+      .send({ outcome: 'BANNED' })
+      .expect(200);
     const again = await http()
       .post('/auth/register')
-      .send({ email: mallory.email.toUpperCase(), password: 'another password', displayName: 'M', birthDate: '1990-01-01', gender: 'MAN', seeking: ['WOMAN'], city: 'Baku' })
+      .send({
+        email: mallory.email.toUpperCase(),
+        password: 'another password',
+        displayName: 'M',
+        birthDate: '1990-01-01',
+        gender: 'MAN',
+        seeking: ['WOMAN'],
+        city: 'Baku',
+      })
       .expect(403);
     expect(again.body.message).toMatch(/can't be used/);
   });
 
   it('signs out every device at once', async () => {
     const alice = await register();
-    const second = (await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200)).body
-      .accessToken as string;
+    const second = (
+      await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200)
+    ).body.accessToken as string;
     await http().post('/auth/logout-all').set(as(alice.token)).expect(204);
     await http().get('/me').set(as(alice.token)).expect(401);
     await http().get('/me').set(as(second)).expect(401);
@@ -1105,7 +1379,15 @@ describe('metrics', () => {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
     const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
     const match = await prisma.match.create({
-      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.6, confidence: 0.4, aligned: ['family'], friction: 'tidiness' },
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
     });
     await http().get(`/chats/${match.id}/messages`).set(as(alice.token)).expect(403);
     for (let i = 0; i < 11; i += 1) {
@@ -1113,11 +1395,12 @@ describe('metrics', () => {
     }
 
     const text = await scrape();
-    expect(text).toMatch(/matchium_http_requests_total\{method="GET",route="\/chats\/:id\/messages",status="403"\} \d+/);
+    expect(text).toMatch(
+      /matchium_http_requests_total\{method="GET",route="\/chats\/:id\/messages",status="403"\} \d+/,
+    );
     expect(text).not.toContain(match.id);
     expect(text).toMatch(/matchium_rate_limited_total\{rule="login"\} [1-9]/);
     expect(text).toContain('matchium_chat_streams_open');
     expect(text).toContain('process_cpu_user_seconds_total');
   });
 });
-

@@ -48,7 +48,8 @@ export class WebPushSender extends PushSender {
       );
       return 'sent';
     } catch (error) {
-      if (error instanceof webpush.WebPushError && (error.statusCode === 404 || error.statusCode === 410)) return 'gone';
+      if (error instanceof webpush.WebPushError && (error.statusCode === 404 || error.statusCode === 410))
+        return 'gone';
       throw error;
     }
   }

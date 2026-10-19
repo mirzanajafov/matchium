@@ -43,9 +43,7 @@ export function MatchCard({ match }: { match: Match }) {
         </div>
         <div className="text-right">
           <p className="font-mono text-2xl font-semibold tabular-nums">{percent(match.score)}%</p>
-          <p className="text-xs text-muted">
-            {confidenceCaption(match.confidence)}
-          </p>
+          <p className="text-xs text-muted">{confidenceCaption(match.confidence)}</p>
         </div>
       </header>
 

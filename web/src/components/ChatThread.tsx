@@ -88,11 +88,12 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
 
   return (
     <section className="flex flex-col rounded-2xl border border-line bg-surface">
-      <ol className="flex max-h-[60vh] min-h-64 flex-col gap-2 overflow-y-auto p-4" aria-label={`Conversation with ${personName}`}>
+      <ol
+        className="flex max-h-[60vh] min-h-64 flex-col gap-2 overflow-y-auto p-4"
+        aria-label={`Conversation with ${personName}`}
+      >
         {messages.length === 0 && (
-          <li className="m-auto text-center text-sm text-muted">
-            You both said yes. Say hi to {personName}.
-          </li>
+          <li className="m-auto text-center text-sm text-muted">You both said yes. Say hi to {personName}.</li>
         )}
         {messages.map((message) => (
           <li
@@ -101,8 +102,12 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
               message.fromMe ? "self-end bg-foreground text-background" : "self-start bg-line"
             }`}
           >
-            <p className="whitespace-pre-wrap break-words">{message.body}</p>
-            <time dateTime={message.createdAt} suppressHydrationWarning className="mt-0.5 block text-right text-xs opacity-60">
+            <p className="break-words whitespace-pre-wrap">{message.body}</p>
+            <time
+              dateTime={message.createdAt}
+              suppressHydrationWarning
+              className="mt-0.5 block text-right text-xs opacity-60"
+            >
               {timeFormat.format(new Date(message.createdAt))}
             </time>
           </li>

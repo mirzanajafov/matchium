@@ -35,7 +35,12 @@ export function DeleteAccountForm() {
         >
           {pending ? "Deleting..." : "Delete everything"}
         </button>
-        <button type="button" onClick={() => setOpen(false)} disabled={pending} className="h-11 px-3 text-sm text-muted">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          disabled={pending}
+          className="h-11 px-3 text-sm text-muted"
+        >
           Keep my account
         </button>
       </div>

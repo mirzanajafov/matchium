@@ -12,7 +12,11 @@ const questions = [
 ];
 
 async function answerCurrent(user: ReturnType<typeof userEvent.setup>) {
-  for (const group of ["How true is this for you?", "How would you want your partner to answer?", "How much does this matter to you?"]) {
+  for (const group of [
+    "How true is this for you?",
+    "How would you want your partner to answer?",
+    "How much does this matter to you?",
+  ]) {
     const radios = screen.getByRole("radiogroup", { name: group }).querySelectorAll("input");
     await user.click(radios[3]);
   }

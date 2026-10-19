@@ -5,7 +5,10 @@ import { httpMetrics } from './observability/http-metrics.js';
 
 export function configureApp(app: INestApplication): INestApplication {
   const trustProxy = app.get(ConfigService).get<string>('TRUST_PROXY', 'loopback');
-  app.getHttpAdapter().getInstance().set('trust proxy', trustProxy === 'false' ? false : trustProxy.split(','));
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .set('trust proxy', trustProxy === 'false' ? false : trustProxy.split(','));
   app.use(httpMetrics);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.enableShutdownHooks();
@@ -13,10 +16,6 @@ export function configureApp(app: INestApplication): INestApplication {
 }
 
 export function setupDocs(app: INestApplication): void {
-  const config = new DocumentBuilder()
-    .setTitle('Matchium API')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
+  const config = new DocumentBuilder().setTitle('Matchium API').setVersion('0.1.0').addBearerAuth().build();
   SwaggerModule.setup('docs', app, () => SwaggerModule.createDocument(app, config));
 }

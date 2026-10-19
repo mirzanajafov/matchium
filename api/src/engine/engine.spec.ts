@@ -67,6 +67,11 @@ describe('pickQuestions', () => {
   it('never returns answered questions and stops when the bank runs out', () => {
     const answered = new Set(questions.slice(0, -2).map((q) => q.id));
     const picks = pickQuestions(priorBelief(), questions, answered, 5, Array(DIMENSIONS.length).fill(1));
-    expect(picks.sort()).toEqual(questions.slice(-2).map((q) => q.id).sort());
+    expect(picks.sort()).toEqual(
+      questions
+        .slice(-2)
+        .map((q) => q.id)
+        .sort(),
+    );
   });
 });
