@@ -23,6 +23,9 @@ jobs:
           cache: pip
           cache-dependency-path: engine/pyproject.toml
       - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
       - run: pytest -q
       - name: Contract is up to date
         run: |
