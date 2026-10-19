@@ -28,12 +28,9 @@ backup_photos() {
 }
 
 run_once() {
-  if backup_database && backup_photos; then
-    date -u +%Y-%m-%dT%H:%M:%SZ > "$BACKUPS/last-success"
-  else
-    log "FAILED"
-    return 1
-  fi
+  backup_database
+  backup_photos
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$BACKUPS/last-success"
 }
 
 seconds_until_next_run() {
@@ -45,6 +42,7 @@ seconds_until_next_run() {
 }
 
 if [ "${1:-}" = "once" ]; then
+  trap '[ "$?" -eq 0 ] || log "FAILED"' EXIT
   run_once
   exit
 fi
@@ -52,5 +50,5 @@ fi
 log "scheduled daily at $RUN_AT UTC, keeping $KEEP_DAYS days"
 while true; do
   sleep "$(seconds_until_next_run)"
-  run_once || true
+  "$0" once || true
 done
