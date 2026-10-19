@@ -126,7 +126,7 @@ def conn():
         pytest.skip("test database not available")
     if not connection.execute("SELECT to_regclass('\"Match\"')").fetchone()[0]:
         connection.close()
-        pytest.skip("test database has no schema; run the API e2e setup first")
+        pytest.skip("test database has no schema (run the API e2e setup first)")
     connection.execute('TRUNCATE "User" CASCADE')
     connection.commit()
     yield connection
