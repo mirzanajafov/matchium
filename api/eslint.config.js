@@ -8,7 +8,7 @@ export default defineConfig([
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
   {
-    linterOptions: { reportUnusedDisableDirectives: 'error' },
+    linterOptions: { noInlineConfig: true },
     languageOptions: { parserOptions: { projectService: true } },
     rules: {
       '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],

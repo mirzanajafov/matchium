@@ -6,8 +6,8 @@
     "dev": "next dev -p 3101",
     "build": "next build",
     "start": "next start -p 3101",
-    "lint": "eslint . --max-warnings 0",
-    "typecheck": "tsc --noEmit",
+    "lint": "next typegen && eslint . --max-warnings 0",
+    "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write \"**/*.{js,mjs,mts,ts,tsx,css}\"",
     "format:check": "prettier --check \"**/*.{js,mjs,mts,ts,tsx,css}\"",
     "test": "vitest run"

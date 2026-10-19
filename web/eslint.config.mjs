@@ -1,19 +1,17 @@
 import js from "@eslint/js";
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-const eslintConfig = defineConfig([
-  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),
+export default defineConfig([
+  globalIgnores(["coverage"]),
   js.configs.recommended,
-  ...nextVitals,
-  ...nextTs,
+  nextVitals,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
   {
-    linterOptions: { reportUnusedDisableDirectives: "error" },
+    linterOptions: { noInlineConfig: true },
     languageOptions: { parserOptions: { projectService: true } },
     rules: {
       "@typescript-eslint/no-base-to-string": "off",
@@ -31,5 +29,3 @@ const eslintConfig = defineConfig([
   { files: ["**/*.{js,mjs,cjs}"], extends: [tseslint.configs.disableTypeChecked] },
   { files: ["public/sw.js"], languageOptions: { globals: globals.serviceworker } },
 ]);
-
-export default eslintConfig;
