@@ -67,7 +67,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
       <p className="text-sm text-muted">
         Question {total - open.length + 1} of {total}
       </p>
-      <h2 className="mt-2 text-xl font-semibold leading-snug">{current.text}</h2>
+      <h2 className="mt-2 text-xl leading-snug font-semibold">{current.text}</h2>
 
       <form
         className="mt-6 space-y-6"

@@ -61,8 +61,7 @@ export class ChatsService {
   async list(userId: string) {
     const matches = await this.mutualMatches(userId);
     const now = this.clock.now();
-    const activity = (match: (typeof matches)[number]) =>
-      (match.messages[0]?.createdAt ?? match.createdAt).getTime();
+    const activity = (match: (typeof matches)[number]) => (match.messages[0]?.createdAt ?? match.createdAt).getTime();
 
     return matches
       .filter(isMutual)

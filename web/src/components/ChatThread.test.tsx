@@ -115,7 +115,9 @@ describe("ChatThread", () => {
 
   it("catches up on anything missed when the stream (re)connects", async () => {
     const first = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
-    vi.mocked(fetchMessages).mockResolvedValue([message("m2", "Sent while you were offline", "2026-09-23T10:01:00.000Z")]);
+    vi.mocked(fetchMessages).mockResolvedValue([
+      message("m2", "Sent while you were offline", "2026-09-23T10:01:00.000Z"),
+    ]);
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
 
     await act(async () => {
@@ -164,4 +166,3 @@ describe("ChatThread", () => {
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("hello");
   });
 });
-

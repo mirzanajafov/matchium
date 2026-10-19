@@ -61,8 +61,7 @@ export function ReportCard({ report }: { report: AdminReport }) {
           </form>
           <form action={resolveReport.bind(null, report.id, "BANNED")} className="flex items-center gap-2">
             <label className="flex items-center gap-1.5 text-muted">
-              <input type="checkbox" required />
-              I read the conversation
+              <input type="checkbox" required />I read the conversation
             </label>
             <button type="submit" className="h-10 rounded-lg bg-warn px-4 font-medium text-white">
               {reported.deleted ? `Block ${reported.email}` : `Ban ${reported.displayName}`}

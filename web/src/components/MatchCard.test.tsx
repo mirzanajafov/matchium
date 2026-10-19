@@ -77,4 +77,3 @@ describe("MatchCard", () => {
     expect(screen.getByText("A")).toBeInTheDocument();
   });
 });
-

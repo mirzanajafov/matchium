@@ -27,12 +27,10 @@ export default function Home() {
       </header>
 
       <section className="mt-20">
-        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-          Dating that shows its work.
-        </h1>
+        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Dating that shows its work.</h1>
         <p className="mt-4 max-w-lg text-lg text-muted">
-          Matchium gets to know you a little more every day and gives you a handful of matches, each with a
-          plain reason and an honest confidence level.
+          Matchium gets to know you a little more every day and gives you a handful of matches, each with a plain reason
+          and an honest confidence level.
         </p>
         <Link
           href="/signup"

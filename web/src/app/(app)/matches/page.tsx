@@ -9,10 +9,7 @@ export const metadata: Metadata = { title: "Matches" };
 const MIN_ANSWERS = 6;
 
 export default async function MatchesPage() {
-  const [{ matches }, me] = await Promise.all([
-    authedApi<TodayMatches>("/matches/today"),
-    authedApi<Me>("/me"),
-  ]);
+  const [{ matches }, me] = await Promise.all([authedApi<TodayMatches>("/matches/today"), authedApi<Me>("/me")]);
 
   return (
     <>
@@ -30,8 +27,8 @@ export default async function MatchesPage() {
             </p>
           ) : (
             <p>
-              No match good enough today. We&apos;d rather skip a day than send you a weak one. New ones are picked every
-              night.
+              No match good enough today. We&apos;d rather skip a day than send you a weak one. New ones are picked
+              every night.
             </p>
           )}
         </div>

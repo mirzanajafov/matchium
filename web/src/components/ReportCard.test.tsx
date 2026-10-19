@@ -40,10 +40,11 @@ describe("ReportCard", () => {
     expect(screen.getByText("3 reports")).toBeInTheDocument();
     expect(screen.getByText("asked for money")).toBeInTheDocument();
     const conversation = screen.getByRole("list");
-    expect(within(conversation).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
-      "Alice: hi",
-      "Mallory: send me money",
-    ]);
+    expect(
+      within(conversation)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(["Alice: hi", "Mallory: send me money"]);
   });
 
   it("asks for a confirmation before a ban", () => {
@@ -72,4 +73,3 @@ describe("ReportCard", () => {
     expect(screen.getByRole("button", { name: "Block mallory@example.com" })).toBeInTheDocument();
   });
 });
-

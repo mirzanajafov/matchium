@@ -11,8 +11,8 @@ export function ForgotPasswordForm() {
   if (state.done) {
     return (
       <p role="status" className="mt-6">
-        If there&apos;s an account for {state.values?.email}, a link to reset the password is on its way. It works for 30
-        minutes.
+        If there&apos;s an account for {state.values?.email}, a link to reset the password is on its way. It works for
+        30 minutes.
       </p>
     );
   }

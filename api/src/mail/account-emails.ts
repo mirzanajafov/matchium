@@ -17,7 +17,12 @@ export function verificationEmail(name: string, url: string) {
   return {
     subject: 'Confirm your email for Matchium',
     text: `Hi ${name},\n\nConfirm this is your email so we can send you match updates: ${url}\n\n${footer}`,
-    html: layout(name, ['Confirm this is your email so we can send you match updates.'], { label: 'Confirm email', url }, footer),
+    html: layout(
+      name,
+      ['Confirm this is your email so we can send you match updates.'],
+      { label: 'Confirm email', url },
+      footer,
+    ),
   };
 }
 

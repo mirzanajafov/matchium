@@ -8,7 +8,10 @@ export function VerifyEmailBanner() {
   const [pending, startTransition] = useTransition();
 
   return (
-    <aside className="mt-4 rounded-xl border border-line bg-warn-soft px-4 py-3 text-sm" aria-label="Confirm your email">
+    <aside
+      className="mt-4 rounded-xl border border-line bg-warn-soft px-4 py-3 text-sm"
+      aria-label="Confirm your email"
+    >
       <p>
         Confirm your email so we can reach you when push is off.{" "}
         {message ? (

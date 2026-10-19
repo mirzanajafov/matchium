@@ -94,7 +94,8 @@ export async function sendMessage(matchId: string, body: string): Promise<ChatMe
   try {
     return await authedApi<ChatMessage>(`/chats/${encodeURIComponent(matchId)}/messages`, { body: { body } });
   } catch (error) {
-    if (error instanceof ApiError && error.status === 429) return { error: "You're sending messages too fast. Wait a moment." };
+    if (error instanceof ApiError && error.status === 429)
+      return { error: "You're sending messages too fast. Wait a moment." };
     throw error;
   }
 }
@@ -146,7 +147,8 @@ export async function unsubscribeEmail(token: string): Promise<{ done: boolean; 
     await api(`/email/unsubscribe?token=${encodeURIComponent(token)}`, { method: "POST" });
     return { done: true };
   } catch (error) {
-    if (error instanceof ApiError && error.status === 400) return { done: false, error: "This link doesn't work anymore." };
+    if (error instanceof ApiError && error.status === 400)
+      return { done: false, error: "This link doesn't work anymore." };
     throw error;
   }
 }
@@ -187,8 +189,10 @@ export async function resendVerification(): Promise<{ sent: boolean; error?: str
     await authedApi("/auth/verify-email/resend", { method: "POST" });
     return { sent: true };
   } catch (error) {
-    if (error instanceof ApiError && error.status === 429) return { sent: false, error: "We just sent a few. Check your inbox." };
-    if (error instanceof ApiError && error.status === 409) return { sent: false, error: "Your email is already confirmed." };
+    if (error instanceof ApiError && error.status === 429)
+      return { sent: false, error: "We just sent a few. Check your inbox." };
+    if (error instanceof ApiError && error.status === 409)
+      return { sent: false, error: "Your email is already confirmed." };
     throw error;
   }
 }
@@ -219,7 +223,8 @@ export async function saveBio(_: FormState, formData: FormData): Promise<FormSta
   try {
     await authedApi("/me/profile", { method: "PATCH", body: { bio } });
   } catch (error) {
-    if (error instanceof ApiError && error.status === 400) return { error: "Keep it under 300 characters.", values: { bio } };
+    if (error instanceof ApiError && error.status === 400)
+      return { error: "Keep it under 300 characters.", values: { bio } };
     throw error;
   }
   revalidatePath("/me");
@@ -236,4 +241,3 @@ export async function makeMainPhoto(photoId: string): Promise<void> {
   await authedApi(`/me/photos/${encodeURIComponent(photoId)}/main`, { method: "POST" });
   revalidatePath("/me");
 }
-

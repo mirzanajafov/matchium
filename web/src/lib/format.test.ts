@@ -1,4 +1,13 @@
-import { confidenceCaption, confidenceLabel, dimensionLabel, joinWords, longDate, percent, shiftSentence, shortDate } from "./format";
+import {
+  confidenceCaption,
+  confidenceLabel,
+  dimensionLabel,
+  joinWords,
+  longDate,
+  percent,
+  shiftSentence,
+  shortDate,
+} from "./format";
 
 describe("format", () => {
   it("joins words like a person would", () => {

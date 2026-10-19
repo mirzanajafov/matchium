@@ -20,7 +20,10 @@ describe('processPhoto', () => {
   });
 
   it('applies the camera rotation before stripping it', async () => {
-    const input = await sharp(await jpeg(400, 200)).withMetadata({ orientation: 6 }).jpeg().toBuffer();
+    const input = await sharp(await jpeg(400, 200))
+      .withMetadata({ orientation: 6 })
+      .jpeg()
+      .toBuffer();
     const out = await processPhoto(input);
     expect([out!.width, out!.height]).toEqual([200, 400]);
   });

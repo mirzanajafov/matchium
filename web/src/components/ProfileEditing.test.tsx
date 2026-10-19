@@ -4,7 +4,12 @@ import { deletePhoto, makeMainPhoto, saveBio, uploadPhoto } from "@/app/actions"
 import { BioForm } from "./BioForm";
 import { ProfilePhotos } from "./ProfilePhotos";
 
-vi.mock("@/app/actions", () => ({ deletePhoto: vi.fn(), makeMainPhoto: vi.fn(), saveBio: vi.fn(), uploadPhoto: vi.fn() }));
+vi.mock("@/app/actions", () => ({
+  deletePhoto: vi.fn(),
+  makeMainPhoto: vi.fn(),
+  saveBio: vi.fn(),
+  uploadPhoto: vi.fn(),
+}));
 vi.mock("@/lib/shrink", () => ({
   shrinkForUpload: vi.fn(async (file: File) => {
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -12,7 +17,11 @@ vi.mock("@/lib/shrink", () => ({
   }),
 }));
 
-const photo = (n: number) => ({ id: `${n}${n}${n}${n}${n}${n}${n}${n}-1111-4111-8111-111111111111`, width: 1080, height: 1350 });
+const photo = (n: number) => ({
+  id: `${n}${n}${n}${n}${n}${n}${n}${n}-1111-4111-8111-111111111111`,
+  width: 1080,
+  height: 1350,
+});
 
 describe("ProfilePhotos", () => {
   it("removes a photo and hides the uploader once all four slots are used", async () => {
@@ -61,7 +70,10 @@ describe("ProfilePhotos", () => {
 describe("BioForm", () => {
   it("counts down and saves only when something changed", async () => {
     const user = userEvent.setup();
-    vi.mocked(saveBio).mockImplementation(async (_, form) => ({ done: true, values: { bio: String(form.get("bio")) } }));
+    vi.mocked(saveBio).mockImplementation(async (_, form) => ({
+      done: true,
+      values: { bio: String(form.get("bio")) },
+    }));
     render(<BioForm bio="Hi" />);
     const save = screen.getByRole("button", { name: "Save" });
     expect(save).toBeDisabled();

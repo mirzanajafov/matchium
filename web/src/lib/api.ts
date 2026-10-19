@@ -30,7 +30,10 @@ function messageFrom(data: unknown): string | undefined {
 const TRUSTED_PROXY_HOPS = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS ?? 1) || 1);
 
 export function clientFromForwarded(header: string | null, hops = TRUSTED_PROXY_HOPS): string | undefined {
-  const entries = (header ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+  const entries = (header ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
   return entries.at(-hops) ?? entries[0];
 }
 

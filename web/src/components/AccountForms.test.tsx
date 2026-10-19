@@ -43,7 +43,9 @@ describe("ResetPasswordForm", () => {
 
   it("explains an expired link", async () => {
     const user = userEvent.setup();
-    vi.mocked(resetPassword).mockResolvedValue({ error: "This link has expired or was already used. Ask for a new one." });
+    vi.mocked(resetPassword).mockResolvedValue({
+      error: "This link has expired or was already used. Ask for a new one.",
+    });
     render(<ResetPasswordForm token="old" />);
     await user.type(screen.getByLabelText("New password"), "a new password");
     await user.click(screen.getByRole("button", { name: "Save new password" }));

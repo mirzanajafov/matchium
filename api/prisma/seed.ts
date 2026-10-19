@@ -10,9 +10,9 @@ interface ContractQuestion {
   reverse: boolean;
 }
 
-const { questions } = JSON.parse(
-  readFileSync(new URL('../../contract/questions.json', import.meta.url), 'utf8'),
-) as { questions: ContractQuestion[] };
+const { questions } = JSON.parse(readFileSync(new URL('../../contract/questions.json', import.meta.url), 'utf8')) as {
+  questions: ContractQuestion[];
+};
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();

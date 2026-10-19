@@ -28,7 +28,14 @@ export function SignupForm() {
     <form action={action} className="mt-6 space-y-4">
       <Field label="Email" name="email" type="email" autoComplete="email" required defaultValue={values.email} />
       <Field label="Password" name="password" type="password" autoComplete="new-password" minLength={8} required />
-      <Field label="First name" name="displayName" autoComplete="given-name" maxLength={40} required defaultValue={values.displayName} />
+      <Field
+        label="First name"
+        name="displayName"
+        autoComplete="given-name"
+        maxLength={40}
+        required
+        defaultValue={values.displayName}
+      />
       <Field
         label="Date of birth"
         name="birthDate"
@@ -37,7 +44,14 @@ export function SignupForm() {
         required
         defaultValue={values.birthDate}
       />
-      <Field label="City" name="city" autoComplete="address-level2" maxLength={80} required defaultValue={values.city} />
+      <Field
+        label="City"
+        name="city"
+        autoComplete="address-level2"
+        maxLength={80}
+        required
+        defaultValue={values.city}
+      />
 
       <fieldset>
         <legend className="text-sm font-medium">I am</legend>
