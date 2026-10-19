@@ -17,10 +17,14 @@ function field(formData: FormData, name: string): string {
   return String(formData.get(name) ?? "").trim();
 }
 
-function friendly(error: ApiError): string {
+function sentence(error: ApiError): string {
+  return error.message.charAt(0).toUpperCase() + error.message.slice(1) + ".";
+}
+
+function signInError(error: ApiError): string {
   if (error.status === 409) return "That email already has an account. Try logging in.";
   if (error.status === 401) return "Wrong email or password.";
-  return error.message.charAt(0).toUpperCase() + error.message.slice(1) + ".";
+  return sentence(error);
 }
 
 async function startSession(path: string, body: Record<string, unknown>, values: Record<string, string>) {
@@ -28,7 +32,7 @@ async function startSession(path: string, body: Record<string, unknown>, values:
     const { accessToken } = await api<{ accessToken: string }>(path, { body });
     await setSession(accessToken);
   } catch (error) {
-    if (error instanceof ApiError && error.status < 500) return { error: friendly(error), values };
+    if (error instanceof ApiError && error.status < 500) return { error: signInError(error), values };
     throw error;
   }
   redirect("/today");
@@ -146,7 +150,7 @@ export async function requestPasswordReset(_: FormState, formData: FormData): Pr
   try {
     await api("/auth/password/forgot", { body: { email } });
   } catch (error) {
-    if (error instanceof ApiError && error.status < 500) return { error: friendly(error), values: { email } };
+    if (error instanceof ApiError && error.status < 500) return { error: sentence(error), values: { email } };
     throw error;
   }
   return { done: true, values: { email } };
@@ -161,7 +165,7 @@ export async function resetPassword(token: string, _: FormState, formData: FormD
     if (error instanceof ApiError && error.status === 400) {
       return { error: "This link has expired or was already used. Ask for a new one." };
     }
-    if (error instanceof ApiError && error.status < 500) return { error: friendly(error) };
+    if (error instanceof ApiError && error.status < 500) return { error: sentence(error) };
     throw error;
   }
   return { done: true };
@@ -187,7 +191,7 @@ export async function uploadPhoto(_: FormState, formData: FormData): Promise<For
   try {
     await uploadToApi("/me/photos", form);
   } catch (error) {
-    if (error instanceof ApiError && error.status < 500) return { error: friendly(error) };
+    if (error instanceof ApiError && error.status < 500) return { error: sentence(error) };
     throw error;
   }
   revalidatePath("/me");
