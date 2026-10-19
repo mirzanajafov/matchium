@@ -36,8 +36,7 @@ run_once() {
 }
 
 finish() {
-  status=$?
-  if [ "$status" -ne 0 ]; then
+  if [ "$?" -ne 0 ]; then
     rm -f "$partial"
     log "FAILED"
   fi
