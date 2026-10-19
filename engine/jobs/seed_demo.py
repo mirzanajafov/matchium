@@ -49,7 +49,7 @@ def main():
     parser.add_argument(
         "--own-addresses",
         action="store_true",
-        help="send each user from its own X-Forwarded-For address; only works from inside the API's trusted network",
+        help="send each user from its own X-Forwarded-For address, which only works from inside the API's trusted network",
     )
     args = parser.parse_args()
 
