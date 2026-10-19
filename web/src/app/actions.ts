@@ -21,18 +21,23 @@ function sentence(error: ApiError): string {
   return error.message.charAt(0).toUpperCase() + error.message.slice(1) + ".";
 }
 
-function signInError(error: ApiError): string {
-  if (error.status === 409) return "That email already has an account. Try logging in.";
-  if (error.status === 401) return "Wrong email or password.";
-  return sentence(error);
+interface Refusal {
+  status: number;
+  message: string;
 }
 
-async function startSession(path: string, body: Record<string, unknown>, values: Record<string, string>) {
+async function startSession(
+  path: string,
+  body: Record<string, unknown>,
+  values: Record<string, string>,
+  refusal: Refusal,
+) {
   try {
     const { accessToken } = await api<{ accessToken: string }>(path, { body });
     await setSession(accessToken);
   } catch (error) {
-    if (error instanceof ApiError && error.status < 500) return { error: signInError(error), values };
+    if (error instanceof ApiError && error.status === refusal.status) return { error: refusal.message, values };
+    if (error instanceof ApiError && error.status < 500) return { error: sentence(error), values };
     throw error;
   }
   redirect("/today");
@@ -40,7 +45,12 @@ async function startSession(path: string, body: Record<string, unknown>, values:
 
 export async function login(_: FormState, formData: FormData): Promise<FormState> {
   const email = field(formData, "email");
-  return startSession("/auth/login", { email, password: String(formData.get("password") ?? "") }, { email });
+  return startSession(
+    "/auth/login",
+    { email, password: String(formData.get("password") ?? "") },
+    { email },
+    { status: 401, message: "Wrong email or password." },
+  );
 }
 
 export async function signup(_: FormState, formData: FormData): Promise<FormState> {
@@ -58,6 +68,7 @@ export async function signup(_: FormState, formData: FormData): Promise<FormStat
     "/auth/register",
     { ...values, seeking, password: String(formData.get("password") ?? "") },
     values,
+    { status: 409, message: "That email already has an account. Try logging in." },
   );
 }
 

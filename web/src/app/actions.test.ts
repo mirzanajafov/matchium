@@ -1,20 +1,16 @@
 import { ApiError, api, uploadToApi } from "@/lib/api";
 import { login, requestPasswordReset, signup, uploadPhoto } from "./actions";
 
+vi.mock("server-only", () => ({}));
+vi.mock("next/headers", () => ({ headers: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/lib/session", () => ({ setSession: vi.fn() }));
-vi.mock("@/lib/api", async () => {
-  class MockApiError extends Error {
-    constructor(
-      readonly status: number,
-      message: string,
-    ) {
-      super(message);
-    }
-  }
-  return { ApiError: MockApiError, api: vi.fn(), uploadToApi: vi.fn() };
-});
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api")>()),
+  api: vi.fn(),
+  uploadToApi: vi.fn(),
+}));
 
 function form(fields: Record<string, string | File>): FormData {
   const formData = new FormData();
