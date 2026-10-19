@@ -9,7 +9,20 @@ import numpy as np
 from matchium import DIMENSIONS, load_bank
 from sim.population import answer, generate
 
-WOMEN = ["Aysel", "Leyla", "Nigar", "Sabina", "Gunel", "Aynur", "Lala", "Narmin", "Sevinj", "Ulviyya", "Kamala", "Zarifa"]
+WOMEN = [
+    "Aysel",
+    "Leyla",
+    "Nigar",
+    "Sabina",
+    "Gunel",
+    "Aynur",
+    "Lala",
+    "Narmin",
+    "Sevinj",
+    "Ulviyya",
+    "Kamala",
+    "Zarifa",
+]
 MEN = ["Murad", "Elvin", "Tural", "Rashad", "Orkhan", "Kamran", "Farid", "Ilkin", "Samir", "Emil", "Nijat", "Ramil"]
 
 
