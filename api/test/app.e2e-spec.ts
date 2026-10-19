@@ -284,6 +284,21 @@ describe('matches', () => {
     const tomorrow = await http().get('/matches/today').set('Authorization', `Bearer ${alice.token}`).expect(200);
     expect(tomorrow.body.matches).toHaveLength(0);
   });
+
+  it('reports a mutual like once when both people say yes at the same moment', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    const match = await prisma.match.create({
+      data: { day: new Date('2026-09-23'), userAId: alice.id, userBId: bob.id, score: 0.7, confidence: 0.5, aligned: ['family'], friction: 'tidiness' },
+    });
+
+    const responses = await Promise.all(
+      [alice, bob].map((person) =>
+        http().post(`/matches/${match.id}/decision`).set('Authorization', `Bearer ${person.token}`).send({ like: true }).expect(200),
+      ),
+    );
+    expect(responses.filter((res) => res.body.mutual)).toHaveLength(1);
+  });
 });
 
 describe('chats', () => {

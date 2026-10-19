@@ -1,7 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Clock, ageOn, isoDay, utcDay } from '../common/clock.js';
 import { CHAT_CHANNEL } from '../common/db-events.js';
-import { isUniqueViolation } from '../prisma/errors.js';
 import { photoRefs, photoSelect } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
@@ -57,19 +56,20 @@ export class MatchesService {
   }
 
   async decide(userId: string, matchId: string, like: boolean) {
-    const match = await this.prisma.match.findUnique({ where: { id: matchId }, include: { decisions: true } });
-    if (!match || match.closedAt || (match.userAId !== userId && match.userBId !== userId)) {
-      throw new NotFoundException('Match not found');
-    }
-    try {
-      await this.prisma.matchDecision.create({ data: { matchId, userId, liked: like } });
-    } catch (error) {
-      if (isUniqueViolation(error)) throw new ConflictException('You already decided on this match');
-      throw error;
-    }
-    const otherId = match.userAId === userId ? match.userBId : match.userAId;
-    const theirs = match.decisions.find((d) => d.userId === otherId);
-    const mutual = like && Boolean(theirs?.liked);
+    const { otherId, mutual } = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "Match" WHERE id = ${matchId}::uuid FOR UPDATE`;
+      const match = await tx.match.findUnique({ where: { id: matchId }, include: { decisions: true } });
+      if (!match || match.closedAt || (match.userAId !== userId && match.userBId !== userId)) {
+        throw new NotFoundException('Match not found');
+      }
+      if (match.decisions.some((d) => d.userId === userId)) {
+        throw new ConflictException('You already decided on this match');
+      }
+      await tx.matchDecision.create({ data: { matchId, userId, liked: like } });
+      const otherId = match.userAId === userId ? match.userBId : match.userAId;
+      const theirs = match.decisions.find((d) => d.userId === otherId);
+      return { otherId, mutual: like && Boolean(theirs?.liked) };
+    });
     if (mutual) {
       const me = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } });
       this.push.notifyInBackground(otherId, {
