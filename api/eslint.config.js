@@ -3,11 +3,12 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/generated']),
+  globalIgnores(['dist', 'coverage', 'src/generated']),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
   {
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
     languageOptions: { parserOptions: { projectService: true } },
     rules: {
       '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
@@ -28,5 +29,5 @@ export default defineConfig([
       '@typescript-eslint/use-unknown-in-catch-callback-variable': 'off',
     },
   },
-  { files: ['**/*.js'], extends: [tseslint.configs.disableTypeChecked] },
+  { files: ['**/*.{js,mjs,cjs}'], extends: [tseslint.configs.disableTypeChecked] },
 ]);
