@@ -14,6 +14,7 @@ backup_database() {
   stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
   target="$BACKUPS/db/matchium-$stamp.dump"
   mkdir -p "$BACKUPS/db"
+  rm -f "$BACKUPS"/db/*.partial
   pg_dump --format=custom --no-owner --no-privileges --file="$target.partial"
   pg_restore --list "$target.partial" > /dev/null
   mv "$target.partial" "$target"
@@ -42,7 +43,6 @@ seconds_until_next_run() {
 }
 
 if [ "${1:-}" = "once" ]; then
-  trap '[ "$?" -eq 0 ] || log "FAILED"' EXIT
   run_once
   exit
 fi
@@ -50,5 +50,5 @@ fi
 log "scheduled daily at $RUN_AT UTC, keeping $KEEP_DAYS days"
 while true; do
   sleep "$(seconds_until_next_run)"
-  "$0" once || true
+  "$0" once || log "FAILED"
 done
