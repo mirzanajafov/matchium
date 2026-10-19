@@ -517,6 +517,20 @@ describe('push notifications', () => {
     await vi.waitFor(async () => expect(await prisma.pushSubscription.count({ where: { userId: alice.id } })).toBe(0));
   });
 
+  it('reports a mutual like once and tells whoever liked first when both say yes at the same moment', { repeats: 4 }, async () => {
+    const { alice, bob, match } = await mutualPair();
+    await http().post('/push/subscriptions').set(as(alice.token)).send(subscription(7)).expect(204);
+    await http().post('/push/subscriptions').set(as(bob.token)).send(subscription(8)).expect(204);
+
+    const [aliceLike, bobLike] = await Promise.all(
+      [alice, bob].map((person) => http().post(`/matches/${match.id}/decision`).set(as(person.token)).send({ like: true }).expect(200)),
+    );
+    expect([aliceLike.body.mutual, bobLike.body.mutual].filter(Boolean)).toHaveLength(1);
+    const firstToLike = aliceLike.body.mutual ? subscription(8) : subscription(7);
+    await vi.waitFor(() => expect(sentTo(firstToLike.endpoint)).toHaveLength(1));
+    expect(pushes.sent).toHaveLength(1);
+  });
+
   it('announces the nightly matches once, even if the signal arrives twice', async () => {
     const { alice, bob } = await mutualPair();
     await http().post('/push/subscriptions').set(as(alice.token)).send(subscription(5)).expect(204);
@@ -563,6 +577,7 @@ describe('unmatch and report', () => {
       await http().get(`/chats/${match.id}/messages`).set(as(who.token)).expect(404);
     }
     await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'hello?' }).expect(404);
+    await http().post(`/matches/${match.id}/decision`).set(as(bob.token)).send({ like: true }).expect(404);
     await http().post(`/matches/${match.id}/unmatch`).set(as(bob.token)).send({}).expect(200);
 
     const stored = await prisma.match.findUniqueOrThrow({ where: { id: match.id } });
