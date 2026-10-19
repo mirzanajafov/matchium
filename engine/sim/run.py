@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from matchium import Beliefs, DIMENSIONS, load_bank
+from matchium import DIMENSIONS, Beliefs, load_bank
 from matchium.allocation import greedy_b_matching, naive_top_k
 from matchium.revealed import Decisions, learn, pool_spread
 from matchium.scoring import confidence, directed_scores, mutual_scores

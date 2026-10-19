@@ -10,9 +10,7 @@ from jobs.nightly import build_pool, by_city, learn_decisions, plan, run
 from matchium import DIMENSIONS
 from matchium.model import BAR_PRIOR_MEAN, GAP_PRIOR_VAR
 
-TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL", "postgresql://matchium:matchium@localhost:5441/matchium_test"
-)
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://matchium:matchium@localhost:5441/matchium_test")
 
 
 def fake_user(rng, gender, seeking, city="Baku"):
@@ -66,7 +64,12 @@ def test_learn_decisions_updates_only_choosers_in_the_pool():
     pool = build_pool(users, [])
     outsider = str(uuid.uuid4())
     updated = learn_decisions(
-        pool, [(users[0]["id"], users[8]["id"], True), (users[9]["id"], users[1]["id"], False), (outsider, users[2]["id"], True)]
+        pool,
+        [
+            (users[0]["id"], users[8]["id"], True),
+            (users[9]["id"], users[1]["id"], False),
+            (outsider, users[2]["id"], True),
+        ],
     )
     assert sorted(updated.tolist()) == [0, 9]
     assert np.any(pool.beliefs.mu_gap[0] != 0) and np.any(pool.beliefs.mu_gap[9] != 0)
@@ -93,7 +96,12 @@ def key(m):
 
 def test_scoring_city_by_city_gives_the_same_matches_as_one_big_pool():
     rng = np.random.default_rng(8)
-    users = [fake_user(rng, g, [o], city=c) for c in ("Baku", "Ganja", " baku", "Sumqayit") for g, o in (("WOMAN", "MAN"), ("MAN", "WOMAN")) for _ in range(4)]
+    users = [
+        fake_user(rng, g, [o], city=c)
+        for c in ("Baku", "Ganja", " baku", "Sumqayit")
+        for g, o in (("WOMAN", "MAN"), ("MAN", "WOMAN"))
+        for _ in range(4)
+    ]
     history = [(users[0]["id"], users[1]["id"])]
 
     whole = sorted(map(key, plan(build_pool(users, history), per_user=3)))
@@ -151,7 +159,16 @@ def insert_users(conn, users, answer_count=6):
                                       "answerCount", "updatedAt")
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, now())
                 """,
-                (u["id"], u["muSelf"], u["varSelf"], u["muPref"], u["varPref"], u["logWSum"], u["logWCount"], answer_count),
+                (
+                    u["id"],
+                    u["muSelf"],
+                    u["varSelf"],
+                    u["muPref"],
+                    u["varPref"],
+                    u["logWSum"],
+                    u["logWCount"],
+                    answer_count,
+                ),
             )
     conn.commit()
 
@@ -226,13 +243,16 @@ def test_run_learns_each_decision_once(conn):
         'SELECT id::text, "userAId"::text FROM "Match" WHERE day = %s ORDER BY id LIMIT 1', (day,)
     ).fetchone()
     conn.execute(
-        'INSERT INTO "MatchDecision" ("matchId", "userId", liked) VALUES (%s::uuid, %s::uuid, true)', (match_id, chooser)
+        'INSERT INTO "MatchDecision" ("matchId", "userId", liked) VALUES (%s::uuid, %s::uuid, true)',
+        (match_id, chooser),
     )
     conn.commit()
 
     run(conn, day + dt.timedelta(days=1), per_user=3, min_answers=6)
     learned_at = conn.execute('SELECT "learnedAt" FROM "MatchDecision"').fetchone()[0]
-    mu_gap, mu_bar = conn.execute('SELECT "muGap", "muBar" FROM "Belief" WHERE "userId" = %s::uuid', (chooser,)).fetchone()
+    mu_gap, mu_bar = conn.execute(
+        'SELECT "muGap", "muBar" FROM "Belief" WHERE "userId" = %s::uuid', (chooser,)
+    ).fetchone()
     assert learned_at is not None and len(mu_gap) == len(DIMENSIONS) and mu_bar < BAR_PRIOR_MEAN
     touched = conn.execute('SELECT count(*) FROM "Belief" WHERE cardinality("muGap") > 0').fetchone()[0]
     assert touched == 1

@@ -3,7 +3,7 @@ from collections import Counter
 import numpy as np
 import pytest
 
-from matchium import Beliefs, DIMENSIONS, load_bank
+from matchium import DIMENSIONS, Beliefs, load_bank
 from matchium.allocation import greedy_b_matching, naive_top_k
 from matchium.model import PRIOR_VAR
 from matchium.scoring import confidence, directed_scores, explain, mutual_scores, pair_scores
@@ -177,6 +177,10 @@ def test_learning_beats_random_on_synthetic_population():
         b.observe(users, i, q, *answer(pop, users, q, rng))
     pred = directed_scores(b).mean
     corr = np.mean(
-        [np.corrcoef(pred[u, pop.eligible[u]], truth[u, pop.eligible[u]])[0, 1] for u in users if pop.eligible[u].sum() > 3]
+        [
+            np.corrcoef(pred[u, pop.eligible[u]], truth[u, pop.eligible[u]])[0, 1]
+            for u in users
+            if pop.eligible[u].sum() > 3
+        ]
     )
     assert corr > 0.5

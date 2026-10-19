@@ -25,7 +25,9 @@ def run_day(database_url: str, day: dt.date, per_user: int, min_answers: int) ->
         return run(conn, day, per_user, min_answers)
 
 
-def run_with_retry(job: Callable[[dt.date], int], day: dt.date, sleep: Sleep, retry_delay: float, attempts: int) -> bool:
+def run_with_retry(
+    job: Callable[[dt.date], int], day: dt.date, sleep: Sleep, retry_delay: float, attempts: int
+) -> bool:
     for attempt in range(1, attempts + 1):
         try:
             created = job(day)
@@ -56,7 +58,9 @@ def serve(
 
 def main():
     parser = argparse.ArgumentParser(description="Run the nightly matching job every day at a fixed UTC time.")
-    parser.add_argument("--at", type=dt.time.fromisoformat, default=dt.time.fromisoformat(os.environ.get("MATCH_AT", "03:00")))
+    parser.add_argument(
+        "--at", type=dt.time.fromisoformat, default=dt.time.fromisoformat(os.environ.get("MATCH_AT", "03:00"))
+    )
     parser.add_argument("--per-user", type=int, default=int(os.environ.get("MATCHES_PER_USER", "3")))
     parser.add_argument("--min-answers", type=int, default=int(os.environ.get("MIN_ANSWERS", "6")))
     parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))

@@ -56,7 +56,9 @@ def vectors_payload(seed: int = 11, n_scenarios: int = 5, answers_per_scenario: 
                 chosen = adaptive(beliefs, bank, np.array([0]), picks, population_weights)[0]
                 entry["nextPicks"] = [ids[i] for i in chosen if i >= 0]
             steps.append(entry)
-        initial_picks = adaptive(Beliefs(1, len(DIMENSIONS), len(bank)), bank, np.array([0]), picks, population_weights)[0]
+        initial_picks = adaptive(
+            Beliefs(1, len(DIMENSIONS), len(bank)), bank, np.array([0]), picks, population_weights
+        )[0]
         scenarios.append(
             {
                 "populationWeights": population_weights.tolist(),

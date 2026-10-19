@@ -103,7 +103,9 @@ def plan(pool: Pool, per_user: int) -> list[PlannedMatch]:
         a, b = sorted((int(u), int(v)), key=lambda i: pool.ids[i])
         why = explain(pool.beliefs, a, b)
         planned.append(
-            PlannedMatch(pool.ids[a], pool.ids[b], float(mutual[a, b]), float(conf[a, b]), why["aligned"], why["friction"])
+            PlannedMatch(
+                pool.ids[a], pool.ids[b], float(mutual[a, b]), float(conf[a, b]), why["aligned"], why["friction"]
+            )
         )
     return planned
 
@@ -121,8 +123,20 @@ def load_users(conn: psycopg.Connection, min_answers: int) -> list[dict]:
         (min_answers,),
     ).fetchall()
     keys = (
-        "id", "gender", "seeking", "city", "muSelf", "varSelf", "muPref", "varPref", "logWSum", "logWCount",
-        "muGap", "varGap", "muBar", "varBar",
+        "id",
+        "gender",
+        "seeking",
+        "city",
+        "muSelf",
+        "varSelf",
+        "muPref",
+        "varPref",
+        "logWSum",
+        "logWCount",
+        "muGap",
+        "varGap",
+        "muBar",
+        "varBar",
     )
     return [dict(zip(keys, row)) for row in rows]
 

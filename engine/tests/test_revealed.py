@@ -1,6 +1,6 @@
 import numpy as np
 
-from matchium import Beliefs, DIMENSIONS
+from matchium import DIMENSIONS, Beliefs
 from matchium.model import BAR_PRIOR_MEAN, GAP_PRIOR_VAR
 from matchium.revealed import Decisions, learn, pool_spread
 from matchium.scoring import directed_scores
