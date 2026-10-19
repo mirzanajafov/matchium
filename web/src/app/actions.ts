@@ -17,18 +17,27 @@ function field(formData: FormData, name: string): string {
   return String(formData.get(name) ?? "").trim();
 }
 
-function friendly(error: ApiError): string {
-  if (error.status === 409) return "That email already has an account. Try logging in.";
-  if (error.status === 401) return "Wrong email or password.";
+function sentence(error: ApiError): string {
   return error.message.charAt(0).toUpperCase() + error.message.slice(1) + ".";
 }
 
-async function startSession(path: string, body: Record<string, unknown>, values: Record<string, string>) {
+interface Refusal {
+  status: number;
+  message: string;
+}
+
+async function startSession(
+  path: string,
+  body: Record<string, unknown>,
+  values: Record<string, string>,
+  refusal: Refusal,
+) {
   try {
     const { accessToken } = await api<{ accessToken: string }>(path, { body });
     await setSession(accessToken);
   } catch (error) {
-    if (error instanceof ApiError && error.status < 500) return { error: friendly(error), values };
+    if (error instanceof ApiError && error.status === refusal.status) return { error: refusal.message, values };
+    if (error instanceof ApiError && error.status < 500) return { error: sentence(error), values };
     throw error;
   }
   redirect("/today");
@@ -36,7 +45,12 @@ async function startSession(path: string, body: Record<string, unknown>, values:
 
 export async function login(_: FormState, formData: FormData): Promise<FormState> {
   const email = field(formData, "email");
-  return startSession("/auth/login", { email, password: String(formData.get("password") ?? "") }, { email });
+  return startSession(
+    "/auth/login",
+    { email, password: String(formData.get("password") ?? "") },
+    { email },
+    { status: 401, message: "Wrong email or password." },
+  );
 }
 
 export async function signup(_: FormState, formData: FormData): Promise<FormState> {
@@ -54,6 +68,7 @@ export async function signup(_: FormState, formData: FormData): Promise<FormStat
     "/auth/register",
     { ...values, seeking, password: String(formData.get("password") ?? "") },
     values,
+    { status: 409, message: "That email already has an account. Try logging in." },
   );
 }
 
@@ -146,7 +161,7 @@ export async function requestPasswordReset(_: FormState, formData: FormData): Pr
   try {
     await api("/auth/password/forgot", { body: { email } });
   } catch (error) {
-    if (error instanceof ApiError && error.status < 500) return { error: friendly(error), values: { email } };
+    if (error instanceof ApiError && error.status < 500) return { error: sentence(error), values: { email } };
     throw error;
   }
   return { done: true, values: { email } };
@@ -161,7 +176,7 @@ export async function resetPassword(token: string, _: FormState, formData: FormD
     if (error instanceof ApiError && error.status === 400) {
       return { error: "This link has expired or was already used. Ask for a new one." };
     }
-    if (error instanceof ApiError && error.status < 500) return { error: friendly(error) };
+    if (error instanceof ApiError && error.status < 500) return { error: sentence(error) };
     throw error;
   }
   return { done: true };
@@ -187,7 +202,7 @@ export async function uploadPhoto(_: FormState, formData: FormData): Promise<For
   try {
     await uploadToApi("/me/photos", form);
   } catch (error) {
-    if (error instanceof ApiError && error.status < 500) return { error: friendly(error) };
+    if (error instanceof ApiError && error.status < 500) return { error: sentence(error) };
     throw error;
   }
   revalidatePath("/me");
