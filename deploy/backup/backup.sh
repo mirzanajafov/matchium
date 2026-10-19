@@ -20,7 +20,7 @@ backup_database() {
   pg_restore --list "$partial" > /dev/null
   mv "$partial" "$target"
   log "database $(du -h "$target" | cut -f1) $target"
-  find "$BACKUPS/db" -name 'matchium-*.dump' -mtime +"$KEEP_DAYS" -delete
+  find "$BACKUPS/db" -name 'matchium-*' -mtime +"$KEEP_DAYS" -delete
 }
 
 backup_photos() {

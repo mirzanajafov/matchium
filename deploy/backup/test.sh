@@ -19,12 +19,13 @@ fail() {
 docker build --quiet --tag "$name" "$(dirname "$0")" > /dev/null
 docker network create "$name" > /dev/null
 docker volume create "$name" > /dev/null
+docker run --rm --volume "$name:/backups" --entrypoint chown "$name" 1000:1000 /backups
 docker run --detach --name "$name-postgres" --network "$name" --env POSTGRES_PASSWORD=test postgres:17-alpine > /dev/null
 timeout 60 sh -c "until docker exec $name-postgres pg_isready --host localhost --quiet; do sleep 1; done" ||
   fail "postgres did not start within 60 seconds"
 
 backup() {
-  docker run --rm --network "$name" --volume "$name:/backups" --env PGUSER=postgres --env PGPASSWORD=test "$@" "$name" once
+  docker run --rm --user 1000:1000 --network "$name" --volume "$name:/backups" --env PGUSER=postgres --env PGPASSWORD=test "$@" "$name" once
 }
 
 backup_fails() {
