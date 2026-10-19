@@ -577,6 +577,7 @@ describe('unmatch and report', () => {
       await http().get(`/chats/${match.id}/messages`).set(as(who.token)).expect(404);
     }
     await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'hello?' }).expect(404);
+    await http().post(`/matches/${match.id}/decision`).set(as(bob.token)).send({ like: true }).expect(404);
     await http().post(`/matches/${match.id}/unmatch`).set(as(bob.token)).send({}).expect(200);
 
     const stored = await prisma.match.findUniqueOrThrow({ where: { id: match.id } });
