@@ -1,12 +1,13 @@
 import { Logger } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
+import { isRecord } from '../common/json.js';
 import { httpDuration, httpRequests } from './metrics.js';
 
 const log = new Logger('Http');
 
 export function routeOf(request: Request): string {
-  const route = (request.route as { path?: string } | undefined)?.path;
-  return route ? `${request.baseUrl}${route}` : 'unmatched';
+  const route: unknown = request.route;
+  return isRecord(route) && typeof route.path === 'string' ? `${request.baseUrl}${route.path}` : 'unmatched';
 }
 
 export function httpMetrics(request: Request, response: Response, next: NextFunction) {
