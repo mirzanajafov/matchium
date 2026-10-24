@@ -29,7 +29,7 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, LOG_JSON: 'yes' })).toThrow(/LOG_JSON/);
   });
 
-  it('drops a trailing slash from WEB_URL so links never get a double slash', () => {
-    expect(validateEnv({ ...base, WEB_URL: 'https://matchium.example/' }).WEB_URL).toBe('https://matchium.example');
+  it('drops trailing slashes from WEB_URL so links never get a double slash', () => {
+    expect(validateEnv({ ...base, WEB_URL: 'https://matchium.example//' }).WEB_URL).toBe('https://matchium.example');
   });
 });

@@ -6,28 +6,22 @@ const keys = webpush.generateVAPIDKeys();
 const target = { endpoint: 'https://push.example.com/abc', p256dh: 'p', auth: 'a' };
 const message = { title: 'Hi', body: 'There', url: '/today', tag: 'matches' };
 
-function sender(values: Record<string, string>) {
-  return new WebPushSender(testConfig(values));
-}
-
 describe('WebPushSender', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   it('stays disabled without a key pair', async () => {
-    const disabled = sender({ VAPID_PUBLIC_KEY: keys.publicKey });
+    const disabled = new WebPushSender(testConfig({ VAPID_PUBLIC_KEY: keys.publicKey }));
     expect(disabled.publicKey).toBeNull();
     await expect(disabled.send(target, message)).rejects.toThrow(/not configured/);
   });
 
   it('signs with the configured keys and reports expired subscriptions', async () => {
     const send = vi.spyOn(webpush, 'sendNotification');
-    const configured = sender({
-      VAPID_PUBLIC_KEY: keys.publicKey,
-      VAPID_PRIVATE_KEY: keys.privateKey,
-      VAPID_SUBJECT: 'mailto:push@example.com',
-    });
+    const configured = new WebPushSender(
+      testConfig({ VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey }),
+    );
     expect(configured.publicKey).toBe(keys.publicKey);
 
     send.mockResolvedValueOnce({ statusCode: 201, body: '', headers: {} });

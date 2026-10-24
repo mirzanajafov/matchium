@@ -1,8 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import pg from 'pg';
-import type { Env } from '../config/env.js';
 import { Observable, Subject, endWith, filter, ignoreElements, map } from 'rxjs';
+import type { Env } from '../config/env.js';
 
 export const CHAT_CHANNEL = 'chat_messages';
 export const MATCHES_CHANNEL = 'matches_ready';
