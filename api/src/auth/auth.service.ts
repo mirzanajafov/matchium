@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
   Logger,
   OnModuleInit,
@@ -109,7 +110,7 @@ export class AuthService implements OnModuleInit {
       where: { id: payload.sub, email: payload.email },
       data: { emailVerifiedAt: this.clock.now() },
     });
-    if (updated.count === 0) throw new BadRequestException(INVALID_LINK);
+    if (updated.count === 0) throw new GoneException(INVALID_LINK);
   }
 
   async forgotPassword(email: string) {
@@ -130,7 +131,7 @@ export class AuthService implements OnModuleInit {
     const payload = await this.read<{ sub: string; stamp: string }>(token, RESET_PURPOSE);
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || user.bannedAt || passwordStamp(user.passwordHash) !== payload.stamp) {
-      throw new BadRequestException(INVALID_LINK);
+      throw new GoneException(INVALID_LINK);
     }
     const now = this.clock.now();
     const passwordHash = await argon2.hash(password);
@@ -168,9 +169,9 @@ export class AuthService implements OnModuleInit {
     try {
       payload = await this.jwt.verifyAsync<T & { purpose?: string }>(token);
     } catch {
-      throw new BadRequestException(INVALID_LINK);
+      throw new GoneException(INVALID_LINK);
     }
-    if (payload.purpose !== purpose) throw new BadRequestException(INVALID_LINK);
+    if (payload.purpose !== purpose) throw new GoneException(INVALID_LINK);
     return payload;
   }
 

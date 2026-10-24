@@ -147,7 +147,7 @@ export async function unsubscribeEmail(token: string): Promise<{ done: boolean; 
     await api(`/email/unsubscribe?token=${encodeURIComponent(token)}`, { method: "POST" });
     return { done: true };
   } catch (error) {
-    if (error instanceof ApiError && error.status === 400)
+    if (error instanceof ApiError && error.status === 410)
       return { done: false, error: "This link doesn't work anymore." };
     throw error;
   }
@@ -172,11 +172,10 @@ export async function requestPasswordReset(_: FormState, formData: FormData): Pr
 export async function resetPassword(token: string, _: FormState, formData: FormData): Promise<FormState> {
   const password = String(formData.get("password") ?? "");
   if (password.length < 8) return { error: "Use at least 8 characters." };
-  if (password.length > 128) return { error: "Use at most 128 characters." };
   try {
     await api("/auth/password/reset", { body: { token, password } });
   } catch (error) {
-    if (error instanceof ApiError && error.status === 400) {
+    if (error instanceof ApiError && error.status === 410) {
       return { error: "This link has expired or was already used. Ask for a new one." };
     }
     if (error instanceof ApiError && error.status < 500) return { error: sentence(error) };

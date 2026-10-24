@@ -23,15 +23,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   return (
     <form action={action} className="mt-6 space-y-4">
-      <Field
-        label="New password"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        minLength={8}
-        maxLength={128}
-        required
-      />
+      <Field label="New password" name="password" type="password" autoComplete="new-password" minLength={8} required />
       {state.error && (
         <p role="alert" className="text-sm text-warn">
           {state.error}

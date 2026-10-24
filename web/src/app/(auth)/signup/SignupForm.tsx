@@ -27,15 +27,7 @@ export function SignupForm() {
   return (
     <form action={action} className="mt-6 space-y-4">
       <Field label="Email" name="email" type="email" autoComplete="email" required defaultValue={values.email} />
-      <Field
-        label="Password"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        minLength={8}
-        maxLength={128}
-        required
-      />
+      <Field label="Password" name="password" type="password" autoComplete="new-password" minLength={8} required />
       <Field
         label="First name"
         name="displayName"

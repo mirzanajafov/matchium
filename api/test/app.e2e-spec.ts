@@ -1135,8 +1135,8 @@ describe('email digest', () => {
     const token = new URL(toAlice.headers!['List-Unsubscribe']!.slice(1, -1)).searchParams.get('token')!;
 
     await http().get('/me').set(as(token)).expect(401);
-    await http().post('/email/unsubscribe').query({ token: 'nonsense' }).expect(400);
-    await http().post('/email/unsubscribe').query({ token: alice.token }).expect(400);
+    await http().post('/email/unsubscribe').query({ token: 'nonsense' }).expect(410);
+    await http().post('/email/unsubscribe').query({ token: alice.token }).expect(410);
     await http().post('/email/unsubscribe').query({ token }).expect(200);
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailDigest).toBe(false);
   });
@@ -1159,7 +1159,7 @@ describe('account security', () => {
 
     const token = linkToken(sent.text, '/verify-email');
     await http().get('/me').set(as(token)).expect(401);
-    await http().post('/auth/verify-email').send({ token: alice.token }).expect(400);
+    await http().post('/auth/verify-email').send({ token: alice.token }).expect(410);
     await http().post('/auth/verify-email').send({ token }).expect(200);
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailVerified).toBe(true);
     await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(409);
@@ -1196,10 +1196,14 @@ describe('account security', () => {
     expect(sent.subject).toBe('Reset your Matchium password');
     const token = linkToken(sent.text, '/reset-password');
 
-    await http().post('/auth/password/reset').send({ token: alice.token, password: 'a new password' }).expect(400);
+    await http().post('/auth/password/reset').send({ token: alice.token, password: 'a new password' }).expect(410);
     await http().post('/auth/password/reset').send({ token, password: 'short' }).expect(400);
+    await http()
+      .post('/auth/password/reset')
+      .send({ token, password: 'x'.repeat(129) })
+      .expect(400);
     await http().post('/auth/password/reset').send({ token, password: 'a new password' }).expect(204);
-    await http().post('/auth/password/reset').send({ token, password: 'another password' }).expect(400);
+    await http().post('/auth/password/reset').send({ token, password: 'another password' }).expect(410);
 
     await http().get('/me').set(as(alice.token)).expect(401);
     await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(401);
