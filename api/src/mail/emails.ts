@@ -1,18 +1,36 @@
+interface Link {
+  label: string;
+  url: string;
+}
+
+interface Email {
+  subject: string;
+  text: string;
+  html: string;
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-function layout(name: string, paragraphs: string[], action: { label: string; url: string }, footer: string): string {
+function layout(name: string, paragraphs: string[], action: Link, footer: string, footerLink?: Link): string {
+  const link = footerLink
+    ? ` <a href="${escapeHtml(footerLink.url)}" style="color:#6b6f68">${escapeHtml(footerLink.label)}</a>.`
+    : '';
   return `<!doctype html>
 <html><body style="font-family:system-ui,sans-serif;color:#1d1f1c;max-width:480px;margin:0 auto;padding:24px">
 <p>Hi ${escapeHtml(name)},</p>
 ${paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('\n')}
 <p><a href="${escapeHtml(action.url)}" style="display:inline-block;background:#1d1f1c;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none">${escapeHtml(action.label)}</a></p>
-<p style="color:#6b6f68;font-size:12px">${escapeHtml(footer)}</p>
+<p style="color:#6b6f68;font-size:12px">${escapeHtml(footer)}${link}</p>
 </body></html>`;
 }
 
-export function verificationEmail(name: string, url: string) {
+function plural(count: number, one: string, many: string): string {
+  return count === 1 ? `1 ${one}` : `${count} ${many}`;
+}
+
+export function verificationEmail(name: string, url: string): Email {
   const footer = "If you didn't sign up for Matchium, ignore this email and nothing happens.";
   return {
     subject: 'Confirm your email for Matchium',
@@ -26,7 +44,7 @@ export function verificationEmail(name: string, url: string) {
   };
 }
 
-export function passwordResetEmail(name: string, url: string) {
+export function passwordResetEmail(name: string, url: string): Email {
   const footer = "If you didn't ask for this, ignore it. Your password stays the same.";
   return {
     subject: 'Reset your Matchium password',
@@ -40,7 +58,7 @@ export function passwordResetEmail(name: string, url: string) {
   };
 }
 
-export function signupEmail(url: string, days: number) {
+export function signupEmail(url: string, days: number): Email {
   const footer = "If you didn't sign up for Matchium, ignore this email. No account is made without the password.";
   return {
     subject: 'Finish signing up for Matchium',
@@ -54,7 +72,7 @@ export function signupEmail(url: string, days: number) {
   };
 }
 
-export function accountExistsEmail(name: string, webUrl: string) {
+export function accountExistsEmail(name: string, webUrl: string): Email {
   const footer = "If this wasn't you, ignore this email. Nothing about your account changed.";
   const login = `${webUrl}/login`;
   return {
@@ -68,5 +86,43 @@ export function accountExistsEmail(name: string, webUrl: string) {
       { label: 'Log in', url: login },
       footer,
     ),
+  };
+}
+
+export interface DigestContent {
+  name: string;
+  newMatches: number;
+  unreadChats: number;
+  webUrl: string;
+  unsubscribeUrl: string;
+}
+
+export function digestEmail(content: DigestContent): Email {
+  const lines = [
+    content.newMatches > 0 && `You have ${plural(content.newMatches, 'new match', 'new matches')} today.`,
+    content.unreadChats > 0 && `${plural(content.unreadChats, 'chat has', 'chats have')} unread messages.`,
+  ].filter((line): line is string => Boolean(line));
+  const target = content.newMatches > 0 ? `${content.webUrl}/today` : `${content.webUrl}/chats`;
+  const footer = "You get this because you haven't turned on push notifications.";
+  const subject =
+    content.newMatches > 0
+      ? plural(content.newMatches, 'new match today', 'new matches today')
+      : plural(content.unreadChats, 'chat is waiting for you', 'chats are waiting for you');
+
+  return {
+    subject,
+    text: [
+      `Hi ${content.name},`,
+      '',
+      ...lines,
+      '',
+      `Open Matchium: ${target}`,
+      '',
+      `${footer} Stop these emails: ${content.unsubscribeUrl}`,
+    ].join('\n'),
+    html: layout(content.name, lines, { label: 'Open Matchium', url: target }, footer, {
+      label: 'Stop these emails',
+      url: content.unsubscribeUrl,
+    }),
   };
 }

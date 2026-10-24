@@ -5,13 +5,21 @@ import { AuthService } from './auth.service.js';
 import { ConfirmSignupDto, ForgotPasswordDto, ResetPasswordDto, TokenDto } from './dto/account.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { EmailVerificationService } from './email-verification.service.js';
+import { PasswordResetService } from './password-reset.service.js';
 import { Public } from './public.decorator.js';
+import { SignupService } from './signup.service.js';
 
 @ApiTags('auth')
 @Public()
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly signups: SignupService,
+    private readonly verification: EmailVerificationService,
+    private readonly resets: PasswordResetService,
+  ) {}
 
   @Post('register')
   @RateLimit(
@@ -19,7 +27,7 @@ export class AuthController {
     { name: 'register', by: 'email', limit: 3, windowSeconds: 3600 },
   )
   register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
+    return this.signups.register(dto);
   }
 
   @Post('confirm-signup')
@@ -29,7 +37,7 @@ export class AuthController {
     { name: 'confirm-signup', by: 'ip', limit: 10, windowSeconds: 900 },
   )
   confirmSignup(@Body() dto: ConfirmSignupDto) {
-    return this.auth.confirmSignup(dto.token, dto.password);
+    return this.signups.confirm(dto.token, dto.password);
   }
 
   @Post('login')
@@ -45,7 +53,7 @@ export class AuthController {
   @Post('verify-email')
   @HttpCode(200)
   async verifyEmail(@Body() dto: TokenDto) {
-    await this.auth.verifyEmail(dto.token);
+    await this.verification.confirm(dto.token);
     return { verified: true };
   }
 
@@ -56,13 +64,13 @@ export class AuthController {
     { name: 'forgot', by: 'ip', limit: 10, windowSeconds: 3600 },
   )
   async forgot(@Body() dto: ForgotPasswordDto) {
-    await this.auth.forgotPassword(dto.email);
+    await this.resets.request(dto.email);
   }
 
   @Post('password/reset')
   @HttpCode(204)
   @RateLimit({ name: 'reset', by: 'ip', limit: 10, windowSeconds: 3600 })
   async reset(@Body() dto: ResetPasswordDto) {
-    await this.auth.resetPassword(dto.token, dto.password);
+    await this.resets.reset(dto.token, dto.password);
   }
 }

@@ -3,12 +3,16 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RateLimit } from '../limits/rate-limit.decorator.js';
 import { AuthService } from './auth.service.js';
 import { type AuthUser, CurrentUser } from './current-user.decorator.js';
+import { EmailVerificationService } from './email-verification.service.js';
 
 @ApiTags('auth')
 @ApiBearerAuth()
 @Controller('auth')
 export class SessionController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly verification: EmailVerificationService,
+  ) {}
 
   @Post('logout')
   @HttpCode(204)
@@ -26,6 +30,6 @@ export class SessionController {
   @HttpCode(204)
   @RateLimit({ name: 'verify-resend', by: 'user', limit: 3, windowSeconds: 3600 })
   async resend(@CurrentUser() user: AuthUser) {
-    await this.auth.resendVerification(user.id);
+    await this.verification.resend(user.id);
   }
 }

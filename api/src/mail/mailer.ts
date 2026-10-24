@@ -1,7 +1,10 @@
-import { Injectable, OnApplicationShutdown } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
 import type { Env } from '../config/env.js';
+import { emailsSent } from '../observability/metrics.js';
+
+export type EmailKind = 'signup' | 'account-exists' | 'verify' | 'reset' | 'digest';
 
 export interface Mail {
   to: string;
@@ -12,8 +15,21 @@ export interface Mail {
 }
 
 export abstract class Mailer {
+  private readonly log = new Logger(Mailer.name);
   abstract readonly enabled: boolean;
   abstract send(mail: Mail): Promise<void>;
+
+  async deliver(kind: EmailKind, mail: Mail): Promise<boolean> {
+    try {
+      await this.send(mail);
+      emailsSent.inc({ kind, result: 'sent' });
+      return true;
+    } catch (error) {
+      emailsSent.inc({ kind, result: 'failed' });
+      this.log.warn(`A ${kind} email failed: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+  }
 }
 
 @Injectable()

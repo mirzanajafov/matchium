@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Clock } from '../common/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { SIGNUP_LIFETIME_DAYS } from './account-tokens.js';
+import { SIGNUP_LIFETIME_DAYS } from './purpose-tokens.js';
 import { SESSION_LIFETIME_DAYS } from './sessions.js';
 
 const SWEEP_EVERY_MS = 60 * 60 * 1000;

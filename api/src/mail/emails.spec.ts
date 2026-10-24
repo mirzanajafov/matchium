@@ -1,4 +1,4 @@
-import { digestEmail } from './digest-email.js';
+import { digestEmail } from './emails.js';
 
 const base = {
   name: 'Alice <3',
