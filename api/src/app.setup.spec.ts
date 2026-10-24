@@ -23,9 +23,9 @@ async function clientAddress(trustProxy: string, forwardedFor: string): Promise<
     controllers: [ClientController],
     providers: [{ provide: ConfigService, useValue: new ConfigService(env) }],
   }).compile();
-  const app = configureApp(moduleRef.createNestApplication({ logger: false }));
-  await app.init();
+  const app = moduleRef.createNestApplication({ logger: false });
   try {
+    await configureApp(app).init();
     const response = await request(app.getHttpServer()).get('/').set('X-Forwarded-For', forwardedFor).expect(200);
     return response.text;
   } finally {
@@ -48,7 +48,8 @@ describe('trust proxy', () => {
     expect(await clientAddress('false', chain)).toMatch(/127\.0\.0\.1$/);
   });
 
-  it('refuses to start when told to trust every client', async () => {
-    await expect(clientAddress('true', chain)).rejects.toThrow('invalid IP address: true');
+  it('stops at start on a value that names no proxy, true included', async () => {
+    await expect(clientAddress('loopbak', chain)).rejects.toThrow(/loopbak/);
+    await expect(clientAddress('true', chain)).rejects.toThrow(/true/);
   });
 });
