@@ -172,6 +172,7 @@ export async function requestPasswordReset(_: FormState, formData: FormData): Pr
 export async function resetPassword(token: string, _: FormState, formData: FormData): Promise<FormState> {
   const password = String(formData.get("password") ?? "");
   if (password.length < 8) return { error: "Use at least 8 characters." };
+  if (password.length > 128) return { error: "Use at most 128 characters." };
   try {
     await api("/auth/password/reset", { body: { token, password } });
   } catch (error) {

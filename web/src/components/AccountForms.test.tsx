@@ -41,6 +41,13 @@ describe("ResetPasswordForm", () => {
     expect(screen.getByRole("link", { name: "Log in with the new one" })).toHaveAttribute("href", "/login");
   });
 
+  it("stops at the 128 characters the API accepts", async () => {
+    const user = userEvent.setup();
+    render(<ResetPasswordForm token="tok" />);
+    await user.type(screen.getByLabelText("New password"), "x".repeat(130));
+    expect(screen.getByLabelText("New password")).toHaveValue("x".repeat(128));
+  });
+
   it("explains an expired link", async () => {
     const user = userEvent.setup();
     vi.mocked(resetPassword).mockResolvedValue({

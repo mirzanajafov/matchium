@@ -1,5 +1,5 @@
 import { ApiError, api, uploadToApi } from "@/lib/api";
-import { login, requestPasswordReset, signup, uploadPhoto } from "./actions";
+import { login, requestPasswordReset, resetPassword, signup, uploadPhoto } from "./actions";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
@@ -46,5 +46,17 @@ describe("server action errors", () => {
     vi.mocked(api).mockRejectedValue(new ApiError(401, "Invalid email or password"));
     const wrong = await login({}, form({ email: "a@example.com", password: "wrong one" }));
     expect(wrong.error).toBe("Wrong email or password.");
+  });
+
+  it("tells reset that a long password is too long instead of calling the link expired", async () => {
+    const refused = await resetPassword("token", {}, form({ password: "x".repeat(129) }));
+    expect(refused.error).toBe("Use at most 128 characters.");
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  it("calls a link the API refuses expired", async () => {
+    vi.mocked(api).mockRejectedValue(new ApiError(400, "This link is not valid"));
+    const refused = await resetPassword("old-token", {}, form({ password: "a new password" }));
+    expect(refused.error).toBe("This link has expired or was already used. Ask for a new one.");
   });
 });
