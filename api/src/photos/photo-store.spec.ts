@@ -26,7 +26,7 @@ describe('S3PhotoStore', () => {
   it('asks storage to delete every key', async () => {
     await withStorage('<DeleteResult></DeleteResult>', async (store, received) => {
       await store.delete(['u/a.webp', 'u/b.webp']);
-      expect(received()).toMatch(/^POST \/matchium-photos\?delete/);
+      expect(received()).toMatch(/^POST \/matchium-photos\/\?delete/);
       expect(received()).toContain('<Quiet>true</Quiet>');
       expect(received()).toContain('<Key>u/a.webp</Key>');
       expect(received()).toContain('<Key>u/b.webp</Key>');
