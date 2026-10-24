@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { UnrecognizedActionError } from "next/dist/client/components/unrecognized-action-error";
 import { resolveAction } from "./action-client";
 
 describe("resolveAction", () => {
@@ -13,6 +14,13 @@ describe("resolveAction", () => {
     expect(await resolveAction(Promise.reject(new TypeError("Failed to fetch")))).toEqual({
       ok: false,
       error: "Couldn't reach Matchium. Check your connection and try again.",
+    });
+  });
+
+  it("asks for a reload when the page still calls an action from before a deploy", async () => {
+    expect(await resolveAction(Promise.reject(new UnrecognizedActionError("Server Action not found")))).toEqual({
+      ok: false,
+      error: "Matchium was just updated. Reload the page and try again.",
     });
   });
 
