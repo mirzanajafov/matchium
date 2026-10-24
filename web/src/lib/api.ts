@@ -27,12 +27,9 @@ function messageFrom(data: unknown): string | undefined {
   return typeof message === "string" ? message : undefined;
 }
 
-export function trustedProxyHops(setting: string | undefined): number {
-  const hops = Number(setting ?? 0);
-  if (!Number.isInteger(hops) || hops < 0) {
-    throw new Error(`TRUSTED_PROXY_HOPS must be a whole number of proxies, not "${setting ?? ""}"`);
-  }
-  return hops;
+export function trustedProxyHops(setting = "0"): number {
+  if (!/^\d+$/.test(setting)) throw new Error(`TRUSTED_PROXY_HOPS must be a whole number of proxies, not "${setting}"`);
+  return Number(setting);
 }
 
 const TRUSTED_PROXY_HOPS = trustedProxyHops(process.env.TRUSTED_PROXY_HOPS);
@@ -43,7 +40,7 @@ export function clientFromForwarded(header: string | null, hops = TRUSTED_PROXY_
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
-  return entries.at(-hops) ?? entries[0];
+  return entries.at(-hops);
 }
 
 async function clientAddress(): Promise<string | undefined> {

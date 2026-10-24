@@ -14,9 +14,9 @@ describe("clientFromForwarded", () => {
     expect(clientFromForwarded("6.6.6.6, 203.0.113.9, 10.0.0.2", 2)).toBe("203.0.113.9");
   });
 
-  it("copes with missing or short headers", () => {
+  it("forwards nothing when the header is missing or shorter than the proxies in front", () => {
     expect(clientFromForwarded(null, 1)).toBeUndefined();
-    expect(clientFromForwarded("203.0.113.9", 3)).toBe("203.0.113.9");
+    expect(clientFromForwarded("6.6.6.6", 3)).toBeUndefined();
   });
 });
 
@@ -27,6 +27,8 @@ describe("trustedProxyHops", () => {
   });
 
   it("refuses anything that is not a whole number of proxies", () => {
-    for (const setting of ["one", "-1", "1.5"]) expect(() => trustedProxyHops(setting)).toThrow(/TRUSTED_PROXY_HOPS/);
+    for (const setting of ["one", "-1", "1.5", "0x1", "1e0", " 2", ""]) {
+      expect(() => trustedProxyHops(setting)).toThrow(/TRUSTED_PROXY_HOPS/);
+    }
   });
 });
