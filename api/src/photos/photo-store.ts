@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Env } from '../config/env.js';
 
 export abstract class PhotoStore {
   abstract readonly enabled: boolean;
@@ -23,17 +24,17 @@ export class S3PhotoStore extends PhotoStore implements OnModuleInit {
   private readonly client?: S3Client;
   private readonly bucket: string;
 
-  constructor(config: ConfigService) {
+  constructor(config: ConfigService<Env, true>) {
     super();
-    const endpoint = config.get<string>('S3_ENDPOINT') ?? '';
-    const accessKeyId = config.get<string>('S3_ACCESS_KEY') ?? '';
-    const secretAccessKey = config.get<string>('S3_SECRET_KEY') ?? '';
-    this.bucket = config.get<string>('S3_BUCKET') ?? 'matchium-photos';
+    const endpoint = config.get('S3_ENDPOINT', { infer: true });
+    const accessKeyId = config.get('S3_ACCESS_KEY', { infer: true });
+    const secretAccessKey = config.get('S3_SECRET_KEY', { infer: true });
+    this.bucket = config.get('S3_BUCKET', { infer: true });
     this.enabled = Boolean(endpoint && accessKeyId && secretAccessKey);
     if (this.enabled) {
       this.client = new S3Client({
         endpoint,
-        region: config.get<string>('S3_REGION') ?? 'us-east-1',
+        region: config.get('S3_REGION', { infer: true }),
         forcePathStyle: true,
         credentials: { accessKeyId, secretAccessKey },
       });

@@ -2,8 +2,8 @@ import { Controller, Get, Ip } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { testConfig } from '../test/support/config.js';
 import { configureApp } from './app.setup.js';
-import { validateEnv } from './config/env.js';
 
 @Controller()
 class ClientController {
@@ -14,14 +14,9 @@ class ClientController {
 }
 
 async function clientAddress(trustProxy: string, forwardedFor: string): Promise<string> {
-  const env = validateEnv({
-    DATABASE_URL: 'postgresql://localhost/db',
-    JWT_SECRET: 'long-enough-secret',
-    TRUST_PROXY: trustProxy,
-  });
   const moduleRef = await Test.createTestingModule({
     controllers: [ClientController],
-    providers: [{ provide: ConfigService, useValue: new ConfigService(env) }],
+    providers: [{ provide: ConfigService, useValue: testConfig({ TRUST_PROXY: trustProxy }) }],
   }).compile();
   const app = moduleRef.createNestApplication({ logger: false });
   try {

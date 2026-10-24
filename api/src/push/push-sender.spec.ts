@@ -1,5 +1,5 @@
-import type { ConfigService } from '@nestjs/config';
 import webpush from 'web-push';
+import { testConfig } from '../../test/support/config.js';
 import { WebPushSender } from './push-sender.js';
 
 const keys = webpush.generateVAPIDKeys();
@@ -7,7 +7,7 @@ const target = { endpoint: 'https://push.example.com/abc', p256dh: 'p', auth: 'a
 const message = { title: 'Hi', body: 'There', url: '/today', tag: 'matches' };
 
 function sender(values: Record<string, string>) {
-  return new WebPushSender({ get: (key: string) => values[key] } as unknown as ConfigService);
+  return new WebPushSender(testConfig(values));
 }
 
 describe('WebPushSender', () => {

@@ -4,6 +4,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { Public } from '../auth/public.decorator.js';
+import type { Env } from '../config/env.js';
 import { registry } from './metrics.js';
 
 function sameSecret(given: string, expected: string): boolean {
@@ -18,8 +19,8 @@ function sameSecret(given: string, expected: string): boolean {
 export class MetricsController {
   private readonly token: string;
 
-  constructor(config: ConfigService) {
-    this.token = config.get<string>('METRICS_TOKEN') ?? '';
+  constructor(config: ConfigService<Env, true>) {
+    this.token = config.get('METRICS_TOKEN', { infer: true });
   }
 
   @Get()

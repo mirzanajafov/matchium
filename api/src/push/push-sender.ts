@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import webpush from 'web-push';
+import type { Env } from '../config/env.js';
 
 export interface PushTarget {
   endpoint: string;
@@ -29,11 +30,11 @@ export class WebPushSender extends PushSender {
   readonly publicKey: string | null;
   private readonly details?: { subject: string; publicKey: string; privateKey: string };
 
-  constructor(config: ConfigService) {
+  constructor(config: ConfigService<Env, true>) {
     super();
-    const publicKey = config.get<string>('VAPID_PUBLIC_KEY') ?? '';
-    const privateKey = config.get<string>('VAPID_PRIVATE_KEY') ?? '';
-    const subject = config.get<string>('VAPID_SUBJECT') ?? '';
+    const publicKey = config.get('VAPID_PUBLIC_KEY', { infer: true });
+    const privateKey = config.get('VAPID_PRIVATE_KEY', { infer: true });
+    const subject = config.get('VAPID_SUBJECT', { infer: true });
     this.publicKey = publicKey && privateKey ? publicKey : null;
     if (this.publicKey) this.details = { subject, publicKey, privateKey };
   }

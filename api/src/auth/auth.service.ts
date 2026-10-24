@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { Clock, ageOn } from '../common/clock.js';
+import type { Env } from '../config/env.js';
 import { priorBelief } from '../engine/belief.js';
 import type { PendingSignup, Prisma, User } from '../generated/prisma/client.js';
 import { accountExistsEmail, passwordResetEmail, signupEmail, verificationEmail } from '../mail/account-emails.js';
@@ -54,9 +55,9 @@ export class AuthService implements OnModuleInit {
     private readonly jwt: JwtService,
     private readonly clock: Clock,
     private readonly mailer: Mailer,
-    config: ConfigService,
+    config: ConfigService<Env, true>,
   ) {
-    this.webUrl = (config.get<string>('WEB_URL') ?? 'http://localhost:3101').replace(/\/$/, '');
+    this.webUrl = config.get('WEB_URL', { infer: true });
   }
 
   async onModuleInit() {

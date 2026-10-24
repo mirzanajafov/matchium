@@ -1,5 +1,5 @@
-import { ConfigService } from '@nestjs/config';
 import { createServer } from 'node:http';
+import { testConfig } from '../../test/support/config.js';
 import { S3PhotoStore } from './photo-store.js';
 
 async function withStorage(reply: string, use: (store: S3PhotoStore, received: () => string) => Promise<void>) {
@@ -14,7 +14,7 @@ async function withStorage(reply: string, use: (store: S3PhotoStore, received: (
   if (!address || typeof address === 'string') throw new Error('The fake storage has no port');
   const config = { S3_ENDPOINT: `http://127.0.0.1:${address.port}`, S3_ACCESS_KEY: 'key', S3_SECRET_KEY: 'secret' };
   try {
-    await use(new S3PhotoStore(new ConfigService(config)), () => received);
+    await use(new S3PhotoStore(testConfig(config)), () => received);
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));

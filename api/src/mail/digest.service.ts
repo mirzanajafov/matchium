@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ChatsService } from '../chats/chats.service.js';
+import type { Env } from '../config/env.js';
 import { emailsSent } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { digestEmail } from './digest-email.js';
@@ -19,9 +20,9 @@ export class DigestService {
     private readonly mailer: Mailer,
     private readonly jwt: JwtService,
     private readonly chats: ChatsService,
-    config: ConfigService,
+    config: ConfigService<Env, true>,
   ) {
-    this.webUrl = (config.get<string>('WEB_URL') ?? 'http://localhost:3101').replace(/\/$/, '');
+    this.webUrl = config.get('WEB_URL', { infer: true });
   }
 
   async send(userId: string, newMatches: number): Promise<boolean> {
