@@ -47,6 +47,7 @@ let photos: FakePhotoStore;
 class FakePhotoStore extends PhotoStore {
   readonly enabled = true;
   objects = new Map<string, Buffer>();
+  refuseDeletes = false;
 
   put(key: string, body: Buffer): Promise<void> {
     this.objects.set(key, body);
@@ -59,6 +60,7 @@ class FakePhotoStore extends PhotoStore {
   }
 
   delete(keys: string[]): Promise<void> {
+    if (this.refuseDeletes) return Promise.reject(new Error('Access denied'));
     for (const key of keys) this.objects.delete(key);
     return Promise.resolve();
   }
@@ -125,6 +127,7 @@ beforeEach(async () => {
   mails.sent = [];
   mails.server = 'up';
   photos.objects.clear();
+  photos.refuseDeletes = false;
   pushes.gone.clear();
 });
 
@@ -1259,6 +1262,16 @@ describe('photos and bio', () => {
     const stored = await prisma.photo.findMany({ where: { userId: alice.id }, orderBy: { position: 'asc' } });
     expect(stored.map((photo) => photo.position)).toEqual([0, 1, 2, 3]);
     expect(photos.objects.size).toBe(4);
+  });
+
+  it('still answers truthfully when storage refuses to delete', async () => {
+    const alice = await register();
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i += 1) ids.push((await upload(alice.token)).body.id);
+    photos.refuseDeletes = true;
+    expect((await upload(alice.token)).status).toBe(409);
+    await http().delete(`/me/photos/${ids[0]}`).set(as(alice.token)).expect(204);
+    expect(await prisma.photo.count({ where: { userId: alice.id } })).toBe(3);
   });
 
   it('shows photos only to people you are matched with', async () => {

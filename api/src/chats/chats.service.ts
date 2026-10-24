@@ -1,7 +1,6 @@
 import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
 import { Observable, concatMap, defer, filter, finalize, interval, map, merge, takeWhile } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
-import type { Prisma } from '../generated/prisma/client.js';
 import { photoSelect } from '../photos/photos.service.js';
 import { openStreams } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -108,18 +107,16 @@ export class ChatsService {
 
   async send(userId: string, matchId: string, body: string) {
     const match = await this.openChat(userId, matchId);
-    const row = await this.prisma.$transaction(async (tx) => {
-      const [open] = await tx.$queryRaw<unknown[]>`
-        SELECT 1 FROM "Match"
-        WHERE id = ${matchId}::uuid AND "closedAt" IS NULL AND ${userId}::uuid IN ("userAId", "userBId")
-        FOR SHARE`;
-      if (!open) throw new NotFoundException('Chat not found');
-      const row = await tx.message.create({ data: { matchId, senderId: userId, body } });
-      await this.markRead(matchId, userId, tx);
-      const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
-      await tx.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
-      return row;
-    });
+    const [row] = await this.prisma.$queryRaw<MessageRow[]>`
+      INSERT INTO "Message" (id, "matchId", "senderId", body)
+      SELECT gen_random_uuid(), id, ${userId}::uuid, ${body} FROM "Match"
+      WHERE id = ${matchId}::uuid AND "closedAt" IS NULL
+      FOR SHARE
+      RETURNING id, "senderId", body, "createdAt"`;
+    if (!row) throw new NotFoundException('Chat not found');
+    await this.markRead(matchId, userId);
+    const event: ChatEvent = { ...row, matchId, createdAt: row.createdAt.toISOString() };
+    await this.prisma.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
     const [sender, recipient] = match.userAId === userId ? [match.userA, match.userB] : [match.userB, match.userA];
     this.push.notifyInBackground(recipient.id, {
       title: sender.displayName,
@@ -168,8 +165,8 @@ export class ChatsService {
     return Boolean(last && last.senderId !== userId && last.createdAt > read.readAt);
   }
 
-  private async markRead(matchId: string, userId: string, db: Prisma.TransactionClient = this.prisma) {
-    await db.$executeRaw`
+  private async markRead(matchId: string, userId: string) {
+    await this.prisma.$executeRaw`
       INSERT INTO "ChatRead" ("matchId", "userId", "readAt") VALUES (${matchId}::uuid, ${userId}::uuid, now())
       ON CONFLICT ("matchId", "userId") DO UPDATE SET "readAt" = now()`;
   }

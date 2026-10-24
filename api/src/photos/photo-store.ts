@@ -64,9 +64,14 @@ export class S3PhotoStore extends PhotoStore implements OnModuleInit {
 
   async delete(keys: string[]) {
     if (keys.length === 0) return;
-    await this.s3().send(
+    const { Errors } = await this.s3().send(
       new DeleteObjectsCommand({ Bucket: this.bucket, Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true } }),
     );
+    if (Errors?.length) {
+      throw new Error(
+        `Storage refused ${Errors.map(({ Key, Code }) => `${String(Key)} (${String(Code)})`).join(', ')}`,
+      );
+    }
   }
 
   private s3(): S3Client {
