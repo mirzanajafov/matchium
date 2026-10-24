@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { SessionController } from './session.controller.js';
 import { AuthSweeper } from './auth-sweeper.js';
+import { SESSION_LIFETIME_DAYS } from './sessions.js';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { AuthSweeper } from './auth-sweeper.js';
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
         secret: config.get('JWT_SECRET', { infer: true }),
-        signOptions: { expiresIn: '7d' },
+        signOptions: { expiresIn: `${SESSION_LIFETIME_DAYS}d` },
       }),
     }),
     MailModule,

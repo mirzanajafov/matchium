@@ -6,6 +6,7 @@ import { photoRefs, photoSelect } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import type { ReportDto } from './dto/unmatch.dto.js';
+import { counterpart, decisionOf, involving, isMutual, isParticipant, otherUserId } from './participants.js';
 
 const EVIDENCE_MESSAGES = 50;
 const publicProfile = {
@@ -24,7 +25,7 @@ export class MatchesService {
     const now = this.clock.now();
     const day = utcDay(now);
     const matches = await this.prisma.match.findMany({
-      where: { day, closedAt: null, OR: [{ userAId: userId }, { userBId: userId }] },
+      where: { day, closedAt: null, ...involving(userId) },
       include: { userA: publicProfile, userB: publicProfile, decisions: true },
       orderBy: { score: 'desc' },
     });
@@ -32,9 +33,7 @@ export class MatchesService {
     return {
       day: isoDay(day),
       matches: matches.map((match) => {
-        const person = match.userAId === userId ? match.userB : match.userA;
-        const mine = match.decisions.find((d) => d.userId === userId);
-        const theirs = match.decisions.find((d) => d.userId === person.id);
+        const person = counterpart(match, userId);
         return {
           id: match.id,
           score: match.score,
@@ -49,8 +48,8 @@ export class MatchesService {
             bio: person.bio ?? '',
             photos: photoRefs(person.photos),
           },
-          decision: mine ? (mine.liked ? 'LIKE' : 'PASS') : null,
-          mutual: Boolean(mine?.liked && theirs?.liked),
+          decision: decisionOf(match.decisions, userId),
+          mutual: isMutual(match),
         };
       }),
     };
@@ -70,8 +69,8 @@ export class MatchesService {
       await tx.matchDecision.create({ data: { matchId, userId, liked: like } });
       return { match: row, earlier: decisions };
     });
-    const otherId = match.userAId === userId ? match.userBId : match.userAId;
-    const mutual = like && earlier.some((d) => d.userId === otherId && d.liked);
+    const otherId = otherUserId(match, userId);
+    const mutual = like && decisionOf(earlier, otherId) === 'LIKE';
     if (mutual) {
       const me = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true } });
       this.push.notifyInBackground(otherId, {
@@ -86,15 +85,13 @@ export class MatchesService {
 
   async unmatch(userId: string, matchId: string, report?: ReportDto) {
     const match = await this.prisma.match.findUnique({ where: { id: matchId } });
-    if (!match || (match.userAId !== userId && match.userBId !== userId)) {
-      throw new NotFoundException('Match not found');
-    }
-    const otherId = match.userAId === userId ? match.userBId : match.userAId;
+    if (!match || !isParticipant(match, userId)) throw new NotFoundException('Match not found');
+    const otherId = otherUserId(match, userId);
 
     await this.prisma.$transaction(async (tx) => {
       const closed = await tx.match.updateMany({
         where: { id: matchId, closedAt: null },
-        data: { closedAt: new Date(), closedById: userId },
+        data: { closedAt: this.clock.now(), closedById: userId },
       });
       if (report) {
         const [reported, messages] = await Promise.all([

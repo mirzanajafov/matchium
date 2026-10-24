@@ -5,6 +5,7 @@ import { photoSelect } from '../photos/photos.service.js';
 import { openStreams } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
+import { counterpart, involving, isMutual, isParticipant } from '../matches/participants.js';
 import { CHAT_CHANNEL, DbEvents } from '../common/db-events.js';
 
 const publicProfile = {
@@ -31,22 +32,11 @@ function isClosed(event: ChatEvent | ClosedEvent): event is ClosedEvent {
   return 'closed' in event;
 }
 
-interface MatchParticipants {
-  userAId: string;
-  userBId: string;
-  decisions: { userId: string; liked: boolean }[];
-}
-
 interface MessageRow {
   id: string;
   senderId: string;
   body: string;
   createdAt: Date;
-}
-
-function isMutual(match: MatchParticipants): boolean {
-  const liked = new Set(match.decisions.filter((d) => d.liked).map((d) => d.userId));
-  return liked.has(match.userAId) && liked.has(match.userBId);
 }
 
 @Injectable()
@@ -67,7 +57,7 @@ export class ChatsService {
       .filter(isMutual)
       .sort((a, b) => activity(b) - activity(a))
       .map((match) => {
-        const person = match.userAId === userId ? match.userB : match.userA;
+        const person = counterpart(match, userId);
         const last = match.messages[0];
         return {
           id: match.id,
@@ -92,7 +82,7 @@ export class ChatsService {
 
   async messages(userId: string, matchId: string, after?: string) {
     const match = await this.openChat(userId, matchId);
-    const person = match.userAId === userId ? match.userB : match.userA;
+    const person = counterpart(match, userId);
     const rows = await this.prisma.message.findMany({
       where: { matchId, ...(after ? { createdAt: { gte: new Date(after) } } : {}) },
       orderBy: after ? [{ createdAt: 'asc' }, { id: 'asc' }] : [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -118,7 +108,8 @@ export class ChatsService {
     await this.markRead(matchId, userId);
     const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
     await this.prisma.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
-    const [sender, recipient] = match.userAId === userId ? [match.userA, match.userB] : [match.userB, match.userA];
+    const recipient = counterpart(match, userId);
+    const sender = counterpart(match, recipient.id);
     this.push.notifyInBackground(recipient.id, {
       title: sender.displayName,
       body: body.length > PREVIEW_LENGTH ? `${body.slice(0, PREVIEW_LENGTH - 1)}…` : body,
@@ -151,7 +142,7 @@ export class ChatsService {
 
   private mutualMatches(userId: string) {
     return this.prisma.match.findMany({
-      where: { closedAt: null, OR: [{ userAId: userId }, { userBId: userId }], decisions: { some: { liked: true } } },
+      where: { closedAt: null, ...involving(userId), decisions: { some: { liked: true } } },
       include: {
         decisions: true,
         userA: publicProfile,
@@ -180,7 +171,7 @@ export class ChatsService {
       where: { id: matchId },
       include: { decisions: true, userA: publicProfile, userB: publicProfile },
     });
-    if (!match || match.closedAt || (match.userAId !== userId && match.userBId !== userId)) {
+    if (!match || match.closedAt || !isParticipant(match, userId)) {
       throw new NotFoundException('Chat not found');
     }
     if (!isMutual(match)) throw new ForbiddenException('You can chat once you both said yes');

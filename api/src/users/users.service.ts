@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { beliefState } from '../common/belief-row.js';
 import { isoDay } from '../common/clock.js';
+import { toThousandths } from '../common/rounding.js';
 import { certainty } from '../engine/belief.js';
 import { preferenceShifts } from '../engine/revealed.js';
 import { photoRefs, photoSelect } from '../photos/photos.service.js';
@@ -29,7 +30,7 @@ export class UsersService {
       emailDigest: user.emailDigest,
       emailVerified: user.emailVerifiedAt !== null,
       answerCount: user.belief?.answerCount ?? 0,
-      certainty: user.belief ? Number(certainty(beliefState(user.belief)).toFixed(3)) : 0,
+      certainty: user.belief ? toThousandths(certainty(beliefState(user.belief))) : 0,
       decisionsLearned,
       preferenceShifts: preferenceShifts(user.belief?.muGap ?? []),
     };
