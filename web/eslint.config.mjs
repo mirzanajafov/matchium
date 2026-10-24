@@ -1,11 +1,10 @@
 import js from "@eslint/js";
-import { defineConfig, globalIgnores } from "eslint/config";
+import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["coverage"]),
   js.configs.recommended,
   nextVitals,
   tseslint.configs.strictTypeChecked,
