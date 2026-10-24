@@ -22,8 +22,12 @@ export function VerifyEmailBanner() {
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                const result = await resendVerification();
-                setMessage(result.sent ? "Sent. Check your inbox." : (result.error ?? "Try again later."));
+                try {
+                  const result = await resendVerification();
+                  setMessage(result.sent ? "Sent. Check your inbox." : (result.error ?? "Try again later."));
+                } catch {
+                  setMessage("Couldn't send it. Try again later.");
+                }
               })
             }
             className="font-medium underline disabled:opacity-50"

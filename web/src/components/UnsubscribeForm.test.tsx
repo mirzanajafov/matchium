@@ -29,4 +29,13 @@ describe("UnsubscribeForm", () => {
     await user.click(screen.getByRole("button", { name: "Stop these emails" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("doesn't work anymore");
   });
+
+  it("says so when the server can't be reached", async () => {
+    const user = userEvent.setup();
+    vi.mocked(unsubscribeEmail).mockRejectedValue(new Error("API answered 502"));
+    render(<UnsubscribeForm token="tok" />);
+    await user.click(screen.getByRole("button", { name: "Stop these emails" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Try again in a moment");
+    expect(screen.getByRole("button", { name: "Stop these emails" })).toBeEnabled();
+  });
 });

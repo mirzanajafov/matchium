@@ -17,4 +17,16 @@ describe("EmailDigestToggle", () => {
 
     expect(setEmailDigest).toHaveBeenCalledWith(false);
   });
+
+  it("flips back and says so when the setting can't be saved", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setEmailDigest).mockRejectedValue(new Error("API answered 502"));
+    render(<EmailDigestToggle enabled />);
+    const toggle = screen.getByRole("switch", { name: "Match emails" });
+
+    await user.click(toggle);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that. Try again.");
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+  });
 });

@@ -1,11 +1,12 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { setEmailDigest } from "@/app/actions";
 
 export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
   const [shown, setShown] = useOptimistic(enabled);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -14,6 +15,11 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
         <p className="mt-1 text-sm text-muted">
           When push is off on all your devices, we email you once when your matches are ready.
         </p>
+        {error && (
+          <p role="alert" className="mt-2 text-sm text-warn">
+            {error}
+          </p>
+        )}
       </div>
       <button
         type="button"
@@ -23,8 +29,13 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
+            setError(null);
             setShown(!shown);
-            await setEmailDigest(!shown);
+            try {
+              await setEmailDigest(!shown);
+            } catch {
+              setError("Couldn't save that. Try again.");
+            }
           })
         }
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
