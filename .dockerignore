@@ -3,8 +3,7 @@
 **/.next
 **/.venv
 **/__pycache__
-**/.env
-**/.env.local
+**/.env*
 **/*.tsbuildinfo
 **/src/generated
 .git

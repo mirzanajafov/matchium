@@ -106,3 +106,18 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: deploy/backup/test.sh
+
+  env-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Env files stay out of git, examples stay in
+        run: |
+          for path in .env .env.production .env.test.local .envrc api/.env api/.env.production engine/.env web/.env web/.env.local web/.env.test; do
+            if ! git check-ignore -q --no-index "$path"; then echo "$path would be committed"; exit 1; fi
+          done
+          for path in .env.example api/.env.example engine/.env.example web/.env.example; do
+            if git check-ignore -q --no-index "$path"; then echo "$path would be ignored"; exit 1; fi
+          done
+          tracked=$(git ls-files --cached --ignored --exclude-standard -- ':(glob)**/.env*')
+          if [ -n "$tracked" ]; then echo "tracked although ignored: $tracked"; exit 1; fi
