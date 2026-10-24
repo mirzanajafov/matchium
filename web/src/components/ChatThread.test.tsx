@@ -152,20 +152,21 @@ describe("ChatThread", () => {
     expect(screen.getByText("Polled")).toBeInTheDocument();
   });
 
-  it("stays where you scrolled when a poll brings nothing new", async () => {
+  it("stays where you scrolled when a reconnect or a poll brings nothing new", async () => {
     vi.useFakeTimers();
     const last = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
     vi.mocked(fetchMessages).mockResolvedValue([last]);
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[last]} />);
     const source = FakeEventSource.instances[0];
-    source.readyState = FakeEventSource.CLOSED;
     scrolls.mockClear();
 
     await act(async () => {
+      source.emit("open");
+      source.readyState = FakeEventSource.CLOSED;
       source.emit("error");
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(10_000);
     });
-    expect(fetchMessages).toHaveBeenCalledTimes(3);
+    expect(fetchMessages).toHaveBeenCalledTimes(2);
     expect(scrolls).not.toHaveBeenCalled();
   });
 

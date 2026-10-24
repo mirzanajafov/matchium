@@ -32,7 +32,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
 
   useEffect(() => {
     latest.current = messages.at(-1)?.createdAt;
-    bottom.current?.scrollIntoView?.({ block: "end" });
+    bottom.current?.scrollIntoView({ block: "end" });
   }, [messages]);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
     const catchUp = () =>
       fetchMessages(matchId, latest.current)
         .then((fresh) => {
-          if (active && fresh.length > 0) setMessages((current) => merge(current, fresh));
+          if (active) setMessages((current) => merge(current, fresh));
         })
         .catch(() => undefined);
 

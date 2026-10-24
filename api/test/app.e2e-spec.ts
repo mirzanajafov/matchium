@@ -424,29 +424,11 @@ describe('chats', () => {
       .expect(400);
     await http().get(`/chats/${match.id}/messages`).query({ after: 'yesterday' }).set(as(alice.token)).expect(400);
   });
-});
 
-describe('chat history', () => {
   it('opens on the newest page of a long chat, oldest first', async () => {
-    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
-    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
-    const match = await prisma.match.create({
-      data: {
-        day: new Date('2026-09-23'),
-        userAId: alice.id,
-        userBId: bob.id,
-        score: 0.6,
-        confidence: 0.4,
-        aligned: ['family'],
-        friction: 'tidiness',
-      },
-    });
+    const { alice, bob, match, as } = await pair();
     for (const who of [alice, bob]) {
-      await http()
-        .post(`/matches/${match.id}/decision`)
-        .set({ Authorization: `Bearer ${who.token}` })
-        .send({ like: true })
-        .expect(200);
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
     }
     await prisma.message.createMany({
       data: Array.from({ length: 205 }, (_, i) => ({
@@ -457,10 +439,7 @@ describe('chat history', () => {
       })),
     });
 
-    const res = await http()
-      .get(`/chats/${match.id}/messages`)
-      .set({ Authorization: `Bearer ${bob.token}` })
-      .expect(200);
+    const res = await http().get(`/chats/${match.id}/messages`).set(as(bob.token)).expect(200);
     const bodies = res.body.messages.map((m: { body: string }) => m.body);
     expect(bodies).toHaveLength(200);
     expect([bodies[0], bodies.at(-1)]).toEqual(['message 5', 'message 204']);
