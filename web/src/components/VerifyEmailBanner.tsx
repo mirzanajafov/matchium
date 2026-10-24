@@ -41,7 +41,7 @@ export function VerifyEmailBanner() {
         )}
       </p>
       {error && (
-        <p role="alert" className="mt-1 text-warn">
+        <p role="alert" className="mt-1 font-medium">
           {error}
         </p>
       )}
