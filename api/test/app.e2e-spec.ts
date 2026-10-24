@@ -1090,7 +1090,7 @@ describe('moderation', () => {
   });
 
   it('stamps the unmatch, the ban and the ended sessions with the app clock', async () => {
-    const { admin, mallory, match } = await reported();
+    const { admin, mallory, match, other } = await reported();
     const [report] = (await http().get('/admin/reports').set(as(admin.token)).expect(200)).body;
     await http()
       .post(`/admin/reports/${report.id}/resolve`)
@@ -1100,6 +1100,8 @@ describe('moderation', () => {
 
     const now = clock.now();
     expect((await prisma.match.findUniqueOrThrow({ where: { id: match.id } })).closedAt).toEqual(now);
+    expect((await prisma.match.findUniqueOrThrow({ where: { id: other.id } })).closedAt).toEqual(now);
+    expect((await prisma.report.findUniqueOrThrow({ where: { id: report.id } })).reviewedAt).toEqual(now);
     expect((await prisma.user.findUniqueOrThrow({ where: { id: mallory.id } })).bannedAt).toEqual(now);
     const sessions = await prisma.session.findMany({ where: { userId: mallory.id }, select: { revokedAt: true } });
     expect(sessions).toEqual([{ revokedAt: now }]);
@@ -1818,6 +1820,13 @@ describe('safety after deletion', () => {
     expect(await app.get(AuthSweeper).sweep()).toEqual({ sessions: 2, signups: 0 });
     expect(await prisma.session.count({ where: { userId: alice.id } })).toBe(2);
     await http().get('/me').set(as(alice.token)).expect(200);
+  });
+
+  it('sweeps a session from sign-in once the app clock is past its lifetime', async () => {
+    const alice = await register();
+    clock.current = new Date(clock.current.getTime() + 9 * 24 * 60 * 60 * 1000);
+    await app.get(AuthSweeper).sweep();
+    expect(await prisma.session.count({ where: { userId: alice.id } })).toBe(0);
   });
 });
 

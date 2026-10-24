@@ -272,7 +272,7 @@ export class AuthService implements OnModuleInit {
   }
 
   private async issue(userId: string): Promise<TokenResponse> {
-    const session = await this.prisma.session.create({ data: { userId } });
+    const session = await this.prisma.session.create({ data: { userId, createdAt: this.clock.now() } });
     return { accessToken: this.jwt.sign({ sub: userId, sid: session.id }) };
   }
 }

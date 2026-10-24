@@ -27,5 +27,6 @@ describe('match participants', () => {
     expect(isMutual({ ...match, decisions: [liked('ann'), liked('bob')] })).toBe(true);
     expect(isMutual({ ...match, decisions: [liked('ann'), passed('bob')] })).toBe(false);
     expect(isMutual({ ...match, decisions: [liked('ann')] })).toBe(false);
+    expect(isMutual({ ...match, decisions: [liked('ann'), liked('eve')] })).toBe(false);
   });
 });

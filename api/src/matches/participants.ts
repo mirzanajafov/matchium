@@ -10,7 +10,7 @@ interface Decision {
   liked: boolean;
 }
 
-export type Verdict = 'LIKE' | 'PASS';
+export type Choice = 'LIKE' | 'PASS';
 
 export function involving(userId: string): Prisma.MatchWhereInput {
   return { OR: [{ userAId: userId }, { userBId: userId }] };
@@ -28,7 +28,7 @@ export function counterpart<Person>(match: Pair & { userA: Person; userB: Person
   return match.userAId === userId ? match.userB : match.userA;
 }
 
-export function decisionOf(decisions: readonly Decision[], userId: string): Verdict | null {
+export function decisionOf(decisions: readonly Decision[], userId: string): Choice | null {
   const decision = decisions.find((d) => d.userId === userId);
   if (!decision) return null;
   return decision.liked ? 'LIKE' : 'PASS';
