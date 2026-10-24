@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { AuthUser } from '../auth/current-user.decorator.js';
+import { Clock, utcDay } from '../common/clock.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PhotoStore } from './photo-store.js';
@@ -29,6 +30,7 @@ export class PhotosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly store: PhotoStore,
+    private readonly clock: Clock,
   ) {}
 
   async upload(userId: string, input: Buffer | undefined): Promise<PhotoRef> {
@@ -107,17 +109,21 @@ export class PhotosService {
 
   private async canSee(viewer: AuthUser, ownerId: string): Promise<boolean> {
     if (viewer.id === ownerId || viewer.role === 'ADMIN') return true;
-    const shared = await this.prisma.match.count({
+    const pair = [viewer.id, ownerId];
+    const current = await this.prisma.match.count({
       where: {
+        userAId: { in: pair },
+        userBId: { in: pair },
         closedAt: null,
-        OR: [
-          { userAId: viewer.id, userBId: ownerId },
-          { userAId: ownerId, userBId: viewer.id },
-        ],
+        OR: [{ day: utcDay(this.clock.now()) }, { AND: pair.map(likedBy) }],
       },
     });
-    return shared > 0;
+    return current > 0;
   }
+}
+
+function likedBy(userId: string) {
+  return { decisions: { some: { userId, liked: true } } };
 }
 
 export function photoRefs(photos: { id: string; width: number; height: number }[]): PhotoRef[] {
