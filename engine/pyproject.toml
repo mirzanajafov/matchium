@@ -77,14 +77,6 @@ disallow_any_generics = false
 warn_return_any = false
 
 [[tool.mypy.overrides]]
-module = ["matchium.selection"]
-disable_error_code = ["arg-type"]
-
-[[tool.mypy.overrides]]
-module = ["matchium.revealed"]
-disable_error_code = ["union-attr"]
-
-[[tool.mypy.overrides]]
 module = ["sim.run", "tests.test_nightly"]
 disable_error_code = ["var-annotated"]
 

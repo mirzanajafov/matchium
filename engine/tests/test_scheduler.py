@@ -2,7 +2,7 @@ import datetime as dt
 
 import pytest
 
-from jobs.scheduler import next_run, run_with_retry, serve
+from jobs.scheduler import next_run, parse_args, run_with_retry, serve
 
 UTC = dt.UTC
 AT = dt.time(3, 0)
@@ -26,6 +26,26 @@ class FakeTime:
         if len(self.sleeps) > self.stop_after:
             raise Stop
         self.now += dt.timedelta(seconds=seconds)
+
+
+def test_settings_come_from_the_environment_unless_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MATCH_AT", "05:15")
+    monkeypatch.setenv("MATCHES_PER_USER", "2")
+    args = parse_args(["--database-url", "postgresql://db"])
+    assert (args.at, args.per_user, args.min_answers) == (dt.time(5, 15), 2, 6)
+
+
+def test_an_option_beats_a_broken_environment_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MATCH_AT", "soon")
+    monkeypatch.setenv("MATCHES_PER_USER", "many")
+    args = parse_args(["--at", "04:30", "--per-user", "2", "--database-url", "x"])
+    assert (args.at, args.per_user) == (dt.time(4, 30), 2)
+
+
+def test_a_broken_environment_value_is_a_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MATCH_AT", "soon")
+    with pytest.raises(SystemExit):
+        parse_args(["--database-url", "x"])
 
 
 def test_next_run_is_today_before_the_hour_and_tomorrow_after():
