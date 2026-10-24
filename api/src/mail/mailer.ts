@@ -1,6 +1,7 @@
 import { Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
+import type { Env } from '../config/env.js';
 
 export interface Mail {
   to: string;
@@ -22,10 +23,10 @@ export class SmtpMailer extends Mailer implements OnApplicationShutdown {
   private readonly from: string;
   private readonly inFlight = new Set<Promise<unknown>>();
 
-  constructor(config: ConfigService) {
+  constructor(config: ConfigService<Env, true>) {
     super();
-    const url = config.get<string>('SMTP_URL') ?? '';
-    this.from = config.get<string>('MAIL_FROM') ?? 'Matchium <hello@matchium.local>';
+    const url = config.get('SMTP_URL', { infer: true });
+    this.from = config.get('MAIL_FROM', { infer: true });
     this.enabled = url.length > 0;
     if (this.enabled) this.transport = nodemailer.createTransport(url);
   }

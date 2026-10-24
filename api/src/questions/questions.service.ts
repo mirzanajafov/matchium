@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { ConfigService } from '@nestjs/config';
 import { beliefState } from '../common/belief-row.js';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
+import type { Env } from '../config/env.js';
 import { BeliefState, DIMENSION_COUNT, certainty, observe, priorBelief } from '../engine/belief.js';
 import { pickQuestions } from '../engine/selection.js';
 import { DailyQuestionSet } from '../generated/prisma/client.js';
@@ -16,9 +17,9 @@ export class QuestionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
-    config: ConfigService,
+    config: ConfigService<Env, true>,
   ) {
-    this.perDay = config.get<number>('QUESTIONS_PER_DAY', 6);
+    this.perDay = config.get('QUESTIONS_PER_DAY', { infer: true });
   }
 
   async today(userId: string) {

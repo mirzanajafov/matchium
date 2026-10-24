@@ -21,4 +21,15 @@ describe('validateEnv', () => {
     expect(trustProxy(' 2 ')).toBe(2);
     expect(trustProxy('loopback, uniquelocal')).toBe('loopback, uniquelocal');
   });
+
+  it('reads LOG_JSON as true or false and refuses anything else', () => {
+    expect(validateEnv(base).LOG_JSON).toBe(false);
+    expect(validateEnv({ ...base, LOG_JSON: 'true' }).LOG_JSON).toBe(true);
+    expect(validateEnv({ ...base, LOG_JSON: 'false' }).LOG_JSON).toBe(false);
+    expect(() => validateEnv({ ...base, LOG_JSON: 'yes' })).toThrow(/LOG_JSON/);
+  });
+
+  it('drops trailing slashes from WEB_URL so links never get a double slash', () => {
+    expect(validateEnv({ ...base, WEB_URL: 'https://matchium.example//' }).WEB_URL).toBe('https://matchium.example');
+  });
 });

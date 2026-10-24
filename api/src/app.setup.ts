@@ -1,13 +1,13 @@
 import { INestApplication, NestApplicationOptions, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import type { TrustProxy } from './config/env.js';
+import type { Env } from './config/env.js';
 import { httpMetrics } from './observability/http-metrics.js';
 
 export const appOptions: NestApplicationOptions = { return503OnClosing: true };
 
 export function configureApp(app: INestApplication): INestApplication {
-  const trustProxy = app.get(ConfigService).getOrThrow<TrustProxy>('TRUST_PROXY');
+  const trustProxy = app.get<ConfigService<Env, true>>(ConfigService).get('TRUST_PROXY', { infer: true });
   try {
     app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
   } catch (error) {

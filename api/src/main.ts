@@ -3,9 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { appOptions, configureApp, setupDocs } from './app.setup.js';
+import type { Env } from './config/env.js';
 
-const logger = new ConsoleLogger({ json: process.env.LOG_JSON === 'true' });
-const app = configureApp(await NestFactory.create(AppModule, { ...appOptions, logger }));
+const app = await NestFactory.create(AppModule, { ...appOptions, bufferLogs: true });
+const config = app.get<ConfigService<Env, true>>(ConfigService);
+app.useLogger(new ConsoleLogger({ json: config.get('LOG_JSON', { infer: true }) }));
+app.flushLogs();
+configureApp(app);
 app.enableShutdownHooks(['SIGTERM', 'SIGINT'], { useProcessExit: true });
 setupDocs(app);
-await app.listen(app.get(ConfigService).get<number>('PORT', 3100));
+await app.listen(config.get('PORT', { infer: true }));

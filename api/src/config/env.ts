@@ -1,13 +1,22 @@
 import 'reflect-metadata';
 import { Transform, plainToInstance } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Matches, Max, Min, MinLength, validateSync } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, Min, MinLength, validateSync } from 'class-validator';
 
-export type TrustProxy = false | number | string;
+type TrustProxy = false | number | string;
 
 function parseTrustProxy({ value }: { value: string }): TrustProxy {
   const setting = value.trim();
   if (setting === 'false') return false;
   return /^\d+$/.test(setting) ? Number(setting) : setting;
+}
+
+function parseFlag({ key, obj }: { key: string; obj: Record<string, unknown> }): unknown {
+  const setting = obj[key];
+  return setting === 'true' || setting === 'false' ? setting === 'true' : setting;
+}
+
+function withoutTrailingSlash({ value }: { value: string }): string {
+  return value.replace(/\/+$/, '');
 }
 
 export class Env {
@@ -36,6 +45,10 @@ export class Env {
   @IsString()
   METRICS_TOKEN: string = '';
 
+  @Transform(parseFlag, { toClassOnly: true })
+  @IsBoolean({ message: 'LOG_JSON must be true or false' })
+  LOG_JSON: boolean = false;
+
   @IsOptional()
   @IsString()
   SMTP_URL: string = '';
@@ -44,6 +57,7 @@ export class Env {
   @IsString()
   MAIL_FROM: string = 'Matchium <hello@matchium.local>';
 
+  @Transform(withoutTrailingSlash, { toClassOnly: true })
   @IsOptional()
   @IsString()
   WEB_URL: string = 'http://localhost:3101';
@@ -55,6 +69,10 @@ export class Env {
   @IsOptional()
   @IsString()
   S3_BUCKET: string = 'matchium-photos';
+
+  @IsOptional()
+  @IsString()
+  S3_REGION: string = 'us-east-1';
 
   @IsOptional()
   @IsString()

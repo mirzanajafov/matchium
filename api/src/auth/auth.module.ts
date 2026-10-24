@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
+import type { Env } from '../config/env.js';
 import { RateLimitGuard } from '../limits/rate-limit.guard.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
@@ -14,8 +15,8 @@ import { JwtAuthGuard } from './jwt-auth.guard.js';
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
+      useFactory: (config: ConfigService<Env, true>) => ({
+        secret: config.get('JWT_SECRET', { infer: true }),
         signOptions: { expiresIn: '7d' },
       }),
     }),

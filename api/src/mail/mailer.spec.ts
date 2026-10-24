@@ -1,5 +1,5 @@
-import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
+import { testConfig } from '../../test/support/config.js';
 import { SmtpMailer } from './mailer.js';
 
 describe('SmtpMailer', () => {
@@ -19,7 +19,7 @@ describe('SmtpMailer', () => {
     });
     vi.spyOn(transport, 'close').mockImplementation(() => events.push('closed'));
     vi.spyOn(nodemailer, 'createTransport').mockReturnValue(transport);
-    const mailer = new SmtpMailer(new ConfigService({ SMTP_URL: 'smtp://mail.example.com' }));
+    const mailer = new SmtpMailer(testConfig({ SMTP_URL: 'smtp://mail.example.com' }));
 
     await Promise.all([
       mailer.send({ to: 'alice@example.com', subject: 'Hi', text: 'Hi', html: '<p>Hi</p>' }),
