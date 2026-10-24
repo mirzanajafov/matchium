@@ -101,23 +101,28 @@ async function register(overrides: Record<string, unknown> = {}) {
   return { token: res.body.accessToken as string, id: me.body.id as string, email: body.email };
 }
 
-beforeAll(async () => {
-  clock = new FixedClock();
-  pushes = new FakePushSender();
-  mails = new FakeMailer();
-  photos = new FakePhotoStore();
+async function startApp(mailer: Mailer, store: PhotoStore) {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(PushSender)
     .useValue(pushes)
     .overrideProvider(Mailer)
-    .useValue(mails)
+    .useValue(mailer)
     .overrideProvider(PhotoStore)
-    .useValue(photos)
+    .useValue(store)
     .compile();
-  app = configureApp(moduleRef.createNestApplication());
-  await app.init();
+  const started = configureApp(moduleRef.createNestApplication());
+  await started.init();
+  return started;
+}
+
+beforeAll(async () => {
+  clock = new FixedClock();
+  pushes = new FakePushSender();
+  mails = new FakeMailer();
+  photos = new FakePhotoStore();
+  app = await startApp(mails, photos);
   prisma = app.get(PrismaService);
 });
 
@@ -1156,6 +1161,18 @@ describe('shutdown', () => {
     }
   }
 
+  class HeldPhotoStore extends FakePhotoStore {
+    holding = false;
+    release: () => void = () => undefined;
+
+    put(key: string, body: Buffer): Promise<void> {
+      this.holding = true;
+      return new Promise((resolve) => {
+        this.release = () => resolve(super.put(key, body));
+      });
+    }
+  }
+
   it('finishes the match emails it has started before the app stops', async () => {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
     const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
@@ -1172,22 +1189,34 @@ describe('shutdown', () => {
     });
     await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
     const mailer = new SlowMailer();
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(Clock)
-      .useValue(clock)
-      .overrideProvider(PushSender)
-      .useValue(pushes)
-      .overrideProvider(Mailer)
-      .useValue(mailer)
-      .overrideProvider(PhotoStore)
-      .useValue(photos)
-      .compile();
-    const restarting = configureApp(moduleRef.createNestApplication());
 
-    await restarting.init();
+    const restarting = await startApp(mailer, photos);
     await restarting.close();
 
     expect(new Set(mailer.delivered)).toEqual(new Set([alice.email, bob.email]));
+  });
+
+  it('lets a request already being served finish before the database closes', async () => {
+    const alice = await register();
+    const store = new HeldPhotoStore();
+    const photo = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#8a6' } })
+      .jpeg()
+      .toBuffer();
+    const restarting = await startApp(mails, store);
+    let closing: Promise<void> | undefined;
+    try {
+      const upload = request(restarting.getHttpServer())
+        .post('/me/photos')
+        .set('Authorization', `Bearer ${alice.token}`)
+        .attach('photo', photo, 'me.jpg')
+        .then((res) => res.status);
+      await vi.waitFor(() => expect(store.holding).toBe(true));
+      closing = restarting.close();
+      store.release();
+      expect(await upload).toBe(201);
+    } finally {
+      await (closing ?? restarting.close());
+    }
   });
 });
 
