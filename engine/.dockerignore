@@ -1,5 +1,6 @@
 .venv
 __pycache__
+.env*
 *.egg-info
 .pytest_cache
 results
