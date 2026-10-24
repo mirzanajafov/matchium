@@ -55,8 +55,10 @@ expect "the health check fails before any backup has succeeded" '! backup check'
 
 psql --command 'CREATE TABLE held (id int)' --command 'BEGIN' --command 'LOCK TABLE held' \
   --command "PREPARE TRANSACTION 'held'"
-backup_fails --env PGHOST="$name-postgres" --env DUMP_TIMEOUT=3s --tmpfs /photos
+status=0
+backup --env PGHOST="$name-postgres" --env DUMP_TIMEOUT=3s --tmpfs /photos > /dev/null 2>&1 || status=$?
 psql --command "ROLLBACK PREPARED 'held'"
+[ "$status" -eq 124 ] || fail "a dump stuck behind a lock ended with $status, not the timeout's 124"
 expect "a dump stuck behind a lock is given up and leaves nothing behind" "$nothing_kept"
 
 backup_fails --env PGHOST="$name-postgres"

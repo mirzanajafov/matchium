@@ -17,7 +17,7 @@ backup_database() {
   target="$BACKUPS/db/matchium-$stamp.dump"
   partial="$target.partial"
   mkdir -p "$BACKUPS/db"
-  timeout "$DUMP_TIMEOUT" pg_dump --format=custom --no-owner --no-privileges --file="$partial"
+  timeout --foreground "$DUMP_TIMEOUT" pg_dump --format=custom --no-owner --no-privileges --file="$partial"
   pg_restore --list "$partial" > /dev/null
   mv "$partial" "$target"
   log "database $(du -h "$target" | cut -f1) $target"
@@ -63,11 +63,10 @@ case "${1:-}" in
     ;;
 esac
 
-stopping=
-trap 'stopping=1' TERM INT
+trap 'exit 0' TERM INT
 log "scheduled daily at $RUN_AT UTC, keeping $KEEP_DAYS days"
-while [ -z "$stopping" ]; do
+while true; do
   sleep "$(seconds_until_next_run)" &
-  wait $! || break
+  wait $!
   sh "$0" once || true
 done
