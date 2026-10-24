@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -23,6 +24,8 @@ export interface PhotoRef {
 
 @Injectable()
 export class PhotosService {
+  private readonly log = new Logger(PhotosService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly store: PhotoStore,
@@ -47,21 +50,25 @@ export class PhotosService {
       });
       return { id: photo.id, width: photo.width, height: photo.height };
     } catch (error) {
-      await this.store.delete([key]);
+      await this.store
+        .delete([key])
+        .catch((cleanup: unknown) =>
+          this.log.warn(`Could not delete ${key} after a refused upload: ${String(cleanup)}`),
+        );
       throw error;
     }
   }
 
   async remove(userId: string, photoId: string) {
-    const photo = await this.prisma.$transaction(async (tx) => {
+    const key = await this.prisma.$transaction(async (tx) => {
       await this.lockPhotos(tx, userId);
       const photo = await tx.photo.findFirst({ where: { id: photoId, userId } });
       if (!photo) throw new NotFoundException('Photo not found');
       await tx.photo.delete({ where: { id: photo.id } });
       await this.renumber(tx, userId, []);
-      return photo;
+      return photo.key;
     });
-    await this.store.delete([photo.key]);
+    await this.store.delete([key]);
   }
 
   async makeMain(userId: string, photoId: string) {
