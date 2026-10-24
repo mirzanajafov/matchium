@@ -1167,30 +1167,7 @@ describe('shutdown', () => {
     }
   }
 
-  it('finishes the match emails it has started before the app stops', async () => {
-    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
-    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
-    await prisma.match.create({
-      data: {
-        day: new Date('2026-09-23'),
-        userAId: alice.id,
-        userBId: bob.id,
-        score: 0.6,
-        confidence: 0.4,
-        aligned: ['family'],
-        friction: 'tidiness',
-      },
-    });
-    await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
-    mails.server = 'slow';
-
-    const restarting = await startApp(mails, photos);
-    await restarting.close();
-
-    expect(new Set(mails.delivered.map((mail) => mail.to))).toEqual(new Set([alice.email, bob.email]));
-  });
-
-  it('ends open chat streams so the shutdown can finish', async () => {
+  async function matched() {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
     const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
     const match = await prisma.match.create({
@@ -1204,6 +1181,27 @@ describe('shutdown', () => {
         friction: 'tidiness',
       },
     });
+    return { alice, bob, match };
+  }
+
+  it('finishes the match emails it has started before the app stops', async () => {
+    const { alice, bob } = await matched();
+    await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
+    mails.server = 'slow';
+    const restarting = await startApp(mails, photos);
+    let closing: Promise<void> | undefined;
+    try {
+      closing = restarting.close();
+      await closing;
+      const digests = mails.delivered.filter((mail) => mail.headers?.['List-Unsubscribe']);
+      expect(digests.map((mail) => mail.to).toSorted()).toEqual([alice.email, bob.email].toSorted());
+    } finally {
+      await (closing ?? restarting.close());
+    }
+  });
+
+  it('ends open chat streams so the shutdown can finish', async () => {
+    const { alice, bob, match } = await matched();
     for (const who of [alice, bob]) {
       await http()
         .post(`/matches/${match.id}/decision`)
@@ -1212,14 +1210,19 @@ describe('shutdown', () => {
         .expect(200);
     }
     const restarting = await startApp(mails, photos);
-    await restarting.listen(0);
-    const stream = await fetch(`${await restarting.getUrl()}/chats/${match.id}/stream`, {
-      headers: { Authorization: `Bearer ${alice.token}` },
-    });
-    expect(stream.status).toBe(200);
-
-    await restarting.close();
-    await stream.text();
+    let closing: Promise<void> | undefined;
+    try {
+      await restarting.listen(0);
+      const stream = await fetch(`${await restarting.getUrl()}/chats/${match.id}/stream`, {
+        headers: { Authorization: `Bearer ${alice.token}` },
+      });
+      expect(stream.status).toBe(200);
+      closing = restarting.close();
+      await closing;
+      await stream.text();
+    } finally {
+      await (closing ?? restarting.close());
+    }
   });
 
   it('lets a request already being served finish before the database closes', async () => {
@@ -1242,6 +1245,7 @@ describe('shutdown', () => {
       store.release();
       expect(await upload).toBe(201);
     } finally {
+      store.release();
       await (closing ?? restarting.close());
     }
   });
