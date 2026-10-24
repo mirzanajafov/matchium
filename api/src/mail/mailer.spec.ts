@@ -23,15 +23,15 @@ async function counted(kind: string, result: string): Promise<number> {
 }
 
 describe('Mailer.deliver', () => {
-  it('counts a sent email and says it went out', async () => {
+  it('counts a sent email', async () => {
     const before = await counted('verify', 'sent');
-    expect(await new ScriptedMailer('up').deliver('verify', mail)).toBe(true);
+    await new ScriptedMailer('up').deliver('verify', mail);
     expect(await counted('verify', 'sent')).toBe(before + 1);
   });
 
   it('counts a failed email instead of throwing, so a request never fails on mail', async () => {
     const before = await counted('reset', 'failed');
-    expect(await new ScriptedMailer('down').deliver('reset', mail)).toBe(false);
+    await expect(new ScriptedMailer('down').deliver('reset', mail)).resolves.toBeUndefined();
     expect(await counted('reset', 'failed')).toBe(before + 1);
   });
 });

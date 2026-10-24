@@ -13,16 +13,21 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-function layout(name: string, paragraphs: string[], action: Link, footer: string, footerLink?: Link): string {
-  const link = footerLink
-    ? ` <a href="${escapeHtml(footerLink.url)}" style="color:#6b6f68">${escapeHtml(footerLink.label)}</a>.`
+interface Footer {
+  text: string;
+  link?: Link;
+}
+
+function layout(name: string, paragraphs: string[], action: Link, footer: Footer): string {
+  const link = footer.link
+    ? ` <a href="${escapeHtml(footer.link.url)}" style="color:#6b6f68">${escapeHtml(footer.link.label)}</a>.`
     : '';
   return `<!doctype html>
 <html><body style="font-family:system-ui,sans-serif;color:#1d1f1c;max-width:480px;margin:0 auto;padding:24px">
 <p>Hi ${escapeHtml(name)},</p>
 ${paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('\n')}
 <p><a href="${escapeHtml(action.url)}" style="display:inline-block;background:#1d1f1c;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none">${escapeHtml(action.label)}</a></p>
-<p style="color:#6b6f68;font-size:12px">${escapeHtml(footer)}${link}</p>
+<p style="color:#6b6f68;font-size:12px">${escapeHtml(footer.text)}${link}</p>
 </body></html>`;
 }
 
@@ -39,7 +44,7 @@ export function verificationEmail(name: string, url: string): Email {
       name,
       ['Confirm this is your email so we can send you match updates.'],
       { label: 'Confirm email', url },
-      footer,
+      { text: footer },
     ),
   };
 }
@@ -53,7 +58,7 @@ export function passwordResetEmail(name: string, url: string): Email {
       name,
       ['Set a new password with the button below. The link works for 30 minutes, once.'],
       { label: 'Choose a new password', url },
-      footer,
+      { text: footer },
     ),
   };
 }
@@ -67,7 +72,7 @@ export function signupEmail(url: string, days: number): Email {
       'there',
       [`To finish signing up, open the link and enter the password you chose. It works for ${days} days.`],
       { label: 'Finish signing up', url },
-      footer,
+      { text: footer },
     ),
   };
 }
@@ -84,7 +89,7 @@ export function accountExistsEmail(name: string, webUrl: string): Email {
         'Someone just tried to sign up for Matchium with this address, and it already has an account. If it was you, log in instead. You can reset a forgotten password from the login page.',
       ],
       { label: 'Log in', url: login },
-      footer,
+      { text: footer },
     ),
   };
 }
@@ -120,9 +125,14 @@ export function digestEmail(content: DigestContent): Email {
       '',
       `${footer} Stop these emails: ${content.unsubscribeUrl}`,
     ].join('\n'),
-    html: layout(content.name, lines, { label: 'Open Matchium', url: target }, footer, {
-      label: 'Stop these emails',
-      url: content.unsubscribeUrl,
-    }),
+    html: layout(
+      content.name,
+      lines,
+      { label: 'Open Matchium', url: target },
+      {
+        text: footer,
+        link: { label: 'Stop these emails', url: content.unsubscribeUrl },
+      },
+    ),
   };
 }

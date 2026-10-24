@@ -19,15 +19,13 @@ export abstract class Mailer {
   abstract readonly enabled: boolean;
   abstract send(mail: Mail): Promise<void>;
 
-  async deliver(kind: EmailKind, mail: Mail): Promise<boolean> {
+  async deliver(kind: EmailKind, mail: Mail): Promise<void> {
     try {
       await this.send(mail);
       emailsSent.inc({ kind, result: 'sent' });
-      return true;
     } catch (error) {
       emailsSent.inc({ kind, result: 'failed' });
-      this.log.warn(`A ${kind} email failed: ${error instanceof Error ? error.message : String(error)}`);
-      return false;
+      this.log.warn(`Sending the ${kind} email failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

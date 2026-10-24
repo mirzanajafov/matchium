@@ -21,22 +21,22 @@ export class DigestService {
     this.webUrl = config.get('WEB_URL', { infer: true });
   }
 
-  async send(userId: string, newMatches: number): Promise<boolean> {
-    if (!this.mailer.enabled) return false;
+  async send(userId: string, newMatches: number): Promise<void> {
+    if (!this.mailer.enabled) return;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, displayName: true, emailDigest: true, emailVerifiedAt: true, bannedAt: true },
     });
-    if (!user?.emailDigest || !user.emailVerifiedAt || user.bannedAt) return false;
+    if (!user?.emailDigest || !user.emailVerifiedAt || user.bannedAt) return;
 
     const unreadChats = await this.chats.unreadCount(userId);
-    if (newMatches === 0 && unreadChats === 0) return false;
+    if (newMatches === 0 && unreadChats === 0) return;
 
     const token = encodeURIComponent(this.tokens.sign('unsubscribe', { sub: userId }));
     const unsubscribeUrl = `${this.webUrl}/unsubscribe?token=${token}`;
     const oneClickUrl = `${this.webUrl}/api/unsubscribe?token=${token}`;
     const mail = digestEmail({ name: user.displayName, newMatches, unreadChats, webUrl: this.webUrl, unsubscribeUrl });
-    return this.mailer.deliver('digest', {
+    await this.mailer.deliver('digest', {
       to: user.email,
       ...mail,
       headers: { 'List-Unsubscribe': `<${oneClickUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
