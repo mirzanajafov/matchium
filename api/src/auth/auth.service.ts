@@ -136,7 +136,7 @@ export class AuthService implements OnModuleInit {
     const passwordHash = await argon2.hash(password);
     await this.prisma.$transaction(async (tx) => {
       const changed = await tx.user.updateMany({
-        where: { id: user.id, passwordHash: user.passwordHash },
+        where: { id: user.id, passwordHash: user.passwordHash, bannedAt: null },
         data: { passwordHash, emailVerifiedAt: user.emailVerifiedAt ?? now },
       });
       if (changed.count === 0) throw new GoneException(INVALID_LINK);
