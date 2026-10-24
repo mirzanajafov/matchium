@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { setEmailDigest } from "@/actions/profile";
 import type { ActionResult } from "@/lib/types";
+import { recordWhile } from "@/test/frames";
 import { EmailDigestToggle } from "./EmailDigestToggle";
 
 vi.mock("@/actions/profile", () => ({ setEmailDigest: vi.fn() }));
@@ -41,10 +42,33 @@ describe("EmailDigestToggle", () => {
     await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
     expect(toggle).toHaveAccessibleDescription("Couldn't save that. Try again.");
 
-    vi.mocked(setEmailDigest).mockReturnValueOnce(new Promise<ActionResult>(() => undefined));
+    vi.mocked(setEmailDigest).mockReturnValueOnce(
+      new Promise<ActionResult>((resolve) => {
+        answer = resolve;
+      }),
+    );
     await user.click(toggle);
     expect(setEmailDigest).toHaveBeenCalledTimes(2);
     expect(setEmailDigest).toHaveBeenLastCalledWith(false);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await act(async () => answer({ ok: true, value: undefined }));
+  });
+
+  it("turns the switch back in the same moment it says the save failed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setEmailDigest).mockResolvedValue({ ok: false, error: "Couldn't save that. Try again." });
+    render(<EmailDigestToggle enabled />);
+    const toggle = screen.getByRole("switch", { name: "Match emails" });
+    const states = recordWhile(
+      () => document.querySelector("[role=alert]") !== null,
+      () => toggle.getAttribute("aria-checked"),
+    );
+
+    await user.click(toggle);
+    await screen.findByRole("alert");
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
+    states.stop();
+
+    expect(states.seen).toEqual(new Set(["true"]));
   });
 });

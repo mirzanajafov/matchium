@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { answerQuestion } from "@/actions/questions";
+import { recordWhile } from "@/test/frames";
 import { QuestionFlow } from "./QuestionFlow";
 
 vi.mock("@/actions/questions", () => ({ answerQuestion: vi.fn() }));
@@ -49,20 +50,17 @@ describe("QuestionFlow", () => {
     const user = userEvent.setup();
     vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
     render(<QuestionFlow questions={questions} certainty={0.1} />);
-    const buttonsUnderNextQuestion: (string | null)[] = [];
-    const observer = new MutationObserver(() => {
-      if (screen.queryByRole("heading", { name: questions[2].text })) {
-        buttonsUnderNextQuestion.push(screen.getByRole("button").textContent);
-      }
-    });
-    observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+    const buttons = recordWhile(
+      () => document.querySelector("h2")?.textContent === questions[2].text,
+      () => document.querySelector("button")?.textContent ?? null,
+    );
 
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("heading", { name: questions[2].text });
-    observer.disconnect();
+    buttons.stop();
 
-    expect(new Set(buttonsUnderNextQuestion)).toEqual(new Set(["Finish for today"]));
+    expect(buttons.seen).toEqual(new Set(["Finish for today"]));
   });
 
   it("shows the wrap-up once every question is answered", async () => {
@@ -90,5 +88,25 @@ describe("QuestionFlow", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that answer");
     expect(screen.getByRole("heading", { name: questions[1].text })).toBeInTheDocument();
+  });
+
+  it("never shows a failed save with the button still saving", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({
+      ok: false,
+      error: "Couldn't save that answer. Try again in a moment.",
+    });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+    const buttons = recordWhile(
+      () => document.querySelector("[role=alert]") !== null,
+      () => document.querySelector("button")?.textContent ?? null,
+    );
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("alert");
+    buttons.stop();
+
+    expect(buttons.seen).toEqual(new Set(["Next"]));
   });
 });

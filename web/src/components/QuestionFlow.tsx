@@ -54,11 +54,11 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
     setError(null);
     startTransition(async () => {
       const answered = await resolveAction(answerQuestion(current.id, draft as AnswerValues));
-      if (!answered.ok) {
-        setError(answered.error);
-        return;
-      }
       startTransition(() => {
+        if (!answered.ok) {
+          setError(answered.error);
+          return;
+        }
         setCertainty(answered.value.certainty);
         setOpen((rest) => rest.slice(1));
         setDraft(EMPTY);

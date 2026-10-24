@@ -17,7 +17,7 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
     startTransition(async () => {
       setShown(!shown);
       const saved = await resolveAction(setEmailDigest(!shown));
-      if (!saved.ok) setError(saved.error);
+      if (!saved.ok) startTransition(() => setError(saved.error));
     });
   }
 
