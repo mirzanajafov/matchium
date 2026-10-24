@@ -58,9 +58,11 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
         setError(answered.error);
         return;
       }
-      setCertainty(answered.value.certainty);
-      setOpen((rest) => rest.slice(1));
-      setDraft(EMPTY);
+      startTransition(() => {
+        setCertainty(answered.value.certainty);
+        setOpen((rest) => rest.slice(1));
+        setDraft(EMPTY);
+      });
     });
   }
 

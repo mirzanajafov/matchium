@@ -45,6 +45,26 @@ describe("QuestionFlow", () => {
     expect(screen.getByRole("button", { name: "Finish for today" })).toBeDisabled();
   });
 
+  it("never shows the next question with the last one still saving", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+    const buttonsUnderNextQuestion: (string | null)[] = [];
+    const observer = new MutationObserver(() => {
+      if (screen.queryByRole("heading", { name: questions[2].text })) {
+        buttonsUnderNextQuestion.push(screen.getByRole("button").textContent);
+      }
+    });
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("heading", { name: questions[2].text });
+    observer.disconnect();
+
+    expect(new Set(buttonsUnderNextQuestion)).toEqual(new Set(["Finish for today"]));
+  });
+
   it("shows the wrap-up once every question is answered", async () => {
     const user = userEvent.setup();
     vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 0, certainty: 0.35 } });
