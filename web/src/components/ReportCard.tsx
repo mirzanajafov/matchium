@@ -1,5 +1,5 @@
 import { resolveReport } from "@/actions/admin";
-import { REPORT_REASONS } from "@/lib/labels";
+import { REPORT_REASON_LABELS } from "@/lib/labels";
 import type { AdminReport } from "@/lib/types";
 
 const when = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
@@ -9,7 +9,7 @@ export function ReportCard({ report }: { report: AdminReport }) {
   return (
     <article className="rounded-2xl border border-line bg-surface p-5 text-sm">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold">{REPORT_REASONS[report.reason]}</h2>
+        <h2 className="text-base font-semibold">{REPORT_REASON_LABELS[report.reason]}</h2>
         <time dateTime={report.createdAt} className="text-muted">
           {when.format(new Date(report.createdAt))} UTC
         </time>

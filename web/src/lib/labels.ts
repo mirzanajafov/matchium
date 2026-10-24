@@ -6,7 +6,7 @@ export const GENDERS: Record<Gender, { label: string; plural: string }> = {
   NONBINARY: { label: "Non-binary", plural: "Non-binary" },
 };
 
-export const REPORT_REASONS: Record<ReportReason, string> = {
+export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   HARASSMENT: "Harassment or threats",
   SPAM: "Spam or scam",
   FAKE_PROFILE: "Fake profile",

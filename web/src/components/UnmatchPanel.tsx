@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { unmatch } from "@/actions/matches";
 import { resolveAction } from "@/lib/action-client";
-import { REPORT_REASONS } from "@/lib/labels";
+import { REPORT_REASON_LABELS } from "@/lib/labels";
 import type { ReportReason } from "@/lib/types";
 import { ErrorMessage } from "./ErrorMessage";
 
@@ -59,7 +59,7 @@ export function UnmatchPanel({ matchId, personName }: { matchId: string; personN
               onChange={(event) => setReason(event.target.value as ReportReason)}
               className="mt-1 h-10 w-full rounded-lg border border-line bg-background px-2"
             >
-              {Object.entries(REPORT_REASONS).map(([value, label]) => (
+              {Object.entries(REPORT_REASON_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>

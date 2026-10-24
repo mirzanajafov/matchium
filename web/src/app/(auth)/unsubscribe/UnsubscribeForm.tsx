@@ -9,7 +9,7 @@ import { ErrorMessage } from "@/components/ErrorMessage";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export function UnsubscribeForm({ token }: { token: string }) {
-  const [state, stop, pending] = useActionState<ActionResult | null>(
+  const [state, action, pending] = useActionState<ActionResult | null>(
     () => resolveAction(unsubscribeEmail(token)),
     null,
   );
@@ -27,7 +27,7 @@ export function UnsubscribeForm({ token }: { token: string }) {
   }
 
   return (
-    <form action={stop} className="mt-4 space-y-4">
+    <form action={action} className="mt-4 space-y-4">
       <p className="text-muted">We&apos;ll stop emailing you about new matches and unread chats.</p>
       <ErrorMessage message={!pending && state?.ok === false ? state.error : null} />
       <SubmitButton pending={pending}>Stop these emails</SubmitButton>
