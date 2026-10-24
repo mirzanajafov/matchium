@@ -23,7 +23,7 @@ healthy() {
 }
 
 release() {
-  "${compose[@]}" build && "${compose[@]}" up -d --remove-orphans
+  "${compose[@]}" build && "${compose[@]}" run --rm migrate && "${compose[@]}" up -d --remove-orphans
 }
 
 previous=$(git rev-parse HEAD)
@@ -48,10 +48,11 @@ fi
 
 say "Failed or not healthy, rolling back to $(git log --oneline -1 "$previous")"
 git reset --hard --quiet "$previous"
-if release && healthy; then
-  echo "Rolled back. Database migrations from the failed release stay applied."
-  echo "The dump taken above is in backups/db if the schema change has to be undone."
+release || echo "The previous release failed too, so the containers from before stay." >&2
+if healthy; then
+  echo "Rolled back. Migrations from the failed release stay applied, and one that failed partway"
+  echo "blocks every deploy until it is resolved. The dump taken above is in backups/db."
 else
-  echo "Rollback is not healthy either. Check: ${compose[*]} logs api web" >&2
+  echo "Not healthy after the rollback. Check: ${compose[*]} logs migrate api web" >&2
 fi
 exit 1
