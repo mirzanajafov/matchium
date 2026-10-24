@@ -2,7 +2,9 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { beliefState } from '../common/belief-row.js';
 import { Clock, isoDay } from '../common/clock.js';
+import { toThousandths } from '../common/rounding.js';
 import { DIMENSIONS } from '../engine/belief.js';
+import { decisionOf, isMutual } from '../matches/participants.js';
 import { PhotosService } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -33,10 +35,6 @@ export class AccountService {
       ...user.matchesAsA.map((m) => ({ ...m, person: m.userB.displayName })),
       ...user.matchesAsB.map((m) => ({ ...m, person: m.userA.displayName })),
     ].sort((a, b) => a.day.getTime() - b.day.getTime());
-    const decisionOf = (decisions: { userId: string; liked: boolean }[], id: string) => {
-      const found = decisions.find((d) => d.userId === id);
-      return found ? (found.liked ? 'LIKE' : 'PASS') : null;
-    };
 
     return {
       exportedAt: this.clock.now().toISOString(),
@@ -59,17 +57,14 @@ export class AccountService {
         answeredAt: a.answeredAt.toISOString(),
       })),
       model: user.belief ? this.model(user.belief) : null,
-      matches: matches.map((m) => {
-        const other = m.userAId === userId ? m.userBId : m.userAId;
-        return {
-          day: isoDay(m.day),
-          with: m.person,
-          score: m.score,
-          yourDecision: decisionOf(m.decisions, userId),
-          mutual: decisionOf(m.decisions, userId) === 'LIKE' && decisionOf(m.decisions, other) === 'LIKE',
-          closed: m.closedAt !== null,
-        };
-      }),
+      matches: matches.map((m) => ({
+        day: isoDay(m.day),
+        with: m.person,
+        score: m.score,
+        yourDecision: decisionOf(m.decisions, userId),
+        mutual: isMutual(m),
+        closed: m.closedAt !== null,
+      })),
       messagesSent: user.messages.map((m) => ({ matchId: m.matchId, body: m.body, sentAt: m.createdAt.toISOString() })),
       reportsMade: user.reportsMade.map((r) => ({ reason: r.reason, note: r.note, madeAt: r.createdAt.toISOString() })),
       pushDevices: user.pushes.map((p) => ({ service: new URL(p.endpoint).host, addedAt: p.createdAt.toISOString() })),
@@ -90,15 +85,11 @@ export class AccountService {
       DIMENSIONS.map((dimension, k) => [
         dimension,
         {
-          you: round(state.muSelf[k]),
-          youWant: round((state.muPref[k] ?? 0) + (row.muGap[k] ?? 0)),
-          importance: round(2 ** ((state.logWSum[k] ?? 0) / (state.logWCount[k] ?? 1))),
+          you: toThousandths(state.muSelf[k] ?? 0),
+          youWant: toThousandths((state.muPref[k] ?? 0) + (row.muGap[k] ?? 0)),
+          importance: toThousandths(2 ** ((state.logWSum[k] ?? 0) / (state.logWCount[k] ?? 1))),
         },
       ]),
     );
   }
-}
-
-function round(value: number | undefined): number {
-  return Math.round((value ?? 0) * 1000) / 1000;
 }

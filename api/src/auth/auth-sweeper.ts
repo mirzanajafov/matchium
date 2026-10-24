@@ -2,11 +2,11 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { Clock } from '../common/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SIGNUP_LIFETIME_DAYS } from './account-tokens.js';
+import { SESSION_LIFETIME_DAYS } from './sessions.js';
 
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REVOKED_KEEP_MS = DAY_MS;
-const TOKEN_LIFETIME_MS = 7 * DAY_MS;
 
 @Injectable()
 export class AuthSweeper implements OnModuleInit, OnModuleDestroy {
@@ -36,7 +36,7 @@ export class AuthSweeper implements OnModuleInit, OnModuleDestroy {
           where: {
             OR: [
               { revokedAt: { lt: new Date(now - REVOKED_KEEP_MS) } },
-              { createdAt: { lt: new Date(now - TOKEN_LIFETIME_MS - DAY_MS) } },
+              { createdAt: { lt: new Date(now - (SESSION_LIFETIME_DAYS + 1) * DAY_MS) } },
             ],
           },
         }),

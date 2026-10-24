@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { ConfigService } from '@nestjs/config';
 import { beliefState } from '../common/belief-row.js';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
+import { toThousandths } from '../common/rounding.js';
 import type { Env } from '../config/env.js';
 import { BeliefState, DIMENSION_COUNT, certainty, observe, priorBelief } from '../engine/belief.js';
 import { pickQuestions } from '../engine/selection.js';
@@ -72,7 +73,7 @@ export class QuestionsService {
     });
     return {
       remaining: set.questionIds.length - answeredToday,
-      certainty: Number(certainty(next).toFixed(3)),
+      certainty: toThousandths(certainty(next)),
     };
   }
 

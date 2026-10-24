@@ -30,6 +30,7 @@ import {
 } from './account-tokens.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { revokeSessions } from './sessions.js';
 
 const MINIMUM_AGE = 18;
 const EMAIL_TAKEN = 'This email is already registered';
@@ -124,7 +125,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async logoutEverywhere(userId: string) {
-    await this.prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: this.clock.now() } });
+    await revokeSessions(this.prisma, userId, this.clock.now());
   }
 
   async resendVerification(userId: string) {
@@ -170,7 +171,7 @@ export class AuthService implements OnModuleInit {
         data: { passwordHash, emailVerifiedAt: user.emailVerifiedAt ?? now },
       });
       if (changed.count === 0) throw new GoneException(INVALID_LINK);
-      await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } });
+      await revokeSessions(tx, user.id, now);
     });
   }
 
@@ -271,7 +272,7 @@ export class AuthService implements OnModuleInit {
   }
 
   private async issue(userId: string): Promise<TokenResponse> {
-    const session = await this.prisma.session.create({ data: { userId } });
+    const session = await this.prisma.session.create({ data: { userId, createdAt: this.clock.now() } });
     return { accessToken: this.jwt.sign({ sub: userId, sid: session.id }) };
   }
 }

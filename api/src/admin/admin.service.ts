@@ -1,5 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { revokeSessions } from '../auth/sessions.js';
+import { Clock, isoDay } from '../common/clock.js';
 import { CHAT_CHANNEL } from '../common/db-events.js';
+import { involving } from '../matches/participants.js';
 import type { ReportOutcome } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -32,7 +35,10 @@ export interface Evidence {
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clock: Clock,
+  ) {}
 
   async reports(status: 'open' | 'reviewed') {
     const rows = await this.prisma.report.findMany({
@@ -55,7 +61,7 @@ export class AdminService {
       createdAt: row.createdAt.toISOString(),
       reviewedAt: row.reviewedAt?.toISOString() ?? null,
       outcome: row.outcome,
-      matchedOn: row.match?.day.toISOString().slice(0, 10) ?? null,
+      matchedOn: row.match ? isoDay(row.match.day) : null,
       reporter: row.reporter ? this.account(row.reporter) : this.gone('Deleted account', ''),
       reported: {
         ...(row.reported ? this.account(row.reported) : this.gone(row.reportedName, row.reportedEmail)),
@@ -71,7 +77,7 @@ export class AdminService {
     if (!report) throw new NotFoundException('Report not found');
     if (report.reviewedAt) throw new ConflictException('This report was already reviewed');
 
-    const now = new Date();
+    const now = this.clock.now();
     const closedMatches = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.report.updateMany({
         where: { id: reportId, reviewedAt: null },
@@ -89,9 +95,9 @@ export class AdminService {
 
       await tx.user.update({ where: { id: userId }, data: { bannedAt: now } });
       await tx.pushSubscription.deleteMany({ where: { userId } });
-      await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
+      await revokeSessions(tx, userId, now);
       const open = await tx.match.findMany({
-        where: { closedAt: null, OR: [{ userAId: userId }, { userBId: userId }] },
+        where: { closedAt: null, ...involving(userId) },
         select: { id: true },
       });
       await tx.match.updateMany({
