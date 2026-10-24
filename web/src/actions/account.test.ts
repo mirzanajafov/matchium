@@ -1,19 +1,10 @@
 import { ApiError, api, authedApi } from "@/lib/api";
 import { clearSession, getPushEndpoint, getToken, setSession } from "@/lib/session";
-import {
-  confirmSignup,
-  login,
-  requestPasswordReset,
-  resetPassword,
-  signup,
-  unsubscribeEmail,
-  uploadPhoto,
-} from "./actions";
+import { confirmSignup, login, requestPasswordReset, resendVerification, resetPassword, signup } from "./account";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({ redirect: vi.fn(), unstable_rethrow: vi.fn() }));
 vi.mock("@/lib/session", () => ({
   setSession: vi.fn(),
   getToken: vi.fn(),
@@ -32,7 +23,7 @@ function form(fields: Record<string, string | File>): FormData {
   return formData;
 }
 
-describe("server action errors", () => {
+describe("account actions", () => {
   beforeEach(() => {
     vi.mocked(api).mockReset();
     vi.mocked(authedApi).mockReset();
@@ -40,12 +31,6 @@ describe("server action errors", () => {
     vi.mocked(getToken).mockReset();
     vi.mocked(getPushEndpoint).mockReset();
     vi.mocked(clearSession).mockReset();
-  });
-
-  it("shows the photo limit, not the sign-up message, when the profile is full", async () => {
-    vi.mocked(authedApi).mockRejectedValue(new ApiError(409, "You can have up to 4 photos"));
-    const photo = new File(["jpeg"], "me.jpg", { type: "image/jpeg" });
-    expect(await uploadPhoto({}, form({ photo }))).toEqual({ error: "You can have up to 4 photos." });
   });
 
   it("passes the API's reason on when a reset request is refused", async () => {
@@ -115,8 +100,21 @@ describe("server action errors", () => {
     expect(refused.error).toBe("This link has expired or was already used. Ask for a new one.");
   });
 
-  it("says an unsubscribe link the API says is gone doesn't work anymore", async () => {
-    vi.mocked(api).mockRejectedValue(new ApiError(410, "This link is not valid"));
-    expect(await unsubscribeEmail("old-token")).toEqual({ done: false, error: "This link doesn't work anymore." });
+  it("keeps the form and says so when the API itself fails", async () => {
+    vi.mocked(api).mockRejectedValue(new ApiError(503, "Service Unavailable"));
+    const failed = await login({}, form({ email: "a@example.com", password: "long enough" }));
+    expect(failed).toEqual({
+      error: "Something went wrong on our side. Try again in a moment.",
+      values: { email: "a@example.com" },
+    });
+  });
+
+  it("answers a resend for a confirmed address, or one sent too often, with what to do instead", async () => {
+    vi.mocked(authedApi).mockRejectedValueOnce(new ApiError(409, "Your email is already confirmed"));
+    expect(await resendVerification()).toEqual({ ok: true, value: "Your email is already confirmed." });
+    vi.mocked(authedApi).mockRejectedValueOnce(new ApiError(429, "Too many attempts"));
+    expect(await resendVerification()).toEqual({ ok: true, value: "We just sent a few. Check your inbox." });
+    vi.mocked(authedApi).mockResolvedValueOnce(undefined);
+    expect(await resendVerification()).toEqual({ ok: true, value: "Sent. Check your inbox." });
   });
 });

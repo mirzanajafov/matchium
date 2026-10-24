@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { answerQuestion } from "@/app/actions";
+import { answerQuestion } from "@/actions/questions";
+import { resolveAction } from "@/lib/action-client";
 import { certaintyHint } from "@/lib/format";
 import type { AnswerValues, DailyQuestion } from "@/lib/types";
 import { Meter } from "./Meter";
@@ -51,14 +52,14 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
     if (!complete) return;
     setError(null);
     startTransition(async () => {
-      try {
-        const result = await answerQuestion(current.id, draft as AnswerValues);
-        setCertainty(result.certainty);
-        setOpen((rest) => rest.slice(1));
-        setDraft(EMPTY);
-      } catch {
-        setError("Couldn't save that answer. Try again in a moment.");
+      const answered = await resolveAction(answerQuestion(current.id, draft as AnswerValues));
+      if (!answered.ok) {
+        setError(answered.error);
+        return;
       }
+      setCertainty(answered.value.certainty);
+      setOpen((rest) => rest.slice(1));
+      setDraft(EMPTY);
     });
   }
 

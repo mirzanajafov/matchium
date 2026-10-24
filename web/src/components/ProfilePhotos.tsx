@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useActionState, useState, useTransition } from "react";
-import { type FormState, deletePhoto, makeMainPhoto, uploadPhoto } from "@/app/actions";
+import { deletePhoto, makeMainPhoto, uploadPhoto } from "@/actions/profile";
+import { resolveAction } from "@/lib/action-client";
 import { shrinkForUpload } from "@/lib/shrink";
-import type { PhotoRef } from "@/lib/types";
+import type { ActionResult, FormState, PhotoRef } from "@/lib/types";
 import { photoUrl } from "./Avatar";
 
 const MAX_PHOTOS = 4;
@@ -12,8 +13,17 @@ const MAX_PHOTOS = 4;
 export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
   const [state, action, uploading] = useActionState<FormState, FormData>(uploadPhoto, {});
   const [changing, startChanging] = useTransition();
+  const [changeError, setChangeError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
   const busy = uploading || preparing;
+
+  function change(run: () => Promise<ActionResult>) {
+    setChangeError(null);
+    startChanging(async () => {
+      const changed = await resolveAction(run());
+      if (!changed.ok) setChangeError(changed.error);
+    });
+  }
 
   async function pick(input: HTMLInputElement) {
     const file = input.files?.[0];
@@ -54,7 +64,7 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
               <button
                 type="button"
                 disabled={changing}
-                onClick={() => startChanging(() => makeMainPhoto(photo.id))}
+                onClick={() => change(() => makeMainPhoto(photo.id))}
                 className="absolute top-2 left-2 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium disabled:opacity-50"
                 aria-label={`Make photo ${index + 1} your main photo`}
               >
@@ -64,7 +74,7 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
             <button
               type="button"
               disabled={changing}
-              onClick={() => startChanging(() => deletePhoto(photo.id))}
+              onClick={() => change(() => deletePhoto(photo.id))}
               className="absolute right-2 bottom-2 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium disabled:opacity-50"
               aria-label={`Remove photo ${index + 1}`}
             >
@@ -73,6 +83,11 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
           </li>
         ))}
       </ul>
+      {changeError && (
+        <p role="alert" className="mt-2 text-sm text-warn">
+          {changeError}
+        </p>
+      )}
       {photos.length < MAX_PHOTOS && (
         <form action={action} className="mt-4">
           <label

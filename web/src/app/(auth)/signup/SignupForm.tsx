@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { signup, type FormState } from "@/app/actions";
+import { signup } from "@/actions/account";
+import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
 import { SubmitButton } from "@/components/SubmitButton";
 

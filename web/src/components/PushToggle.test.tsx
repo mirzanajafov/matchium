@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { removePushSubscription, savePushSubscription } from "@/app/actions";
+import { removePushSubscription, savePushSubscription } from "@/actions/push";
 import { PushToggle } from "./PushToggle";
 
-vi.mock("@/app/actions", () => ({ savePushSubscription: vi.fn(), removePushSubscription: vi.fn() }));
+vi.mock("@/actions/push", () => ({ savePushSubscription: vi.fn(), removePushSubscription: vi.fn() }));
 
 const payload = { endpoint: "https://push.example/abc", keys: { p256dh: "key", auth: "secret" } };
 
@@ -45,8 +45,8 @@ function browser({ subscribed = false, permission = "default", grant = "granted"
 
 describe("PushToggle", () => {
   beforeEach(() => {
-    vi.mocked(savePushSubscription).mockReset();
-    vi.mocked(removePushSubscription).mockReset();
+    vi.mocked(savePushSubscription).mockReset().mockResolvedValue({ ok: true, value: undefined });
+    vi.mocked(removePushSubscription).mockReset().mockResolvedValue({ ok: true, value: undefined });
   });
 
   afterEach(() => {
@@ -89,6 +89,18 @@ describe("PushToggle", () => {
 
     expect(removePushSubscription).toHaveBeenCalledWith(payload.endpoint);
     expect(toggle).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("keeps the browser subscription when the server won't forget it", async () => {
+    const { pushManager } = browser({ subscribed: true, permission: "granted" });
+    vi.mocked(removePushSubscription).mockResolvedValue({ ok: false, error: "Something went wrong." });
+    render(<PushToggle publicKey="AQID" />);
+    await act(async () => undefined);
+
+    await act(async () => fireEvent.click(screen.getByRole("switch", { name: "Notifications" })));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Something went wrong. Try again in a moment.");
+    expect(await pushManager.getSubscription()).not.toBeNull();
   });
 
   it("explains how to unblock when permission is denied", async () => {

@@ -1,17 +1,20 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { sendMessage } from "@/app/actions";
+import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 import { ChatThread, merge } from "./ChatThread";
 
-vi.mock("@/app/actions", () => ({ sendMessage: vi.fn() }));
+vi.mock("@/actions/chats", () => ({ sendMessage: vi.fn() }));
 vi.mock("@/lib/fetchers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/fetchers")>()),
   fetchMessages: vi.fn(),
 }));
 const router = { replace: vi.fn() };
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => router,
+}));
 
 const MATCH = "8c1f7d2e-1111-4a4a-9999-000000000001";
 
@@ -91,7 +94,10 @@ describe("ChatThread", () => {
 
   it("sends a trimmed message and clears the input", async () => {
     const user = userEvent.setup();
-    vi.mocked(sendMessage).mockResolvedValue(message("m1", "Hey Bob", "2026-09-23T10:00:00.000Z", true));
+    vi.mocked(sendMessage).mockResolvedValue({
+      ok: true,
+      value: message("m1", "Hey Bob", "2026-09-23T10:00:00.000Z", true),
+    });
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
 
     await user.type(screen.getByRole("textbox", { name: "Message" }), "  Hey Bob  ");
@@ -102,17 +108,15 @@ describe("ChatThread", () => {
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("");
   });
 
-  it("keeps the draft when sending fails", async () => {
+  it("keeps the draft when Matchium can't be reached", async () => {
     const user = userEvent.setup();
-    vi.mocked(sendMessage).mockImplementation(async () => {
-      throw new Error("offline");
-    });
+    vi.mocked(sendMessage).mockRejectedValue(new TypeError("Failed to fetch"));
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
 
     await user.type(screen.getByRole("textbox", { name: "Message" }), "Hello?");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("didn't go through");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't reach Matchium");
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Hello?");
   });
 
@@ -208,7 +212,7 @@ describe("ChatThread", () => {
 
   it("says so when messages are coming too fast", async () => {
     const user = userEvent.setup();
-    vi.mocked(sendMessage).mockResolvedValue({ error: "You're sending messages too fast. Wait a moment." });
+    vi.mocked(sendMessage).mockResolvedValue({ ok: false, error: "You're sending messages too fast. Wait a moment." });
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
 
     await user.type(screen.getByRole("textbox", { name: "Message" }), "hello");

@@ -1,6 +1,6 @@
 import { unstable_rethrow } from "next/navigation";
 import type { ReactNode } from "react";
-import { logout } from "@/app/actions";
+import { logout } from "@/actions/account";
 import { AppNav } from "@/components/AppNav";
 import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { Logo } from "@/components/Logo";

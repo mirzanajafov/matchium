@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useOptimistic, useState, useTransition } from "react";
-import { setEmailDigest } from "@/app/actions";
+import { setEmailDigest } from "@/actions/profile";
+import { resolveAction } from "@/lib/action-client";
 
 export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
   const [shown, setShown] = useOptimistic(enabled);
@@ -13,11 +14,8 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
     setError(null);
     startTransition(async () => {
       setShown(!shown);
-      try {
-        await setEmailDigest(!shown);
-      } catch {
-        setError("Couldn't save that. Try again.");
-      }
+      const saved = await resolveAction(setEmailDigest(!shown));
+      if (!saved.ok) setError(saved.error);
     });
   }
 

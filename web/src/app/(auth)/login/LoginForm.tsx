@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { login, type FormState } from "@/app/actions";
+import { login } from "@/actions/account";
+import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
 import { SubmitButton } from "@/components/SubmitButton";
 

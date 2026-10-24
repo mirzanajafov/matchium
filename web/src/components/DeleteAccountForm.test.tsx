@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { deleteAccount } from "@/app/actions";
+import { deleteAccount } from "@/actions/account";
 import { DeleteAccountForm } from "./DeleteAccountForm";
 
-vi.mock("@/app/actions", () => ({ deleteAccount: vi.fn() }));
+vi.mock("@/actions/account", () => ({ deleteAccount: vi.fn() }));
 
 describe("DeleteAccountForm", () => {
   beforeEach(() => {

@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { deletePhoto, makeMainPhoto, saveBio, uploadPhoto } from "@/app/actions";
+import { deletePhoto, makeMainPhoto, saveBio, uploadPhoto } from "@/actions/profile";
 import { BioForm } from "./BioForm";
 import { ProfilePhotos } from "./ProfilePhotos";
 
-vi.mock("@/app/actions", () => ({
+vi.mock("@/actions/profile", () => ({
   deletePhoto: vi.fn(),
   makeMainPhoto: vi.fn(),
   saveBio: vi.fn(),
@@ -26,7 +26,7 @@ const photo = (n: number) => ({
 describe("ProfilePhotos", () => {
   it("removes a photo and hides the uploader once all four slots are used", async () => {
     const user = userEvent.setup();
-    vi.mocked(deletePhoto).mockResolvedValue(undefined);
+    vi.mocked(deletePhoto).mockResolvedValue({ ok: true, value: undefined });
     const { rerender } = render(<ProfilePhotos photos={[photo(1), photo(2)]} />);
     expect(screen.getByLabelText("Add photo")).toBeInTheDocument();
 
@@ -39,12 +39,23 @@ describe("ProfilePhotos", () => {
 
   it("marks the main photo and promotes another one", async () => {
     const user = userEvent.setup();
-    vi.mocked(makeMainPhoto).mockResolvedValue(undefined);
+    vi.mocked(makeMainPhoto).mockResolvedValue({ ok: true, value: undefined });
     render(<ProfilePhotos photos={[photo(1), photo(2), photo(3)]} />);
     expect(screen.getByText("Main")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Make photo 1 your main photo" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Make photo 3 your main photo" }));
     expect(makeMainPhoto).toHaveBeenCalledWith(photo(3).id);
+  });
+
+  it("says so under the photos when removing one fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(deletePhoto).mockResolvedValue({
+      ok: false,
+      error: "Couldn't delete that photo. Try again in a moment.",
+    });
+    render(<ProfilePhotos photos={[photo(1), photo(2)]} />);
+    await user.click(screen.getByRole("button", { name: "Remove photo 2" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't delete that photo");
   });
 
   it("still sends the file after the async resize step", async () => {

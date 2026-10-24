@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { logoutEverywhere } from "@/app/actions";
+import { logoutEverywhere } from "@/actions/account";
 import { BioForm } from "@/components/BioForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { EmailDigestToggle } from "@/components/EmailDigestToggle";
