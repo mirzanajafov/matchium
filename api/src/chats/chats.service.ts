@@ -95,9 +95,10 @@ export class ChatsService {
     const person = match.userAId === userId ? match.userB : match.userA;
     const rows = await this.prisma.message.findMany({
       where: { matchId, ...(after ? { createdAt: { gte: new Date(after) } } : {}) },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      orderBy: after ? [{ createdAt: 'asc' }, { id: 'asc' }] : [{ createdAt: 'desc' }, { id: 'desc' }],
       take: PAGE_SIZE,
     });
+    if (!after) rows.reverse();
     await this.markRead(matchId, userId);
     return {
       person: { id: person.id, displayName: person.displayName, photo: person.photos[0]?.id ?? null },

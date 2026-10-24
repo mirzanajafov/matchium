@@ -424,6 +424,26 @@ describe('chats', () => {
       .expect(400);
     await http().get(`/chats/${match.id}/messages`).query({ after: 'yesterday' }).set(as(alice.token)).expect(400);
   });
+
+  it('opens on the newest page of a long chat, oldest first', async () => {
+    const { alice, bob, match, as } = await pair();
+    for (const who of [alice, bob]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    await prisma.message.createMany({
+      data: Array.from({ length: 205 }, (_, i) => ({
+        matchId: match.id,
+        senderId: alice.id,
+        body: `message ${i}`,
+        createdAt: new Date(Date.UTC(2026, 8, 23, 9, 0, i)),
+      })),
+    });
+
+    const res = await http().get(`/chats/${match.id}/messages`).set(as(bob.token)).expect(200);
+    const bodies = res.body.messages.map((m: { body: string }) => m.body);
+    expect(bodies).toHaveLength(200);
+    expect([bodies[0], bodies.at(-1)]).toEqual(['message 5', 'message 204']);
+  });
 });
 
 describe('inbox', () => {
