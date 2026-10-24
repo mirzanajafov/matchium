@@ -1151,8 +1151,8 @@ describe('account security', () => {
   const resetLink = async (email: string) => {
     await http().post('/auth/password/forgot').send({ email }).expect(204);
     const sent = mails.sent.findLast((m) => m.to === email.toLowerCase());
-    expect(sent?.subject).toBe('Reset your Matchium password');
-    return linkToken(sent?.text ?? '', '/reset-password');
+    if (sent?.subject !== 'Reset your Matchium password') throw new Error(`No reset email went to ${email}`);
+    return linkToken(sent.text, '/reset-password');
   };
 
   it('confirms the email from the link sent at sign-up', async () => {
@@ -1252,8 +1252,8 @@ describe('account security', () => {
         await vi.waitFor(
           async () => {
             const [blocked] = await tx.$queryRaw<{ count: number }[]>`
-              SELECT count(DISTINCT pid)::int AS count FROM pg_locks
-              WHERE NOT granted AND pg_blocking_pids(pid) @> ARRAY[pg_backend_pid()]`;
+              SELECT count(*)::int AS count FROM (SELECT DISTINCT pid FROM pg_locks WHERE NOT granted) waiting
+              WHERE pg_blocking_pids(pid) @> ARRAY[pg_backend_pid()]`;
             expect(blocked?.count).toBe(1);
           },
           { timeout: 3000 },
