@@ -31,37 +31,50 @@ export class PhotosService {
   async upload(userId: string, input: Buffer | undefined): Promise<PhotoRef> {
     if (!this.store.enabled) throw new ServiceUnavailableException('Photo uploads are not set up');
     if (!input?.length) throw new BadRequestException('Attach a photo');
-    const existing = await this.prisma.photo.count({ where: { userId } });
-    if (existing >= MAX_PHOTOS) {
-      throw new ConflictException(`You can have up to ${MAX_PHOTOS} photos`);
-    }
     const processed = await processPhoto(input);
     if (!processed) throw new BadRequestException("That file isn't a photo we can read");
 
     const key = `${userId}/${randomUUID()}.webp`;
     await this.store.put(key, processed.data, WEBP);
-    const photo = await this.prisma.photo.create({
-      data: { userId, key, width: processed.width, height: processed.height, position: existing },
-    });
-    return { id: photo.id, width: photo.width, height: photo.height };
+    try {
+      const photo = await this.prisma.$transaction(async (tx) => {
+        await this.lockPhotos(tx, userId);
+        const position = await tx.photo.count({ where: { userId } });
+        if (position >= MAX_PHOTOS) throw new ConflictException(`You can have up to ${MAX_PHOTOS} photos`);
+        return tx.photo.create({
+          data: { userId, key, width: processed.width, height: processed.height, position },
+        });
+      });
+      return { id: photo.id, width: photo.width, height: photo.height };
+    } catch (error) {
+      await this.store.delete([key]);
+      throw error;
+    }
   }
 
   async remove(userId: string, photoId: string) {
-    const photo = await this.prisma.photo.findFirst({ where: { id: photoId, userId } });
-    if (!photo) throw new NotFoundException('Photo not found');
-    await this.prisma.$transaction(async (tx) => {
+    const photo = await this.prisma.$transaction(async (tx) => {
+      await this.lockPhotos(tx, userId);
+      const photo = await tx.photo.findFirst({ where: { id: photoId, userId } });
+      if (!photo) throw new NotFoundException('Photo not found');
       await tx.photo.delete({ where: { id: photo.id } });
       await this.renumber(tx, userId, []);
+      return photo;
     });
     await this.store.delete([photo.key]);
   }
 
   async makeMain(userId: string, photoId: string) {
     await this.prisma.$transaction(async (tx) => {
+      await this.lockPhotos(tx, userId);
       const photo = await tx.photo.findFirst({ where: { id: photoId, userId } });
       if (!photo) throw new NotFoundException('Photo not found');
       await this.renumber(tx, userId, [photoId]);
     });
+  }
+
+  private async lockPhotos(tx: Prisma.TransactionClient, userId: string) {
+    await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId}::uuid FOR NO KEY UPDATE`;
   }
 
   private async renumber(tx: Prisma.TransactionClient, userId: string, first: string[]) {

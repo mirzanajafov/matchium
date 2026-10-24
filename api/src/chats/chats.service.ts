@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
 import { Observable, concatMap, defer, filter, finalize, interval, map, merge, takeWhile } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import { photoSelect } from '../photos/photos.service.js';
 import { openStreams } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -106,11 +107,19 @@ export class ChatsService {
   }
 
   async send(userId: string, matchId: string, body: string) {
-    const match = await this.openChat(userId, matchId);
-    const row = await this.prisma.message.create({ data: { matchId, senderId: userId, body } });
-    await this.markRead(matchId, userId);
-    const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
-    await this.prisma.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
+    const { match, row } = await this.prisma.$transaction(async (tx) => {
+      const [open] = await tx.$queryRaw<unknown[]>`
+        SELECT 1 FROM "Match"
+        WHERE id = ${matchId}::uuid AND "closedAt" IS NULL AND ${userId}::uuid IN ("userAId", "userBId")
+        FOR SHARE`;
+      if (!open) throw new NotFoundException('Chat not found');
+      const match = await this.openChat(userId, matchId, tx);
+      const row = await tx.message.create({ data: { matchId, senderId: userId, body } });
+      await this.markRead(matchId, userId, tx);
+      const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
+      await tx.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
+      return { match, row };
+    });
     const [sender, recipient] = match.userAId === userId ? [match.userA, match.userB] : [match.userB, match.userA];
     this.push.notifyInBackground(recipient.id, {
       title: sender.displayName,
@@ -159,14 +168,14 @@ export class ChatsService {
     return Boolean(last && last.senderId !== userId && last.createdAt > read.readAt);
   }
 
-  private async markRead(matchId: string, userId: string) {
-    await this.prisma.$executeRaw`
+  private async markRead(matchId: string, userId: string, db: Prisma.TransactionClient = this.prisma) {
+    await db.$executeRaw`
       INSERT INTO "ChatRead" ("matchId", "userId", "readAt") VALUES (${matchId}::uuid, ${userId}::uuid, now())
       ON CONFLICT ("matchId", "userId") DO UPDATE SET "readAt" = now()`;
   }
 
-  private async openChat(userId: string, matchId: string) {
-    const match = await this.prisma.match.findUnique({
+  private async openChat(userId: string, matchId: string, db: Prisma.TransactionClient = this.prisma) {
+    const match = await db.match.findUnique({
       where: { id: matchId },
       include: { decisions: true, userA: publicProfile, userB: publicProfile },
     });

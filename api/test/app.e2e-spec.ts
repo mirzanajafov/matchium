@@ -713,6 +713,31 @@ describe('unmatch and report', () => {
     expect(stored.closedById).toBe(alice.id);
   });
 
+  it('stores no message after the chat closed, even when the two cross', { repeats: 4 }, async () => {
+    const { alice, bob, match } = await chatting();
+    const messages = () => prisma.message.count({ where: { matchId: match.id } });
+    const send = async (n: number) =>
+      (
+        await http()
+          .post(`/chats/${match.id}/messages`)
+          .set(as(bob.token))
+          .send({ body: `still there? ${n}` })
+      ).status;
+
+    const before = [1, 2, 3, 4, 5].map(send);
+    const storedAtClose = http()
+      .post(`/matches/${match.id}/unmatch`)
+      .set(as(alice.token))
+      .send({})
+      .expect(200)
+      .then(messages);
+    const after = [6, 7, 8, 9, 10].map(send);
+
+    const statuses = await Promise.all([...before, ...after]);
+    expect(statuses.every((status) => status === 201 || status === 404)).toBe(true);
+    expect(await messages()).toBe(await storedAtClose);
+  });
+
   it('files a report against the other person', async () => {
     const { alice, bob, match } = await chatting();
     await http()
@@ -1224,6 +1249,16 @@ describe('photos and bio', () => {
     await http().post('/me/photos').set(as(alice.token)).expect(400);
     for (let i = 0; i < 4; i += 1) expect((await upload(alice.token)).status).toBe(201);
     expect((await upload(alice.token)).status).toBe(409);
+  });
+
+  it('keeps the cap and one photo per place when uploads arrive together', async () => {
+    const alice = await register();
+    const statuses = await Promise.all(Array.from({ length: 6 }, async () => (await upload(alice.token)).status));
+    expect(statuses.filter((status) => status === 201)).toHaveLength(4);
+    expect(statuses.filter((status) => status === 409)).toHaveLength(2);
+    const stored = await prisma.photo.findMany({ where: { userId: alice.id }, orderBy: { position: 'asc' } });
+    expect(stored.map((photo) => photo.position)).toEqual([0, 1, 2, 3]);
+    expect(photos.objects.size).toBe(4);
   });
 
   it('shows photos only to people you are matched with', async () => {
