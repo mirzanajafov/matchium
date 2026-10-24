@@ -426,6 +426,47 @@ describe('chats', () => {
   });
 });
 
+describe('chat history', () => {
+  it('opens on the newest page of a long chat, oldest first', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    const match = await prisma.match.create({
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
+    });
+    for (const who of [alice, bob]) {
+      await http()
+        .post(`/matches/${match.id}/decision`)
+        .set({ Authorization: `Bearer ${who.token}` })
+        .send({ like: true })
+        .expect(200);
+    }
+    await prisma.message.createMany({
+      data: Array.from({ length: 205 }, (_, i) => ({
+        matchId: match.id,
+        senderId: alice.id,
+        body: `message ${i}`,
+        createdAt: new Date(Date.UTC(2026, 8, 23, 9, 0, i)),
+      })),
+    });
+
+    const res = await http()
+      .get(`/chats/${match.id}/messages`)
+      .set({ Authorization: `Bearer ${bob.token}` })
+      .expect(200);
+    const bodies = res.body.messages.map((m: { body: string }) => m.body);
+    expect(bodies).toHaveLength(200);
+    expect([bodies[0], bodies.at(-1)]).toEqual(['message 5', 'message 204']);
+  });
+});
+
 describe('inbox', () => {
   it('counts undecided matches and unread chats', async () => {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });

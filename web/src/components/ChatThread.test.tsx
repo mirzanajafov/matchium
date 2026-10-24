@@ -44,15 +44,24 @@ describe("merge", () => {
     expect(merge([a, b], [b, c, a]).map((m) => m.id)).toEqual(["a", "b", "c"]);
     expect(merge([c], [a]).map((m) => m.id)).toEqual(["a", "c"]);
   });
+
+  it("hands back the same list when nothing is new", () => {
+    const current = [message("a", "one", "2026-09-23T10:00:00.000Z")];
+    expect(merge(current, [message("a", "one", "2026-09-23T10:00:00.000Z")])).toBe(current);
+  });
 });
 
 describe("ChatThread", () => {
+  const scrolls = vi.fn();
+
   beforeEach(() => {
     vi.mocked(fetchMessages).mockReset();
     vi.mocked(fetchMessages).mockResolvedValue([]);
     vi.mocked(sendMessage).mockReset();
     FakeEventSource.instances = [];
     vi.stubGlobal("EventSource", FakeEventSource);
+    scrolls.mockReset();
+    Element.prototype.scrollIntoView = scrolls;
   });
 
   afterEach(() => {
@@ -140,6 +149,23 @@ describe("ChatThread", () => {
       await vi.advanceTimersByTimeAsync(10_000);
     });
     expect(screen.getByText("Polled")).toBeInTheDocument();
+  });
+
+  it("stays where you scrolled when a poll brings nothing new", async () => {
+    vi.useFakeTimers();
+    const last = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
+    vi.mocked(fetchMessages).mockResolvedValue([last]);
+    render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[last]} />);
+    const source = FakeEventSource.instances[0];
+    source.readyState = FakeEventSource.CLOSED;
+    scrolls.mockClear();
+
+    await act(async () => {
+      source.emit("error");
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(fetchMessages).toHaveBeenCalledTimes(3);
+    expect(scrolls).not.toHaveBeenCalled();
   });
 
   it("locks the conversation when the other person unmatches", async () => {
