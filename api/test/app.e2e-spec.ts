@@ -1150,7 +1150,7 @@ describe('account security', () => {
     new URL(text.split(/\s+/).find((word) => word.includes(path))!).searchParams.get('token')!;
   const resetLink = async (email: string) => {
     await http().post('/auth/password/forgot').send({ email }).expect(204);
-    const sent = mails.sent.find((m) => m.to === email && m.subject === 'Reset your Matchium password')!;
+    const sent = mails.sent.find((m) => m.to === email.toLowerCase() && m.subject === 'Reset your Matchium password')!;
     return linkToken(sent.text, '/reset-password');
   };
 
@@ -1208,10 +1208,7 @@ describe('account security', () => {
     await http().post('/auth/password/forgot').send({ email: 'nobody@example.com' }).expect(204);
     expect(mails.sent).toHaveLength(0);
 
-    await http().post('/auth/password/forgot').send({ email: alice.email.toUpperCase() }).expect(204);
-    const sent = mails.sent.find((m) => m.to === alice.email)!;
-    expect(sent.subject).toBe('Reset your Matchium password');
-    const token = linkToken(sent.text, '/reset-password');
+    const token = await resetLink(alice.email.toUpperCase());
 
     await http().post('/auth/password/reset').send({ token: alice.token, password: 'a new password' }).expect(410);
     await http().post('/auth/password/reset').send({ token: 'abc123', password: 'a new password' }).expect(410);
@@ -1243,23 +1240,26 @@ describe('account security', () => {
     const alice = await register();
     const token = await resetLink(alice.email);
     let reset = Promise.resolve(0);
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: alice.id }, data: { bannedAt: new Date() } });
-      reset = http()
-        .post('/auth/password/reset')
-        .send({ token, password: 'a new password' })
-        .then((res) => res.status);
-      await vi.waitFor(
-        async () => {
-          const [waiting] = await tx.$queryRaw<{ count: number }[]>`
-            SELECT count(*)::int AS count FROM pg_stat_activity
-            WHERE wait_event_type = 'Lock' AND datname = current_database()`;
-          expect(waiting?.count).toBe(1);
-        },
-        { timeout: 3000 },
-      );
-    });
-    expect(await reset).toBe(410);
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: alice.id }, data: { bannedAt: new Date() } });
+        reset = http()
+          .post('/auth/password/reset')
+          .send({ token, password: 'a new password' })
+          .then((res) => res.status);
+        await vi.waitFor(
+          async () => {
+            const [blocked] = await tx.$queryRaw<{ count: number }[]>`
+              SELECT count(DISTINCT pid)::int AS count FROM pg_locks
+              WHERE NOT granted AND pg_blocking_pids(pid) @> ARRAY[pg_backend_pid()]`;
+            expect(blocked?.count).toBe(1);
+          },
+          { timeout: 3000 },
+        );
+      });
+    } finally {
+      expect(await reset).toBe(410);
+    }
   });
 
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {
