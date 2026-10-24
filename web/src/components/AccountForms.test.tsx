@@ -54,6 +54,10 @@ describe("ResetPasswordForm", () => {
 });
 
 describe("VerifyEmailBanner", () => {
+  beforeEach(() => {
+    vi.mocked(resendVerification).mockReset();
+  });
+
   it("resends the link and says so", async () => {
     const user = userEvent.setup();
     vi.mocked(resendVerification).mockResolvedValue({ sent: true });

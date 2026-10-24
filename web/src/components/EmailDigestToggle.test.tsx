@@ -6,6 +6,10 @@ import { EmailDigestToggle } from "./EmailDigestToggle";
 vi.mock("@/app/actions", () => ({ setEmailDigest: vi.fn() }));
 
 describe("EmailDigestToggle", () => {
+  beforeEach(() => {
+    vi.mocked(setEmailDigest).mockReset();
+  });
+
   it("saves the opposite of the current setting", async () => {
     const user = userEvent.setup();
     vi.mocked(setEmailDigest).mockResolvedValue(undefined);
@@ -38,7 +42,8 @@ describe("EmailDigestToggle", () => {
 
     vi.mocked(setEmailDigest).mockReturnValueOnce(new Promise<void>(() => undefined));
     await user.click(toggle);
-    expect(setEmailDigest).toHaveBeenNthCalledWith(2, false);
+    expect(setEmailDigest).toHaveBeenCalledTimes(2);
+    expect(setEmailDigest).toHaveBeenLastCalledWith(false);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
