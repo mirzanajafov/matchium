@@ -5,8 +5,7 @@ import { S3PhotoStore } from './photo-store.js';
 async function withStorage(reply: string, use: (store: S3PhotoStore, received: () => string) => Promise<void>) {
   let received = '';
   const server = createServer((request, response) => {
-    received = `${request.method ?? ''} ${request.url ?? ''}
-`;
+    received = `${request.method ?? ''} ${request.url ?? ''} `;
     request.on('data', (chunk: Buffer) => (received += chunk.toString()));
     request.on('end', () => response.writeHead(200, { 'content-type': 'application/xml' }).end(reply));
   });
