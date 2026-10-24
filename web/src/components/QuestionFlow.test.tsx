@@ -1,8 +1,9 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { answerQuestion } from "@/actions/questions";
-import type { ActionResult, AnswerResult } from "@/lib/types";
+import type { AnswerResult } from "@/lib/types";
 import { recordWhile } from "@/test/frames";
+import { pendingAction } from "@/test/pending";
 import { QuestionFlow } from "./QuestionFlow";
 
 vi.mock("@/actions/questions", () => ({ answerQuestion: vi.fn() }));
@@ -92,12 +93,8 @@ describe("QuestionFlow", () => {
 
   it("locks the answer while it saves", async () => {
     const user = userEvent.setup();
-    let answer: (result: ActionResult<AnswerResult>) => void = () => undefined;
-    vi.mocked(answerQuestion).mockReturnValue(
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const save = pendingAction<AnswerResult>();
+    vi.mocked(answerQuestion).mockReturnValue(save.promise);
     render(<QuestionFlow questions={questions} certainty={0.1} />);
 
     await answerCurrent(user);
@@ -105,8 +102,20 @@ describe("QuestionFlow", () => {
 
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
     for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
-    await act(async () => answer({ ok: true, value: { remaining: 1, certainty: 0.2 } }));
+    await act(async () => save.settle({ ok: true, value: { remaining: 1, certainty: 0.2 } }));
     expect(screen.getAllByRole("radio")[0]).toBeEnabled();
+  });
+
+  it("moves focus to the next question once the answer is saved", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+    expect(screen.getByRole("heading", { name: questions[1].text })).not.toHaveFocus();
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByRole("heading", { name: questions[2].text })).toHaveFocus();
   });
 
   it("never shows a failed save with the button still saving", async () => {

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { unsubscribeEmail } from "@/actions/profile";
+import { pendingAction } from "@/test/pending";
 import { UnsubscribeForm } from "./UnsubscribeForm";
 
 vi.mock("@/actions/profile", () => ({ unsubscribeEmail: vi.fn() }));
@@ -34,7 +35,7 @@ describe("UnsubscribeForm", () => {
     const user = userEvent.setup();
     vi.mocked(unsubscribeEmail)
       .mockResolvedValueOnce({ ok: false, error: "That didn't work. Try again in a moment." })
-      .mockReturnValueOnce(new Promise(() => undefined));
+      .mockReturnValueOnce(pendingAction().promise);
     render(<UnsubscribeForm token="tok" />);
     await user.click(screen.getByRole("button", { name: "Stop these emails" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Try again in a moment");

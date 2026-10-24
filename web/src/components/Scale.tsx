@@ -22,10 +22,10 @@ export function Scale({ name, label, low, high, value, disabled, onChange }: Sca
           return (
             <label
               key={point}
-              className={`flex h-11 cursor-pointer items-center justify-center rounded-lg border text-sm font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
+              className={`flex h-11 items-center justify-center rounded-lg border text-sm font-medium transition-colors has-[:enabled]:cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
                 selected
                   ? "border-accent bg-accent text-white dark:text-background"
-                  : "border-line bg-surface hover:border-accent"
+                  : "border-line bg-surface has-[:enabled]:hover:border-accent"
               }`}
             >
               <input

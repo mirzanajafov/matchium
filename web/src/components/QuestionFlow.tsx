@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { answerQuestion } from "@/actions/questions";
 import { useServerAction } from "@/lib/action-client";
 import { certaintyHint } from "@/lib/format";
@@ -27,11 +27,19 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
 
   const total = questions.length;
   const current = open[0];
+  const heading = useRef<HTMLHeadingElement>(null);
+  const firstShown = useRef(current?.id);
+
+  useEffect(() => {
+    if (current?.id !== firstShown.current) heading.current?.focus();
+  }, [current?.id]);
 
   if (!current) {
     return (
       <section className="rounded-2xl border border-line bg-surface p-6">
-        <h2 className="text-lg font-semibold">That&apos;s it for today</h2>
+        <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold">
+          That&apos;s it for today
+        </h2>
         <p className="mt-1 text-muted">
           New matches are picked overnight. Come back tomorrow for a few more questions.
         </p>
@@ -65,7 +73,9 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
       <p className="text-sm text-muted">
         Question {total - open.length + 1} of {total}
       </p>
-      <h2 className="mt-2 text-xl leading-snug font-semibold">{current.text}</h2>
+      <h2 ref={heading} tabIndex={-1} className="mt-2 text-xl leading-snug font-semibold">
+        {current.text}
+      </h2>
 
       <form
         className="mt-6 space-y-6"

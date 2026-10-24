@@ -2,8 +2,9 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
-import type { ActionResult, ChatMessage } from "@/lib/types";
+import type { ChatMessage } from "@/lib/types";
 import { recordWhile } from "@/test/frames";
+import { pendingAction } from "@/test/pending";
 import { ChatThread } from "./ChatThread";
 
 vi.mock("@/actions/chats", () => ({ sendMessage: vi.fn() }));
@@ -106,24 +107,21 @@ describe("ChatThread", () => {
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Hello?");
   });
 
-  it("holds the text while a message is sending, so it can't be sent twice", async () => {
+  it("empties the box as soon as a message is sent and keeps what's typed next", async () => {
     const user = userEvent.setup();
-    let answer: (result: ActionResult<ChatMessage>) => void = () => undefined;
-    vi.mocked(sendMessage).mockReturnValue(
-      new Promise((resolve) => {
-        answer = resolve;
-      }),
-    );
+    const send = pendingAction<ChatMessage>();
+    vi.mocked(sendMessage).mockReturnValue(send.promise);
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
     const input = screen.getByRole("textbox", { name: "Message" });
 
     await user.type(input, "Hello");
     await user.click(screen.getByRole("button", { name: "Send" }));
-    await user.type(input, " there");
-
-    expect(input).toHaveValue("Hello");
-    await act(async () => answer({ ok: true, value: message("m1", "Hello", "2026-09-23T10:00:00.000Z", true) }));
     expect(input).toHaveValue("");
+    await user.type(input, "there");
+    await act(async () => send.settle({ ok: true, value: message("m1", "Hello", "2026-09-23T10:00:00.000Z", true) }));
+
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(input).toHaveValue("there");
   });
 
   it("frees Send in the same moment it says the message failed", async () => {

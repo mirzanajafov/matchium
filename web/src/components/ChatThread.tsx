@@ -71,12 +71,11 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
   function send() {
     const body = draft.trim();
     if (!body) return;
+    setDraft("");
     run(
       () => sendMessage(matchId, body),
-      (sent) => {
-        setMessages((current) => mergeMessages(current, [sent]));
-        setDraft("");
-      },
+      (sent) => setMessages((current) => mergeMessages(current, [sent])),
+      () => setDraft((typed) => typed || body),
     );
   }
 
@@ -124,7 +123,6 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            readOnly={sending}
             maxLength={1000}
             placeholder={`Message ${personName}`}
             aria-label="Message"
