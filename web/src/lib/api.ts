@@ -1,9 +1,8 @@
 import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { TRUSTED_PROXY_HOPS, apiBaseUrl } from "./server-env";
 import { getToken } from "./session";
-
-const API_URL = process.env.API_URL ?? "http://localhost:3100";
 
 export class ApiError extends Error {
   constructor(
@@ -14,10 +13,12 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions {
+interface Call {
   method?: string;
   body?: unknown;
   token?: string;
+  accept?: string;
+  signal?: AbortSignal;
 }
 
 function messageFrom(data: unknown): string | undefined {
@@ -26,13 +27,6 @@ function messageFrom(data: unknown): string | undefined {
   if (Array.isArray(message)) return String(message[0]);
   return typeof message === "string" ? message : undefined;
 }
-
-export function trustedProxyHops(setting = "0"): number {
-  if (!/^\d+$/.test(setting)) throw new Error(`TRUSTED_PROXY_HOPS="${setting}" isn't a whole number of proxies`);
-  return Number(setting);
-}
-
-const TRUSTED_PROXY_HOPS = trustedProxyHops(process.env.TRUSTED_PROXY_HOPS);
 
 export function clientFromForwarded(header: string | null, hops = TRUSTED_PROXY_HOPS): string | undefined {
   if (hops === 0) return undefined;
@@ -43,65 +37,48 @@ export function clientFromForwarded(header: string | null, hops = TRUSTED_PROXY_
   return entries.at(-hops);
 }
 
-async function clientAddress(): Promise<string | undefined> {
-  return clientFromForwarded((await headers()).get("x-forwarded-for"));
+function encode(body: unknown): BodyInit | undefined {
+  if (body === undefined || body instanceof FormData) return body;
+  return JSON.stringify(body);
 }
 
-export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const client = await clientAddress();
-  const response = await fetch(`${API_URL}${path}`, {
-    method: options.method ?? (options.body === undefined ? "GET" : "POST"),
+async function send(path: string, call: Call): Promise<Response> {
+  const client = clientFromForwarded((await headers()).get("x-forwarded-for"));
+  const body = encode(call.body);
+  return fetch(`${apiBaseUrl()}${path}`, {
+    method: call.method ?? (body === undefined ? "GET" : "POST"),
     headers: {
-      "content-type": "application/json",
-      ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+      ...(typeof body === "string" ? { "content-type": "application/json" } : {}),
+      ...(call.accept ? { accept: call.accept } : {}),
+      ...(call.token ? { authorization: `Bearer ${call.token}` } : {}),
       ...(client ? { "x-forwarded-for": client } : {}),
     },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body,
     cache: "no-store",
+    signal: call.signal,
   });
+}
+
+export async function api<T>(path: string, call: Call = {}): Promise<T> {
+  const response = await send(path, call);
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) throw new ApiError(response.status, messageFrom(data) ?? response.statusText);
   return data as T;
 }
 
-export async function uploadToApi<T>(path: string, form: FormData): Promise<T> {
-  const token = await getToken();
-  if (!token) redirect("/login");
-  const response = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}` },
-    body: form,
-    cache: "no-store",
-  });
-  const data: unknown = await response.json().catch(() => null);
-  if (response.status === 401) redirect("/session/expired");
-  if (!response.ok) throw new ApiError(response.status, messageFrom(data) ?? response.statusText);
-  return data as T;
-}
-
-export async function openApiImage(path: string): Promise<Response> {
-  const token = await getToken();
-  if (!token) return new Response(null, { status: 401 });
-  return fetch(`${API_URL}${path}`, { headers: { authorization: `Bearer ${token}` }, cache: "no-store" });
-}
-
-export async function authedApi<T>(path: string, options: Omit<RequestOptions, "token"> = {}): Promise<T> {
+export async function authedApi<T>(path: string, call: Omit<Call, "token"> = {}): Promise<T> {
   const token = await getToken();
   if (!token) redirect("/login");
   try {
-    return await api<T>(path, { ...options, token });
+    return await api<T>(path, { ...call, token });
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) redirect("/session/expired");
     throw error;
   }
 }
 
-export async function openApiStream(path: string, signal: AbortSignal): Promise<Response> {
+export async function authedFetch(path: string, call: Omit<Call, "token"> = {}): Promise<Response> {
   const token = await getToken();
   if (!token) return new Response(null, { status: 401 });
-  return fetch(`${API_URL}${path}`, {
-    headers: { authorization: `Bearer ${token}`, accept: "text/event-stream" },
-    cache: "no-store",
-    signal,
-  });
+  return send(path, { ...call, token });
 }

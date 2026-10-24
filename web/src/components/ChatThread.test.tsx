@@ -1,10 +1,12 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { fetchMessages, sendMessage } from "@/app/actions";
+import { sendMessage } from "@/app/actions";
+import { fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 import { ChatThread, merge } from "./ChatThread";
 
-vi.mock("@/app/actions", () => ({ fetchMessages: vi.fn(), sendMessage: vi.fn() }));
+vi.mock("@/app/actions", () => ({ sendMessage: vi.fn() }));
+vi.mock("@/lib/fetchers", () => ({ fetchMessages: vi.fn() }));
 
 const MATCH = "8c1f7d2e-1111-4a4a-9999-000000000001";
 

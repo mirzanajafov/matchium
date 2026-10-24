@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ApiError, api, authedApi, uploadToApi } from "@/lib/api";
+import { ApiError, api, authedApi } from "@/lib/api";
 import type { PushSubscriptionPayload } from "@/lib/push";
 import { clearSession, getPushEndpoint, getToken, rememberPushEndpoint, setSession } from "@/lib/session";
-import type { AnswerResult, AnswerValues, ChatMessage, ChatThread, Inbox, ReportReason } from "@/lib/types";
+import type { AnswerResult, AnswerValues, ChatMessage, ReportReason } from "@/lib/types";
 
 export interface FormState {
   error?: string;
@@ -116,16 +116,6 @@ export async function sendMessage(matchId: string, body: string): Promise<ChatMe
   }
 }
 
-export async function fetchMessages(matchId: string, after?: string): Promise<ChatMessage[]> {
-  const query = after ? `?after=${encodeURIComponent(after)}` : "";
-  const thread = await authedApi<ChatThread>(`/chats/${encodeURIComponent(matchId)}/messages${query}`);
-  return thread.messages;
-}
-
-export async function getInbox(): Promise<Inbox> {
-  return authedApi<Inbox>("/inbox");
-}
-
 export async function savePushSubscription(subscription: PushSubscriptionPayload): Promise<void> {
   await authedApi("/push/subscriptions", { body: subscription });
   await rememberPushEndpoint(subscription.endpoint);
@@ -220,7 +210,7 @@ export async function uploadPhoto(_: FormState, formData: FormData): Promise<For
   const form = new FormData();
   form.set("photo", photo);
   try {
-    await uploadToApi("/me/photos", form);
+    await authedApi("/me/photos", { body: form });
   } catch (error) {
     if (error instanceof ApiError && error.status < 500) return { error: sentence(error) };
     throw error;

@@ -1,4 +1,4 @@
-import { ApiError, api, uploadToApi } from "@/lib/api";
+import { ApiError, api, authedApi } from "@/lib/api";
 import { clearSession, getPushEndpoint, getToken, setSession } from "@/lib/session";
 import {
   confirmSignup,
@@ -23,7 +23,7 @@ vi.mock("@/lib/session", () => ({
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   api: vi.fn(),
-  uploadToApi: vi.fn(),
+  authedApi: vi.fn(),
 }));
 
 function form(fields: Record<string, string | File>): FormData {
@@ -35,7 +35,7 @@ function form(fields: Record<string, string | File>): FormData {
 describe("server action errors", () => {
   beforeEach(() => {
     vi.mocked(api).mockReset();
-    vi.mocked(uploadToApi).mockReset();
+    vi.mocked(authedApi).mockReset();
     vi.mocked(setSession).mockReset();
     vi.mocked(getToken).mockReset();
     vi.mocked(getPushEndpoint).mockReset();
@@ -43,7 +43,7 @@ describe("server action errors", () => {
   });
 
   it("shows the photo limit, not the sign-up message, when the profile is full", async () => {
-    vi.mocked(uploadToApi).mockRejectedValue(new ApiError(409, "You can have up to 4 photos"));
+    vi.mocked(authedApi).mockRejectedValue(new ApiError(409, "You can have up to 4 photos"));
     const photo = new File(["jpeg"], "me.jpg", { type: "image/jpeg" });
     expect(await uploadPhoto({}, form({ photo }))).toEqual({ error: "You can have up to 4 photos." });
   });

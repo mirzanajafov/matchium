@@ -1,13 +1,13 @@
 import { act, render, screen } from "@testing-library/react";
-import { getInbox } from "@/app/actions";
+import { fetchInbox } from "@/lib/fetchers";
 import { AppNav } from "./AppNav";
 
-vi.mock("@/app/actions", () => ({ getInbox: vi.fn() }));
+vi.mock("@/lib/fetchers", () => ({ fetchInbox: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/today" }));
 
 describe("AppNav", () => {
   beforeEach(() => {
-    vi.mocked(getInbox).mockReset();
+    vi.mocked(fetchInbox).mockReset();
   });
 
   afterEach(() => {
@@ -15,7 +15,7 @@ describe("AppNav", () => {
   });
 
   it("shows badges only where something is waiting", async () => {
-    vi.mocked(getInbox).mockResolvedValue({ newMatches: 3, unreadChats: 0 });
+    vi.mocked(fetchInbox).mockResolvedValue({ newMatches: 3, unreadChats: 0 });
     render(<AppNav initial={{ newMatches: 3, unreadChats: 0 }} />);
     await act(async () => undefined);
 
@@ -26,7 +26,7 @@ describe("AppNav", () => {
 
   it("refreshes the counts in the background", async () => {
     vi.useFakeTimers();
-    vi.mocked(getInbox)
+    vi.mocked(fetchInbox)
       .mockResolvedValueOnce({ newMatches: 0, unreadChats: 0 })
       .mockResolvedValueOnce({ newMatches: 0, unreadChats: 2 });
     render(<AppNav initial={{ newMatches: 1, unreadChats: 0 }} />);

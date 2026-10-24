@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getInbox } from "@/app/actions";
+import { fetchInbox } from "@/lib/fetchers";
 import type { Inbox } from "@/lib/types";
 import { NavLink } from "./NavLink";
 
@@ -15,7 +15,7 @@ export function AppNav({ initial }: { initial: Inbox }) {
   useEffect(() => {
     let active = true;
     const refresh = () =>
-      getInbox()
+      fetchInbox()
         .then((next) => {
           if (active) setInbox(next);
         })

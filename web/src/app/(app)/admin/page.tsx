@@ -3,12 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ReportCard } from "@/components/ReportCard";
 import { authedApi } from "@/lib/api";
-import type { AdminReport, Me } from "@/lib/types";
+import { getMe } from "@/lib/queries";
+import type { AdminReport } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Reports" };
 
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
-  const me = await authedApi<Me>("/me");
+  const me = await getMe();
   if (me.role !== "ADMIN") notFound();
   const status = (await searchParams).status === "reviewed" ? "reviewed" : "open";
   const reports = await authedApi<AdminReport[]>(`/admin/reports?status=${status}`);

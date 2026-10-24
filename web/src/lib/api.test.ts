@@ -1,4 +1,4 @@
-import { clientFromForwarded, trustedProxyHops } from "./api";
+import { clientFromForwarded } from "./api";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
@@ -17,18 +17,5 @@ describe("clientFromForwarded", () => {
   it("forwards nothing when the header is missing or shorter than the proxies in front", () => {
     expect(clientFromForwarded(null, 1)).toBeUndefined();
     expect(clientFromForwarded("6.6.6.6", 3)).toBeUndefined();
-  });
-});
-
-describe("trustedProxyHops", () => {
-  it("trusts no proxy unless told how many there are", () => {
-    expect(trustedProxyHops(undefined)).toBe(0);
-    expect(trustedProxyHops("1")).toBe(1);
-  });
-
-  it("refuses anything that is not a whole number of proxies", () => {
-    for (const setting of ["one", "-1", "1.5", "0x1", "1e0", " 2", ""]) {
-      expect(() => trustedProxyHops(setting)).toThrow(/TRUSTED_PROXY_HOPS/);
-    }
   });
 });

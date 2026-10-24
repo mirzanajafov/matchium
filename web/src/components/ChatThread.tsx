@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { fetchMessages, sendMessage } from "@/app/actions";
+import { sendMessage } from "@/app/actions";
+import { fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 
 const FALLBACK_POLL_MS = 10_000;

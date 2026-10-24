@@ -7,9 +7,10 @@ import { EmailDigestToggle } from "@/components/EmailDigestToggle";
 import { Meter } from "@/components/Meter";
 import { ProfilePhotos } from "@/components/ProfilePhotos";
 import { PushToggle } from "@/components/PushToggle";
-import { api, authedApi } from "@/lib/api";
+import { api } from "@/lib/api";
 import { certaintyHint, longDate, shiftSentence } from "@/lib/format";
-import type { Gender, Me } from "@/lib/types";
+import { getMe } from "@/lib/queries";
+import type { Gender } from "@/lib/types";
 
 export const metadata: Metadata = { title: "You" };
 
@@ -18,7 +19,7 @@ const SEEKING_LABELS: Record<Gender, string> = { WOMAN: "women", MAN: "men", NON
 
 export default async function MePage() {
   const [me, push] = await Promise.all([
-    authedApi<Me>("/me"),
+    getMe(),
     api<{ publicKey: string | null }>("/push/key").catch(() => ({ publicKey: null })),
   ]);
   const rows = [
