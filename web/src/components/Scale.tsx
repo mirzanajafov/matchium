@@ -6,14 +6,15 @@ interface ScaleProps {
   low: string;
   high: string;
   value: number | null;
+  disabled: boolean;
   onChange: (value: number) => void;
 }
 
 const POINTS = [1, 2, 3, 4, 5];
 
-export function Scale({ name, label, low, high, value, onChange }: ScaleProps) {
+export function Scale({ name, label, low, high, value, disabled, onChange }: ScaleProps) {
   return (
-    <fieldset>
+    <fieldset disabled={disabled}>
       <legend className="text-sm font-medium">{label}</legend>
       <div className="mt-2 grid grid-cols-5 gap-2" role="radiogroup" aria-label={label}>
         {POINTS.map((point) => {

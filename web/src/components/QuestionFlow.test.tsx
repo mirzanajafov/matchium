@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { answerQuestion } from "@/actions/questions";
+import type { ActionResult, AnswerResult } from "@/lib/types";
 import { recordWhile } from "@/test/frames";
 import { QuestionFlow } from "./QuestionFlow";
 
@@ -87,6 +88,25 @@ describe("QuestionFlow", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that answer");
     expect(screen.getByRole("heading", { name: questions[1].text })).toBeInTheDocument();
+  });
+
+  it("locks the answer while it saves", async () => {
+    const user = userEvent.setup();
+    let answer: (result: ActionResult<AnswerResult>) => void = () => undefined;
+    vi.mocked(answerQuestion).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
+    await act(async () => answer({ ok: true, value: { remaining: 1, certainty: 0.2 } }));
+    expect(screen.getAllByRole("radio")[0]).toBeEnabled();
   });
 
   it("never shows a failed save with the button still saving", async () => {

@@ -8,10 +8,6 @@ export function VerifyEmailBanner() {
   const [answer, setAnswer] = useState<string | null>(null);
   const { pending, error, run } = useServerAction();
 
-  function resend() {
-    run(resendVerification, setAnswer);
-  }
-
   return (
     <aside
       className="mt-4 rounded-xl border border-line bg-warn-soft px-4 py-3 text-sm"
@@ -25,7 +21,7 @@ export function VerifyEmailBanner() {
           <button
             type="button"
             disabled={pending}
-            onClick={resend}
+            onClick={() => run(resendVerification, setAnswer)}
             className="font-medium underline disabled:opacity-50"
           >
             Send the link again

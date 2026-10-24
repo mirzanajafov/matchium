@@ -2,7 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
-import type { ChatMessage } from "@/lib/types";
+import type { ActionResult, ChatMessage } from "@/lib/types";
 import { recordWhile } from "@/test/frames";
 import { ChatThread } from "./ChatThread";
 
@@ -104,6 +104,26 @@ describe("ChatThread", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't reach Matchium");
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Hello?");
+  });
+
+  it("holds the text while a message is sending, so it can't be sent twice", async () => {
+    const user = userEvent.setup();
+    let answer: (result: ActionResult<ChatMessage>) => void = () => undefined;
+    vi.mocked(sendMessage).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    const input = screen.getByRole("textbox", { name: "Message" });
+
+    await user.type(input, "Hello");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.type(input, " there");
+
+    expect(input).toHaveValue("Hello");
+    await act(async () => answer({ ok: true, value: message("m1", "Hello", "2026-09-23T10:00:00.000Z", true) }));
+    expect(input).toHaveValue("");
   });
 
   it("frees Send in the same moment it says the message failed", async () => {

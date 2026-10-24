@@ -80,6 +80,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
           low="Not at all"
           high="Completely"
           value={draft.self}
+          disabled={pending}
           onChange={set("self")}
         />
         <Scale
@@ -88,6 +89,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
           low="Not at all"
           high="Completely"
           value={draft.partner}
+          disabled={pending}
           onChange={set("partner")}
         />
         <Scale
@@ -96,6 +98,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
           low="Doesn't matter"
           high="Deal-breaker"
           value={draft.importance}
+          disabled={pending}
           onChange={set("importance")}
         />
 

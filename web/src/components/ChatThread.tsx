@@ -124,6 +124,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
+            readOnly={sending}
             maxLength={1000}
             placeholder={`Message ${personName}`}
             aria-label="Message"

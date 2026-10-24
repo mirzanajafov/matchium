@@ -18,12 +18,12 @@ export function useServerAction() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function run<T>(call: () => Promise<ActionResult<T>>, done?: (value: T) => void) {
+  function run<T>(call: () => Promise<ActionResult<T>>, onSuccess?: (value: T) => void) {
     setError(null);
     startTransition(async () => {
       const result = await resolveAction(call());
       startTransition(() => {
-        if (result.ok) done?.(result.value);
+        if (result.ok) onSuccess?.(result.value);
         else setError(result.error);
       });
     });
