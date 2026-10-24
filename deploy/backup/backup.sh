@@ -5,6 +5,7 @@ BACKUPS=/backups
 PHOTOS=/photos
 KEEP_DAYS="${KEEP_DAYS:-14}"
 RUN_AT="${RUN_AT:-04:00}"
+DUMP_TIMEOUT="${DUMP_TIMEOUT:-30m}"
 partial=
 
 log() {
@@ -16,7 +17,7 @@ backup_database() {
   target="$BACKUPS/db/matchium-$stamp.dump"
   partial="$target.partial"
   mkdir -p "$BACKUPS/db"
-  pg_dump --format=custom --no-owner --no-privileges --file="$partial"
+  timeout --foreground "$DUMP_TIMEOUT" pg_dump --format=custom --no-owner --no-privileges --file="$partial"
   pg_restore --list "$partial" > /dev/null
   mv "$partial" "$target"
   log "database $(du -h "$target" | cut -f1) $target"
@@ -50,14 +51,22 @@ seconds_until_next_run() {
   echo $((next - now))
 }
 
-if [ "${1:-}" = "once" ]; then
-  trap finish EXIT
-  run_once
-  exit
-fi
+case "${1:-}" in
+  once)
+    trap finish EXIT
+    run_once
+    exit
+    ;;
+  check)
+    [ -n "$(find "$BACKUPS/last-success" -mmin -$((26 * 60)) 2> /dev/null)" ]
+    exit
+    ;;
+esac
 
+trap 'exit 0' TERM INT
 log "scheduled daily at $RUN_AT UTC, keeping $KEEP_DAYS days"
 while true; do
-  sleep "$(seconds_until_next_run)"
+  sleep "$(seconds_until_next_run)" &
+  wait $!
   sh "$0" once || true
 done
