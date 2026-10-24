@@ -54,6 +54,14 @@ describe("merge", () => {
 describe("ChatThread", () => {
   const scrolls = vi.fn();
 
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = scrolls;
+  });
+
+  afterAll(() => {
+    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  });
+
   beforeEach(() => {
     vi.mocked(fetchMessages).mockReset();
     vi.mocked(fetchMessages).mockResolvedValue([]);
@@ -61,13 +69,11 @@ describe("ChatThread", () => {
     FakeEventSource.instances = [];
     vi.stubGlobal("EventSource", FakeEventSource);
     scrolls.mockReset();
-    Element.prototype.scrollIntoView = scrolls;
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
-    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
   });
 
   it("invites you to start when there are no messages", () => {
@@ -162,11 +168,13 @@ describe("ChatThread", () => {
 
     await act(async () => {
       source.emit("open");
+      source.emit("error");
+      source.emit("open");
       source.readyState = FakeEventSource.CLOSED;
       source.emit("error");
       await vi.advanceTimersByTimeAsync(10_000);
     });
-    expect(fetchMessages).toHaveBeenCalledTimes(2);
+    expect(fetchMessages).toHaveBeenCalledTimes(3);
     expect(scrolls).not.toHaveBeenCalled();
   });
 
