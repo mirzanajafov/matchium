@@ -1,12 +1,13 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useId, useOptimistic, useState, useTransition } from "react";
 import { setEmailDigest } from "@/app/actions";
 
 export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
   const [shown, setShown] = useOptimistic(enabled);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const errorId = useId();
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -16,7 +17,7 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
           When push is off on all your devices, we email you once when your matches are ready.
         </p>
         {error && (
-          <p role="alert" className="mt-2 text-sm text-warn">
+          <p id={errorId} role="alert" className="mt-2 text-sm text-warn">
             {error}
           </p>
         )}
@@ -26,6 +27,7 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
         role="switch"
         aria-checked={shown}
         aria-label="Match emails"
+        aria-describedby={error ? errorId : undefined}
         disabled={pending}
         onClick={() => {
           setError(null);

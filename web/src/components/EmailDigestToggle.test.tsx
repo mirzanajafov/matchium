@@ -34,9 +34,11 @@ describe("EmailDigestToggle", () => {
     await act(async () => fail(new Error("API answered 502")));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that. Try again.");
     await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
+    expect(toggle).toHaveAccessibleDescription("Couldn't save that. Try again.");
 
     vi.mocked(setEmailDigest).mockReturnValueOnce(new Promise<void>(() => undefined));
     await user.click(toggle);
+    expect(setEmailDigest).toHaveBeenLastCalledWith(false);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
