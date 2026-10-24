@@ -59,9 +59,9 @@ export function UnmatchPanel({ matchId, personName }: { matchId: string; personN
               onChange={(event) => setReason(event.target.value as ReportReason)}
               className="mt-1 h-10 w-full rounded-lg border border-line bg-background px-2"
             >
-              {REPORT_REASONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {Object.entries(REPORT_REASONS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>

@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { answerQuestion } from "@/actions/questions";
 import { resolveAction } from "@/lib/action-client";
-import { ErrorMessage } from "./ErrorMessage";
 import { certaintyHint } from "@/lib/format";
 import type { AnswerValues, DailyQuestion } from "@/lib/types";
+import { ErrorMessage } from "./ErrorMessage";
 import { Meter } from "./Meter";
 import { Scale } from "./Scale";
 

@@ -9,7 +9,7 @@ import { ProfilePhotos } from "@/components/ProfilePhotos";
 import { PushToggle } from "@/components/PushToggle";
 import { api, authedApi } from "@/lib/api";
 import { certaintyHint, longDate, shiftSentence } from "@/lib/format";
-import { genderLabel, seekingLabel } from "@/lib/labels";
+import { GENDERS } from "@/lib/labels";
 import type { Me } from "@/lib/types";
 
 export const metadata: Metadata = { title: "You" };
@@ -23,8 +23,8 @@ export default async function MePage() {
     ["Email", me.email],
     ["Born", longDate(me.birthDate)],
     ["City", me.city],
-    ["Gender", genderLabel(me.gender)],
-    ["Interested in", me.seeking.map(seekingLabel).join(", ")],
+    ["Gender", GENDERS[me.gender].label],
+    ["Interested in", me.seeking.map((g) => GENDERS[g].plural.toLowerCase()).join(", ")],
     ["Questions answered", String(me.answerCount)],
   ];
 

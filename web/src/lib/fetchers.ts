@@ -15,6 +15,6 @@ export function fetchInbox(): Promise<Inbox> {
 
 export async function fetchMessages(matchId: string, after?: string): Promise<ChatMessage[]> {
   const query = after ? `?after=${encodeURIComponent(after)}` : "";
-  const thread = await getJson<Conversation>(`/api/chats/${encodeURIComponent(matchId)}/messages${query}`);
-  return thread.messages;
+  const conversation = await getJson<Conversation>(`/api/chats/${encodeURIComponent(matchId)}/messages${query}`);
+  return conversation.messages;
 }

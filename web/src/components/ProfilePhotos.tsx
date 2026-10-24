@@ -4,9 +4,9 @@ import Image from "next/image";
 import { useActionState, useState, useTransition } from "react";
 import { deletePhoto, makeMainPhoto, uploadPhoto } from "@/actions/profile";
 import { resolveAction } from "@/lib/action-client";
+import { photoUrl } from "@/lib/photos";
 import { shrinkForUpload } from "@/lib/shrink";
 import type { ActionResult, FormState, PhotoRef } from "@/lib/types";
-import { photoUrl } from "@/lib/photos";
 import { ErrorMessage } from "./ErrorMessage";
 
 const MAX_PHOTOS = 4;

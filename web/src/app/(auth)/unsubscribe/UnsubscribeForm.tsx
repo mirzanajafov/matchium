@@ -1,23 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useActionState } from "react";
 import { unsubscribeEmail } from "@/actions/profile";
 import { resolveAction } from "@/lib/action-client";
+import type { ActionResult } from "@/lib/types";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { SubmitButton } from "@/components/SubmitButton";
-import type { ActionResult } from "@/lib/types";
 
 export function UnsubscribeForm({ token }: { token: string }) {
-  const [state, setState] = useState<ActionResult | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function stop() {
-    setState(null);
-    startTransition(async () => {
-      setState(await resolveAction(unsubscribeEmail(token)));
-    });
-  }
+  const [state, stop, pending] = useActionState<ActionResult | null>(
+    () => resolveAction(unsubscribeEmail(token)),
+    null,
+  );
 
   if (state?.ok) {
     return (
@@ -32,15 +27,9 @@ export function UnsubscribeForm({ token }: { token: string }) {
   }
 
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        stop();
-      }}
-      className="mt-4 space-y-4"
-    >
+    <form action={stop} className="mt-4 space-y-4">
       <p className="text-muted">We&apos;ll stop emailing you about new matches and unread chats.</p>
-      <ErrorMessage message={state?.ok === false ? state.error : null} />
+      <ErrorMessage message={!pending && state?.ok === false ? state.error : null} />
       <SubmitButton pending={pending}>Stop these emails</SubmitButton>
     </form>
   );
