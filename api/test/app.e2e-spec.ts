@@ -1514,6 +1514,46 @@ describe('photos and bio', () => {
     await http().get(`/photos/${id}`).set(as(bob.token)).expect(404);
   });
 
+  it('shows photos for the day of a match, and after it only if both said yes', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const [bob, carl, dan, eve] = [await register(), await register(), await register(), await register()];
+    const { id } = (await upload(alice.token)).body;
+    const bobs = (await upload(bob.token)).body.id as string;
+    const matchWith = (other: string) =>
+      prisma.match.create({
+        data: {
+          day: new Date('2026-09-23'),
+          userAId: alice.id,
+          userBId: other,
+          score: 0.6,
+          confidence: 0.4,
+          aligned: ['family'],
+          friction: 'tidiness',
+        },
+      });
+    const decide = (token: string, matchId: string, like: boolean) =>
+      http().post(`/matches/${matchId}/decision`).set(as(token)).send({ like }).expect(200);
+    const passed = await matchWith(bob.id);
+    const mutual = await matchWith(carl.id);
+    await matchWith(dan.id);
+    const oneSided = await matchWith(eve.id);
+
+    await decide(bob.token, passed.id, false);
+    await decide(alice.token, mutual.id, true);
+    await decide(carl.token, mutual.id, true);
+    await decide(eve.token, oneSided.id, true);
+    for (const viewer of [bob, carl, dan, eve]) await http().get(`/photos/${id}`).set(as(viewer.token)).expect(200);
+    await http().get(`/photos/${bobs}`).set(as(alice.token)).expect(200);
+
+    clock.nextDay();
+    await http().get(`/photos/${id}`).set(as(carl.token)).expect(200);
+    for (const viewer of [bob, dan, eve]) await http().get(`/photos/${id}`).set(as(viewer.token)).expect(404);
+    await http().get(`/photos/${bobs}`).set(as(alice.token)).expect(404);
+
+    await http().post(`/matches/${mutual.id}/unmatch`).set(as(carl.token)).send({}).expect(200);
+    await http().get(`/photos/${id}`).set(as(carl.token)).expect(404);
+  });
+
   it('keeps upload order, lets you pick the main photo and closes gaps after a delete', async () => {
     const alice = await register();
     const ids: string[] = [];
