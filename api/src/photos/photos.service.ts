@@ -41,7 +41,7 @@ export class PhotosService {
     await this.store.put(key, processed.data, WEBP);
     try {
       const photo = await this.prisma.$transaction(async (tx) => {
-        await this.lockPhotos(tx, userId);
+        await this.lockOwner(tx, userId);
         const position = await tx.photo.count({ where: { userId } });
         if (position >= MAX_PHOTOS) throw new ConflictException(`You can have up to ${MAX_PHOTOS} photos`);
         return tx.photo.create({
@@ -50,37 +50,33 @@ export class PhotosService {
       });
       return { id: photo.id, width: photo.width, height: photo.height };
     } catch (error) {
-      await this.store
-        .delete([key])
-        .catch((cleanup: unknown) =>
-          this.log.warn(`Could not delete ${key} after a refused upload: ${String(cleanup)}`),
-        );
+      await this.discard([key]);
       throw error;
     }
   }
 
   async remove(userId: string, photoId: string) {
     const key = await this.prisma.$transaction(async (tx) => {
-      await this.lockPhotos(tx, userId);
+      await this.lockOwner(tx, userId);
       const photo = await tx.photo.findFirst({ where: { id: photoId, userId } });
       if (!photo) throw new NotFoundException('Photo not found');
       await tx.photo.delete({ where: { id: photo.id } });
       await this.renumber(tx, userId, []);
       return photo.key;
     });
-    await this.store.delete([key]);
+    await this.discard([key]);
   }
 
   async makeMain(userId: string, photoId: string) {
     await this.prisma.$transaction(async (tx) => {
-      await this.lockPhotos(tx, userId);
+      await this.lockOwner(tx, userId);
       const photo = await tx.photo.findFirst({ where: { id: photoId, userId } });
       if (!photo) throw new NotFoundException('Photo not found');
       await this.renumber(tx, userId, [photoId]);
     });
   }
 
-  private async lockPhotos(tx: Prisma.TransactionClient, userId: string) {
+  private async lockOwner(tx: Prisma.TransactionClient, userId: string) {
     await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId}::uuid FOR NO KEY UPDATE`;
   }
 
@@ -104,7 +100,9 @@ export class PhotosService {
   }
 
   async discard(keys: string[]) {
-    await this.store.delete(keys);
+    await this.store
+      .delete(keys)
+      .catch((error: unknown) => this.log.warn(`Could not delete stored photos ${keys.join(', ')}: ${String(error)}`));
   }
 
   private async canSee(viewer: AuthUser, ownerId: string): Promise<boolean> {

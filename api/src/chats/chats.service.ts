@@ -107,18 +107,18 @@ export class ChatsService {
   }
 
   async send(userId: string, matchId: string, body: string) {
-    const { match, row } = await this.prisma.$transaction(async (tx) => {
+    const match = await this.openChat(userId, matchId);
+    const row = await this.prisma.$transaction(async (tx) => {
       const [open] = await tx.$queryRaw<unknown[]>`
         SELECT 1 FROM "Match"
         WHERE id = ${matchId}::uuid AND "closedAt" IS NULL AND ${userId}::uuid IN ("userAId", "userBId")
         FOR SHARE`;
       if (!open) throw new NotFoundException('Chat not found');
-      const match = await this.openChat(userId, matchId, tx);
       const row = await tx.message.create({ data: { matchId, senderId: userId, body } });
       await this.markRead(matchId, userId, tx);
       const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
       await tx.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
-      return { match, row };
+      return row;
     });
     const [sender, recipient] = match.userAId === userId ? [match.userA, match.userB] : [match.userB, match.userA];
     this.push.notifyInBackground(recipient.id, {
@@ -174,8 +174,8 @@ export class ChatsService {
       ON CONFLICT ("matchId", "userId") DO UPDATE SET "readAt" = now()`;
   }
 
-  private async openChat(userId: string, matchId: string, db: Prisma.TransactionClient = this.prisma) {
-    const match = await db.match.findUnique({
+  private async openChat(userId: string, matchId: string) {
+    const match = await this.prisma.match.findUnique({
       where: { id: matchId },
       include: { decisions: true, userA: publicProfile, userB: publicProfile },
     });
