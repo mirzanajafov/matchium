@@ -1135,8 +1135,10 @@ describe('email digest', () => {
     const token = new URL(toAlice.headers!['List-Unsubscribe']!.slice(1, -1)).searchParams.get('token')!;
 
     await http().get('/me').set(as(token)).expect(401);
-    await http().post('/email/unsubscribe').query({ token: 'nonsense' }).expect(400);
-    await http().post('/email/unsubscribe').query({ token: alice.token }).expect(400);
+    await http().post('/email/unsubscribe').expect(400);
+    await http().post('/email/unsubscribe').query({ token: '' }).expect(400);
+    await http().post('/email/unsubscribe').query({ token: 'nonsense' }).expect(410);
+    await http().post('/email/unsubscribe').query({ token: alice.token }).expect(410);
     await http().post('/email/unsubscribe').query({ token }).expect(200);
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailDigest).toBe(false);
   });
@@ -1146,6 +1148,12 @@ describe('account security', () => {
   const as = (token: string) => ({ Authorization: `Bearer ${token}` });
   const linkToken = (text: string, path: string) =>
     new URL(text.split(/\s+/).find((word) => word.includes(path))!).searchParams.get('token')!;
+  const resetLink = async (email: string) => {
+    await http().post('/auth/password/forgot').send({ email }).expect(204);
+    const sent = mails.sent.findLast((m) => m.to === email.toLowerCase());
+    if (sent?.subject !== 'Reset your Matchium password') throw new Error(`No reset email went to ${email}`);
+    return linkToken(sent.text, '/reset-password');
+  };
 
   it('confirms the email from the link sent at sign-up', async () => {
     const alice = await register();
@@ -1159,10 +1167,20 @@ describe('account security', () => {
 
     const token = linkToken(sent.text, '/verify-email');
     await http().get('/me').set(as(token)).expect(401);
-    await http().post('/auth/verify-email').send({ token: alice.token }).expect(400);
+    await http().post('/auth/verify-email').send({ token: alice.token }).expect(410);
     await http().post('/auth/verify-email').send({ token }).expect(200);
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailVerified).toBe(true);
     await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(409);
+  });
+
+  it('refuses a confirmation link for an address the account no longer has', async () => {
+    const alice = await register();
+    const sent = mails.sent.find((m) => m.to === alice.email)!;
+    await prisma.user.update({ where: { id: alice.id }, data: { email: 'moved@example.com' } });
+    await http()
+      .post('/auth/verify-email')
+      .send({ token: linkToken(sent.text, '/verify-email') })
+      .expect(410);
   });
 
   it('resends the confirmation a few times, then waits', async () => {
@@ -1191,20 +1209,60 @@ describe('account security', () => {
     await http().post('/auth/password/forgot').send({ email: 'nobody@example.com' }).expect(204);
     expect(mails.sent).toHaveLength(0);
 
-    await http().post('/auth/password/forgot').send({ email: alice.email.toUpperCase() }).expect(204);
-    const sent = mails.sent.find((m) => m.to === alice.email)!;
-    expect(sent.subject).toBe('Reset your Matchium password');
-    const token = linkToken(sent.text, '/reset-password');
+    const token = await resetLink(alice.email.toUpperCase());
 
-    await http().post('/auth/password/reset').send({ token: alice.token, password: 'a new password' }).expect(400);
+    await http().post('/auth/password/reset').send({ token: alice.token, password: 'a new password' }).expect(410);
+    await http().post('/auth/password/reset').send({ token: 'abc123', password: 'a new password' }).expect(410);
     await http().post('/auth/password/reset').send({ token, password: 'short' }).expect(400);
+    await http()
+      .post('/auth/password/reset')
+      .send({ token, password: 'x'.repeat(129) })
+      .expect(400);
     await http().post('/auth/password/reset').send({ token, password: 'a new password' }).expect(204);
-    await http().post('/auth/password/reset').send({ token, password: 'another password' }).expect(400);
+    await http().post('/auth/password/reset').send({ token, password: 'another password' }).expect(410);
 
     await http().get('/me').set(as(alice.token)).expect(401);
     await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(401);
     const fresh = await http().post('/auth/login').send({ email: alice.email, password: 'a new password' }).expect(200);
     expect((await http().get('/me').set(as(fresh.body.accessToken)).expect(200)).body.emailVerified).toBe(true);
+  });
+
+  it('uses a reset link once, even when it is sent twice at the same moment', async () => {
+    const alice = await register();
+    const token = await resetLink(alice.email);
+    const reset = async () =>
+      (await http().post('/auth/password/reset').send({ token, password: 'a new password' })).status;
+    const statuses = await Promise.all([reset(), reset()]);
+    expect(statuses).toContain(204);
+    expect(statuses).toContain(410);
+  });
+
+  it('refuses a reset link for an account banned while the new password was being hashed', async () => {
+    const alice = await register();
+    const token = await resetLink(alice.email);
+    let reset = Promise.resolve(0);
+    let status = 0;
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: alice.id }, data: { bannedAt: new Date() } });
+        reset = http()
+          .post('/auth/password/reset')
+          .send({ token, password: 'a new password' })
+          .then((res) => res.status);
+        await vi.waitFor(
+          async () => {
+            const [blocked] = await tx.$queryRaw<{ count: number }[]>`
+              SELECT count(*)::int AS count FROM (SELECT DISTINCT pid FROM pg_locks WHERE NOT granted) waiting
+              WHERE pg_blocking_pids(pid) @> ARRAY[pg_backend_pid()]`;
+            expect(blocked?.count).toBe(1);
+          },
+          { timeout: 3000 },
+        );
+      });
+    } finally {
+      status = await reset;
+    }
+    expect(status).toBe(410);
   });
 
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {

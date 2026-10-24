@@ -29,7 +29,7 @@ describe("POST /api/unsubscribe", () => {
 
   it("rejects missing and dead tokens", async () => {
     expect((await POST(request(""))).status).toBe(400);
-    vi.mocked(api).mockRejectedValue(new ApiError(400, "This link is not valid"));
-    expect((await POST(request("?token=old"))).status).toBe(400);
+    vi.mocked(api).mockRejectedValue(new ApiError(410, "This link is not valid"));
+    expect((await POST(request("?token=old"))).status).toBe(410);
   });
 });

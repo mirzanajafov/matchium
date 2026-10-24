@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
   Logger,
   OnModuleInit,
@@ -17,12 +18,11 @@ import { Mailer } from '../mail/mailer.js';
 import { emailsSent } from '../observability/metrics.js';
 import { isUniqueViolation } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { RESET_PURPOSE, VERIFY_PURPOSE, passwordStamp } from './account-tokens.js';
+import { INVALID_LINK, RESET_PURPOSE, VERIFY_PURPOSE, passwordStamp } from './account-tokens.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 
 const MINIMUM_AGE = 18;
-const INVALID_LINK = 'This link is not valid';
 
 export interface TokenResponse {
   accessToken: string;
@@ -109,7 +109,7 @@ export class AuthService implements OnModuleInit {
       where: { id: payload.sub, email: payload.email },
       data: { emailVerifiedAt: this.clock.now() },
     });
-    if (updated.count === 0) throw new BadRequestException(INVALID_LINK);
+    if (updated.count === 0) throw new GoneException(INVALID_LINK);
   }
 
   async forgotPassword(email: string) {
@@ -130,17 +130,18 @@ export class AuthService implements OnModuleInit {
     const payload = await this.read<{ sub: string; stamp: string }>(token, RESET_PURPOSE);
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!user || user.bannedAt || passwordStamp(user.passwordHash) !== payload.stamp) {
-      throw new BadRequestException(INVALID_LINK);
+      throw new GoneException(INVALID_LINK);
     }
     const now = this.clock.now();
     const passwordHash = await argon2.hash(password);
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: user.id },
+    await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.user.updateMany({
+        where: { id: user.id, passwordHash: user.passwordHash, bannedAt: null },
         data: { passwordHash, emailVerifiedAt: user.emailVerifiedAt ?? now },
-      }),
-      this.prisma.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } }),
-    ]);
+      });
+      if (changed.count === 0) throw new GoneException(INVALID_LINK);
+      await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } });
+    });
   }
 
   private sendVerification(user: { id: string; email: string; displayName: string }) {
@@ -168,9 +169,9 @@ export class AuthService implements OnModuleInit {
     try {
       payload = await this.jwt.verifyAsync<T & { purpose?: string }>(token);
     } catch {
-      throw new BadRequestException(INVALID_LINK);
+      throw new GoneException(INVALID_LINK);
     }
-    if (payload.purpose !== purpose) throw new BadRequestException(INVALID_LINK);
+    if (payload.purpose !== purpose) throw new GoneException(INVALID_LINK);
     return payload;
   }
 

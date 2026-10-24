@@ -1,5 +1,5 @@
 import { ApiError, api, uploadToApi } from "@/lib/api";
-import { login, requestPasswordReset, signup, uploadPhoto } from "./actions";
+import { login, requestPasswordReset, resetPassword, signup, unsubscribeEmail, uploadPhoto } from "./actions";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
@@ -46,5 +46,22 @@ describe("server action errors", () => {
     vi.mocked(api).mockRejectedValue(new ApiError(401, "Invalid email or password"));
     const wrong = await login({}, form({ email: "a@example.com", password: "wrong one" }));
     expect(wrong.error).toBe("Wrong email or password.");
+  });
+
+  it("passes on why the API refused a new password instead of calling the link expired", async () => {
+    vi.mocked(api).mockRejectedValue(new ApiError(400, "password must be shorter than or equal to 128 characters"));
+    const refused = await resetPassword("token", {}, form({ password: "x".repeat(129) }));
+    expect(refused.error).toBe("Password must be shorter than or equal to 128 characters.");
+  });
+
+  it("calls a link the API says is gone expired", async () => {
+    vi.mocked(api).mockRejectedValue(new ApiError(410, "This link is not valid"));
+    const refused = await resetPassword("old-token", {}, form({ password: "a new password" }));
+    expect(refused.error).toBe("This link has expired or was already used. Ask for a new one.");
+  });
+
+  it("says an unsubscribe link the API says is gone doesn't work anymore", async () => {
+    vi.mocked(api).mockRejectedValue(new ApiError(410, "This link is not valid"));
+    expect(await unsubscribeEmail("old-token")).toEqual({ done: false, error: "This link doesn't work anymore." });
   });
 });
