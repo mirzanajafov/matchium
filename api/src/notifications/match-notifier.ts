@@ -2,9 +2,9 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { Subscription, concatMap, from, map, merge } from 'rxjs';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
 import { DbEvents, MATCHES_CHANNEL } from '../common/db-events.js';
-import { DigestService } from '../mail/digest.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { PushService } from './push.service.js';
+import { PushService } from '../push/push.service.js';
+import { DigestService } from './digest.service.js';
 
 interface MatchesReady {
   day: string;

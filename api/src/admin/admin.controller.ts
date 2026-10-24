@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
-import { AdminOnly } from '../auth/public.decorator.js';
+import { AdminOnly } from '../auth/admin-only.decorator.js';
 import { AdminService } from './admin.service.js';
 import { ReportsQueryDto, ResolveReportDto } from './dto/admin.dto.js';
 

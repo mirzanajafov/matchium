@@ -8,7 +8,7 @@ import { DigestService } from './digest.service.js';
 @ApiTags('email')
 @Public()
 @Controller('email')
-export class MailController {
+export class DigestController {
   constructor(private readonly digest: DigestService) {}
 
   @Post('unsubscribe')

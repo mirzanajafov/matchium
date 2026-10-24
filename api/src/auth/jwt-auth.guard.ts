@@ -4,7 +4,8 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthUser } from './current-user.decorator.js';
-import { ADMIN_ONLY, IS_PUBLIC } from './public.decorator.js';
+import { ADMIN_ONLY } from './admin-only.decorator.js';
+import { IS_PUBLIC } from './public.decorator.js';
 
 interface AccessClaims {
   sub: string;

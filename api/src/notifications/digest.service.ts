@@ -3,10 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ChatsService } from '../chats/chats.service.js';
 import type { Env } from '../config/env.js';
+import { digestEmail } from '../mail/digest-email.js';
+import { Mailer } from '../mail/mailer.js';
 import { emailsSent } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { digestEmail } from './digest-email.js';
-import { Mailer } from './mailer.js';
 
 const UNSUBSCRIBE_PURPOSE = 'unsubscribe';
 
