@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
+import { createHash } from 'node:crypto';
 import type { AuthUser } from '../auth/current-user.decorator.js';
 import { type LimitRule, RATE_LIMITS } from './rate-limit.decorator.js';
 import { rateLimited } from '../observability/metrics.js';
@@ -9,8 +10,9 @@ import { RateLimiter } from './rate-limiter.js';
 function subject(rule: LimitRule, request: Request & { user?: AuthUser }): string | undefined {
   if (rule.by === 'ip') return request.ip;
   if (rule.by === 'user') return request.user?.id;
-  const email: unknown = (request.body as Record<string, unknown> | undefined)?.email;
-  return typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : undefined;
+  const value: unknown = (request.body as Record<string, unknown> | undefined)?.[rule.by];
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  return rule.by === 'email' ? value.trim().toLowerCase() : createHash('sha256').update(value).digest('base64url');
 }
 
 function wait(seconds: number): string {

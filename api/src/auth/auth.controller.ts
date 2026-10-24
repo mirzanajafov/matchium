@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { RateLimit } from '../limits/rate-limit.decorator.js';
 import { AuthService } from './auth.service.js';
-import { ForgotPasswordDto, ResetPasswordDto, TokenDto } from './dto/account.dto.js';
+import { ConfirmSignupDto, ForgotPasswordDto, ResetPasswordDto, TokenDto } from './dto/account.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { Public } from './public.decorator.js';
@@ -14,9 +14,22 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('register')
-  @RateLimit({ name: 'register', by: 'ip', limit: 5, windowSeconds: 3600 })
+  @RateLimit(
+    { name: 'register', by: 'ip', limit: 5, windowSeconds: 3600 },
+    { name: 'register', by: 'email', limit: 3, windowSeconds: 3600 },
+  )
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
+  }
+
+  @Post('confirm-signup')
+  @HttpCode(200)
+  @RateLimit(
+    { name: 'confirm-signup', by: 'token', limit: 5, windowSeconds: 3600 },
+    { name: 'confirm-signup', by: 'ip', limit: 10, windowSeconds: 900 },
+  )
+  confirmSignup(@Body() dto: ConfirmSignupDto) {
+    return this.auth.confirmSignup(dto.token, dto.password);
   }
 
   @Post('login')

@@ -44,12 +44,15 @@ def call(base: str, path: str, body: dict | None = None, token: str | None = Non
 
 def sign_in(base: str, profile: dict, client: str | None) -> str:
     try:
-        return call(base, "/auth/register", profile, client=client)["accessToken"]
+        session = call(base, "/auth/register", profile, client=client)
     except urllib.error.HTTPError as error:
         if error.code != 409:
             raise
         credentials = {"email": profile["email"], "password": profile["password"]}
         return call(base, "/auth/login", credentials, client=client)["accessToken"]
+    if "accessToken" not in session:
+        raise SystemExit("This API wants new accounts to confirm their email first. Seed an API with SMTP_URL empty.")
+    return session["accessToken"]
 
 
 def main():

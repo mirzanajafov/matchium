@@ -21,35 +21,43 @@ function sentence(error: ApiError): string {
   return error.message.charAt(0).toUpperCase() + error.message.slice(1) + ".";
 }
 
-interface Refusal {
-  status: number;
-  message: string;
-}
+type AccountAnswer = { accessToken: string } | { checkEmail: true };
 
-async function startSession(
+async function submitAccountForm(
   path: string,
   body: Record<string, unknown>,
   values: Record<string, string>,
-  refusal: Refusal,
-) {
+  refusals: Partial<Record<number, string>>,
+): Promise<FormState> {
+  let answer: AccountAnswer;
   try {
-    const { accessToken } = await api<{ accessToken: string }>(path, { body });
-    await setSession(accessToken);
+    answer = await api<AccountAnswer>(path, { body });
   } catch (error) {
-    if (error instanceof ApiError && error.status === refusal.status) return { error: refusal.message, values };
-    if (error instanceof ApiError && error.status < 500) return { error: sentence(error), values };
-    throw error;
+    if (!(error instanceof ApiError) || error.status >= 500) throw error;
+    return { error: refusals[error.status] ?? sentence(error), values };
   }
+  if ("checkEmail" in answer) return { done: true, values };
+  if (await getToken()) await endSession();
+  await setSession(answer.accessToken);
   redirect("/today");
+}
+
+async function endSession(): Promise<void> {
+  const [token, endpoint] = await Promise.all([getToken(), getPushEndpoint()]);
+  if (token && endpoint) {
+    await api("/push/subscriptions", { method: "DELETE", body: { endpoint }, token }).catch(() => undefined);
+  }
+  if (token) await api("/auth/logout", { method: "POST", token }).catch(() => undefined);
+  await clearSession();
 }
 
 export async function login(_: FormState, formData: FormData): Promise<FormState> {
   const email = field(formData, "email");
-  return startSession(
+  return submitAccountForm(
     "/auth/login",
     { email, password: String(formData.get("password") ?? "") },
     { email },
-    { status: 401, message: "Wrong email or password." },
+    { 401: "Wrong email or password." },
   );
 }
 
@@ -64,21 +72,29 @@ export async function signup(_: FormState, formData: FormData): Promise<FormStat
     seeking: seeking.join(","),
   };
   if (seeking.length === 0) return { error: "Pick at least one option for who you're looking for.", values };
-  return startSession(
+  return submitAccountForm(
     "/auth/register",
     { ...values, seeking, password: String(formData.get("password") ?? "") },
     values,
-    { status: 409, message: "That email already has an account. Try logging in." },
+    { 409: "That email already has an account. Try logging in." },
+  );
+}
+
+export async function confirmSignup(token: string, _: FormState, formData: FormData): Promise<FormState> {
+  return submitAccountForm(
+    "/auth/confirm-signup",
+    { token, password: String(formData.get("password") ?? "") },
+    {},
+    {
+      401: "That isn't the password you chose when you signed up.",
+      409: "This email already has an account. Log in instead.",
+      410: "This link has expired or was already used. Sign up again to get a new one.",
+    },
   );
 }
 
 export async function logout(): Promise<void> {
-  const [token, endpoint] = await Promise.all([getToken(), getPushEndpoint()]);
-  if (token && endpoint) {
-    await api("/push/subscriptions", { method: "DELETE", body: { endpoint }, token }).catch(() => undefined);
-  }
-  if (token) await api("/auth/logout", { method: "POST", token }).catch(() => undefined);
-  await clearSession();
+  await endSession();
   redirect("/");
 }
 

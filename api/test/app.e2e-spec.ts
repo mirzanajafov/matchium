@@ -5,7 +5,7 @@ import { AppModule } from '../src/app.module.js';
 import { appOptions, configureApp } from '../src/app.setup.js';
 import { Clock } from '../src/common/clock.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { SessionSweeper } from '../src/auth/session-sweeper.js';
+import { AuthSweeper } from '../src/auth/auth-sweeper.js';
 import { RateLimiter } from '../src/limits/rate-limiter.js';
 import { type Mail, Mailer } from '../src/mail/mailer.js';
 import { PhotoStore } from '../src/photos/photo-store.js';
@@ -67,7 +67,7 @@ class FakePhotoStore extends PhotoStore {
 }
 
 class FakeMailer extends Mailer {
-  readonly enabled = true;
+  enabled = true;
   sent: Mail[] = [];
   server: 'up' | 'stalled' | 'down' = 'up';
 
@@ -83,9 +83,12 @@ function http() {
   return request(app.getHttpServer());
 }
 
-async function register(overrides: Record<string, unknown> = {}) {
+const linkToken = (text: string, path: string) =>
+  new URL(text.split(/\s+/).find((word) => word.includes(path))!).searchParams.get('token')!;
+
+function signup(overrides: Record<string, unknown> = {}) {
   counter += 1;
-  const body = {
+  return {
     email: `user${counter}@example.com`,
     password: 'correct horse battery',
     displayName: `User ${counter}`,
@@ -95,9 +98,34 @@ async function register(overrides: Record<string, unknown> = {}) {
     city: 'Baku',
     ...overrides,
   };
+}
+
+function finishSignup(email: string, password: string) {
+  const sent = mails.sent.findLast((m) => m.to === email && m.subject === 'Finish signing up for Matchium');
+  if (!sent) throw new Error(`No sign-up email went to ${email}`);
+  return http()
+    .post('/auth/confirm-signup')
+    .send({ token: linkToken(sent.text, '/confirm-signup'), password });
+}
+
+async function signedIn(token: string, email: string) {
+  const me = await http().get('/me').set('Authorization', `Bearer ${token}`).expect(200);
+  return { token, id: me.body.id as string, email };
+}
+
+async function register(overrides: Record<string, unknown> = {}) {
+  const body = signup(overrides);
+  await http().post('/auth/register').send(body).expect(201, { checkEmail: true });
+  const finished = await finishSignup(body.email, body.password).expect(200);
+  return signedIn(finished.body.accessToken, body.email);
+}
+
+async function registerWithoutEmail(overrides: Record<string, unknown> = {}) {
+  mails.enabled = false;
+  const body = signup(overrides);
   const res = await http().post('/auth/register').send(body).expect(201);
-  const me = await http().get('/me').set('Authorization', `Bearer ${res.body.accessToken}`).expect(200);
-  return { token: res.body.accessToken as string, id: me.body.id as string, email: body.email };
+  mails.enabled = true;
+  return signedIn(res.body.accessToken, body.email);
 }
 
 async function startApp({ mailer = mails, store = photos }: { mailer?: Mailer; store?: PhotoStore } = {}) {
@@ -126,11 +154,12 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await prisma.$executeRawUnsafe('TRUNCATE "User", "RateLimit" CASCADE');
+  await prisma.$executeRawUnsafe('TRUNCATE "User", "RateLimit", "PendingSignup" CASCADE');
   clock.current = new Date('2026-09-23T09:00:00Z');
   pushes.sent = [];
   mails.sent = [];
   mails.server = 'up';
+  mails.enabled = true;
   photos.objects.clear();
   photos.refuseDeletes = false;
   pushes.gone.clear();
@@ -148,20 +177,109 @@ describe('auth', () => {
     await http().post('/auth/login').send({ email: 'nobody@example.com', password: 'whatever1' }).expect(401);
   });
 
-  it('rejects duplicates, minors and malformed input', async () => {
+  it('makes the account only when the emailed link is opened with the password chosen', async () => {
+    const body = signup();
+    await http().post('/auth/register').send(body).expect(201, { checkEmail: true });
+    expect(await prisma.user.count({ where: { email: body.email } })).toBe(0);
+    await http().post('/auth/login').send({ email: body.email, password: body.password }).expect(401);
+
+    await finishSignup(body.email, 'not the password').expect(401);
+    const finished = await finishSignup(body.email, body.password).expect(200);
+    const me = await http().get('/me').set('Authorization', `Bearer ${finished.body.accessToken}`).expect(200);
+    expect(me.body).toMatchObject({ email: body.email, emailVerified: true });
+    await finishSignup(body.email, body.password).expect(410);
+  });
+
+  it('answers a sign-up for a taken address like any other and tells the owner instead', async () => {
     const user = await register();
+    mails.sent = [];
     await http()
       .post('/auth/register')
-      .send({
-        email: user.email.toUpperCase(),
-        password: 'another password',
-        displayName: 'X',
-        birthDate: '1990-01-01',
-        gender: 'MAN',
-        seeking: ['WOMAN'],
-        city: 'Baku',
-      })
-      .expect(409);
+      .send(signup({ email: user.email.toUpperCase(), password: 'another password' }))
+      .expect(201, { checkEmail: true });
+
+    expect(mails.sent.map((m) => [m.to, m.subject])).toEqual([[user.email, 'You already have a Matchium account']]);
+    expect(await prisma.pendingSignup.count()).toBe(0);
+    await http().post('/auth/login').send({ email: user.email, password: 'another password' }).expect(401);
+  });
+
+  it('forgets a sign-up nobody finished within three days', async () => {
+    const body = signup();
+    await http().post('/auth/register').send(body).expect(201);
+    clock.current = new Date(clock.current.getTime() + 3 * 24 * 60 * 60 * 1000 + 1000);
+    expect(await app.get(AuthSweeper).sweep()).toEqual({ sessions: 0, signups: 1 });
+    await finishSignup(body.email, body.password).expect(410);
+  });
+
+  it('refuses to finish a sign-up for an address banned in the meantime', async () => {
+    const body = signup();
+    await http().post('/auth/register').send(body).expect(201);
+    await prisma.report.create({
+      data: { reason: 'SPAM', reportedName: 'Someone', reportedEmail: body.email, outcome: 'BANNED' },
+    });
+    await finishSignup(body.email, body.password).expect(410);
+  });
+
+  it('stops password guesses at one sign-up link after five an hour, but not at a fresh link', async () => {
+    const body = signup();
+    await http().post('/auth/register').send(body).expect(201);
+    for (let i = 0; i < 5; i += 1) await finishSignup(body.email, `wrong guess ${i}`).expect(401);
+    const blocked = await finishSignup(body.email, body.password).expect(429);
+    expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
+
+    await http().post('/auth/register').send(body).expect(201);
+    await finishSignup(body.email, body.password).expect(200);
+  });
+
+  it('sends a sign-up finished after the address got an account some other way to log in', async () => {
+    const body = signup();
+    await http().post('/auth/register').send(body).expect(201);
+    mails.enabled = false;
+    await http().post('/auth/register').send(body).expect(201);
+    mails.enabled = true;
+    await finishSignup(body.email, body.password).expect(409);
+    expect(await prisma.pendingSignup.count()).toBe(0);
+  });
+
+  it('lets only the last sign-up for an address be finished, and only with its own password', async () => {
+    const owner = signup();
+    await http()
+      .post('/auth/register')
+      .send({ ...owner, password: 'chosen by someone else' })
+      .expect(201, { checkEmail: true });
+    const theirs = linkToken(mails.sent.findLast((m) => m.to === owner.email)!.text, '/confirm-signup');
+
+    await http().post('/auth/register').send(owner).expect(201, { checkEmail: true });
+    await http().post('/auth/confirm-signup').send({ token: theirs, password: 'chosen by someone else' }).expect(410);
+    await finishSignup(owner.email, owner.password).expect(200);
+    await http().post('/auth/login').send({ email: owner.email, password: 'chosen by someone else' }).expect(401);
+  });
+
+  it('leaves an account made while email was off alone, and it still logs in', async () => {
+    const earlier = await registerWithoutEmail();
+    await http()
+      .post('/auth/register')
+      .send(signup({ email: earlier.email, password: 'another password', displayName: 'Someone else' }))
+      .expect(201, { checkEmail: true });
+
+    expect(mails.sent.map((m) => m.subject)).toEqual(['You already have a Matchium account']);
+    await http().post('/auth/login').send({ email: earlier.email, password: 'correct horse battery' }).expect(200);
+    expect((await http().get('/me').set('Authorization', `Bearer ${earlier.token}`).expect(200)).body).toMatchObject({
+      displayName: expect.not.stringMatching('Someone else'),
+      emailVerified: false,
+    });
+  });
+
+  it('signs a new account in at once and refuses a taken address when email is off', async () => {
+    mails.enabled = false;
+    const body = signup();
+    const res = await http().post('/auth/register').send(body).expect(201);
+    await http().get('/me').set('Authorization', `Bearer ${res.body.accessToken}`).expect(200);
+    await http().post('/auth/register').send(body).expect(409);
+    expect(mails.sent).toEqual([]);
+  });
+
+  it('rejects minors and malformed input', async () => {
     await http()
       .post('/auth/register')
       .send({
@@ -1008,23 +1126,30 @@ describe('rate limits', () => {
     await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200);
   });
 
-  it('limits sign-ups per address but not across addresses', async () => {
-    const signup = (n: number, ip: string) =>
-      http()
-        .post('/auth/register')
-        .set('X-Forwarded-For', ip)
-        .send({
-          email: `bulk${n}@example.com`,
-          password: 'long enough',
-          displayName: 'Bulk',
-          birthDate: '1990-01-01',
-          gender: 'MAN',
-          seeking: ['WOMAN'],
-          city: 'Baku',
-        });
-    for (let n = 0; n < 5; n += 1) await signup(n, '203.0.113.7').expect(201);
-    await signup(5, '203.0.113.7').expect(429);
-    await signup(6, '198.51.100.4').expect(201);
+  it('limits sign-ups per network address but not across addresses', async () => {
+    const attempt = (ip: string) => http().post('/auth/register').set('X-Forwarded-For', ip).send(signup());
+    for (let n = 0; n < 5; n += 1) await attempt('203.0.113.7').expect(201);
+    await attempt('203.0.113.7').expect(429);
+    await attempt('198.51.100.4').expect(201);
+  });
+
+  it('sends one inbox three sign-up emails an hour at most, whether or not it has an account', async () => {
+    const attempt = (email: string, ip: string) =>
+      http().post('/auth/register').set('X-Forwarded-For', ip).send(signup({ email }));
+    const owner = await register();
+    const newcomer = signup().email;
+    for (const ip of ['203.0.113.1', '203.0.113.2']) await attempt(owner.email, ip).expect(201, { checkEmail: true });
+    for (const ip of ['203.0.113.1', '203.0.113.2', '203.0.113.3']) {
+      await attempt(newcomer, ip).expect(201, { checkEmail: true });
+    }
+    await attempt(owner.email, '203.0.113.4').expect(429);
+    await attempt(newcomer, '203.0.113.4').expect(429);
+    expect(mails.sent.filter((m) => m.to === owner.email).map((m) => m.subject)).toEqual([
+      'Finish signing up for Matchium',
+      'You already have a Matchium account',
+      'You already have a Matchium account',
+    ]);
+    expect(mails.sent.filter((m) => m.to === newcomer)).toHaveLength(3);
   });
 
   it('caps how fast one person can send messages', async () => {
@@ -1100,7 +1225,7 @@ describe('email digest', () => {
     return { alice, bob, carol };
   }
 
-  it('emails people without push, skips people with push or who opted out', async () => {
+  it('emails people without push, skips people with push, who opted out or never confirmed', async () => {
     const { alice, bob, carol } = await nightlyPair();
     await http()
       .post('/push/subscriptions')
@@ -1112,6 +1237,7 @@ describe('email digest', () => {
     expect((await http().get('/me').set(as(carol.token)).expect(200)).body.emailDigest).toBe(false);
 
     const dan = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Dan' });
+    await prisma.user.update({ where: { id: dan.id }, data: { emailVerifiedAt: null } });
     await prisma.match.create({
       data: {
         day: new Date('2026-09-23'),
@@ -1272,8 +1398,6 @@ describe('shutdown', { timeout: 15_000 }, () => {
 
 describe('account security', () => {
   const as = (token: string) => ({ Authorization: `Bearer ${token}` });
-  const linkToken = (text: string, path: string) =>
-    new URL(text.split(/\s+/).find((word) => word.includes(path))!).searchParams.get('token')!;
   const resetLink = async (email: string) => {
     await http().post('/auth/password/forgot').send({ email }).expect(204);
     const sent = mails.sent.findLast((m) => m.to === email.toLowerCase());
@@ -1281,17 +1405,20 @@ describe('account security', () => {
     return linkToken(sent.text, '/reset-password');
   };
 
-  it('confirms the email from the link sent at sign-up', async () => {
-    const alice = await register();
-    const sent = mails.sent.find((m) => m.to === alice.email)!;
-    expect(sent.subject).toBe('Confirm your email for Matchium');
-    expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailVerified).toBe(false);
+  const confirmLink = async (token: string, email: string) => {
+    await http().post('/auth/verify-email/resend').set(as(token)).expect(204);
+    const sent = mails.sent.findLast((m) => m.to === email);
+    if (sent?.subject !== 'Confirm your email for Matchium') throw new Error(`No confirmation went to ${email}`);
+    return linkToken(sent.text, '/verify-email');
+  };
+
+  it('confirms an account made while email was off from the emailed link, which never logs anyone in', async () => {
+    const alice = await registerWithoutEmail();
     expect((await http().get('/inbox').set(as(alice.token)).expect(200)).body).toMatchObject({
       emailVerified: false,
       emailEnabled: true,
     });
-
-    const token = linkToken(sent.text, '/verify-email');
+    const token = await confirmLink(alice.token, alice.email);
     await http().get('/me').set(as(token)).expect(401);
     await http().post('/auth/verify-email').send({ token: alice.token }).expect(410);
     await http().post('/auth/verify-email').send({ token }).expect(200);
@@ -1300,20 +1427,17 @@ describe('account security', () => {
   });
 
   it('refuses a confirmation link for an address the account no longer has', async () => {
-    const alice = await register();
-    const sent = mails.sent.find((m) => m.to === alice.email)!;
+    const alice = await registerWithoutEmail();
+    const token = await confirmLink(alice.token, alice.email);
     await prisma.user.update({ where: { id: alice.id }, data: { email: 'moved@example.com' } });
-    await http()
-      .post('/auth/verify-email')
-      .send({ token: linkToken(sent.text, '/verify-email') })
-      .expect(410);
+    await http().post('/auth/verify-email').send({ token }).expect(410);
   });
 
   it('resends the confirmation a few times, then waits', async () => {
-    const alice = await register();
+    const alice = await registerWithoutEmail();
     for (let i = 0; i < 3; i += 1) await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(204);
     await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(429);
-    expect(mails.sent.filter((m) => m.to === alice.email)).toHaveLength(4);
+    expect(mails.sent.filter((m) => m.to === alice.email)).toHaveLength(3);
   });
 
   it('logs out one device without touching the others', async () => {
@@ -1392,17 +1516,21 @@ describe('account security', () => {
   });
 
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {
+    const alice = await registerWithoutEmail();
     mails.server = 'stalled';
-    const alice = await register();
+    await http().post('/auth/register').send(signup()).expect(201);
+    await http()
+      .post('/auth/register')
+      .send(signup({ email: alice.email }))
+      .expect(201);
     await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(204);
     await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
-    await vi.waitFor(() =>
-      expect(mails.sent.map((m) => m.subject)).toEqual([
-        'Confirm your email for Matchium',
-        'Confirm your email for Matchium',
-        'Reset your Matchium password',
-      ]),
-    );
+    expect(mails.sent.map((m) => m.subject)).toEqual([
+      'Finish signing up for Matchium',
+      'You already have a Matchium account',
+      'Confirm your email for Matchium',
+      'Reset your Matchium password',
+    ]);
   });
 
   it('still answers when the mail server refuses the email', async () => {
@@ -1639,19 +1767,15 @@ describe('safety after deletion', () => {
       .set(as(admin.token))
       .send({ outcome: 'BANNED' })
       .expect(200);
-    const again = await http()
-      .post('/auth/register')
-      .send({
-        email: mallory.email.toUpperCase(),
-        password: 'another password',
-        displayName: 'M',
-        birthDate: '1990-01-01',
-        gender: 'MAN',
-        seeking: ['WOMAN'],
-        city: 'Baku',
-      })
-      .expect(403);
-    expect(again.body.message).toMatch(/can't be used/);
+    mails.sent = [];
+    const again = signup({ email: mallory.email.toUpperCase(), password: 'another password' });
+    await http().post('/auth/register').send(again).expect(201, { checkEmail: true });
+    expect(mails.sent).toEqual([]);
+    expect(await prisma.pendingSignup.count()).toBe(0);
+
+    mails.enabled = false;
+    const refused = await http().post('/auth/register').send(again).expect(403);
+    expect(refused.body.message).toMatch(/can't be used/);
   });
 
   it('signs out every device at once', async () => {
@@ -1675,7 +1799,7 @@ describe('safety after deletion', () => {
         { userId: alice.id, createdAt: new Date(now - day), revokedAt: new Date(now - 60 * 1000) },
       ],
     });
-    expect(await app.get(SessionSweeper).sweep()).toBe(2);
+    expect(await app.get(AuthSweeper).sweep()).toEqual({ sessions: 2, signups: 0 });
     expect(await prisma.session.count({ where: { userId: alice.id } })).toBe(2);
     await http().get('/me').set(as(alice.token)).expect(200);
   });

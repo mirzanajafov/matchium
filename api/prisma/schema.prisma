@@ -250,3 +250,14 @@ model Photo {
 
   @@index([userId, position])
 }
+
+model PendingSignup {
+  email        String   @id
+  passwordHash String
+  displayName  String
+  birthDate    DateTime @db.Date
+  gender       Gender
+  seeking      Gender[]
+  city         String
+  requestedAt  DateTime
+}

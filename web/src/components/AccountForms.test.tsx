@@ -1,15 +1,55 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { requestPasswordReset, resendVerification, resetPassword } from "@/app/actions";
+import { confirmSignup, requestPasswordReset, resendVerification, resetPassword, signup } from "@/app/actions";
+import { ConfirmSignupForm } from "@/app/(auth)/confirm-signup/ConfirmSignupForm";
 import { ForgotPasswordForm } from "@/app/(auth)/forgot-password/ForgotPasswordForm";
 import { ResetPasswordForm } from "@/app/(auth)/reset-password/ResetPasswordForm";
+import { SignupForm } from "@/app/(auth)/signup/SignupForm";
 import { VerifyEmailBanner } from "./VerifyEmailBanner";
 
 vi.mock("@/app/actions", () => ({
   requestPasswordReset: vi.fn(),
   resetPassword: vi.fn(),
   resendVerification: vi.fn(),
+  signup: vi.fn(),
+  confirmSignup: vi.fn(),
 }));
+
+describe("ConfirmSignupForm", () => {
+  it("sends the link's token with the password and shows why it was refused", async () => {
+    const user = userEvent.setup();
+    vi.mocked(confirmSignup).mockResolvedValue({ error: "That isn't the password you chose when you signed up." });
+    render(<ConfirmSignupForm token="tok" />);
+    await user.type(screen.getByLabelText("Password"), "not it");
+    await user.click(screen.getByRole("button", { name: "Finish signing up" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("isn't the password you chose");
+    const [token, , formData] = vi.mocked(confirmSignup).mock.calls[0]!;
+    expect(token).toBe("tok");
+    expect(formData.get("password")).toBe("not it");
+  });
+});
+
+describe("SignupForm", () => {
+  it("points to the inbox once the sign-up has gone through, and lets a mistyped address be fixed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(signup).mockResolvedValue({ done: true, values: { email: "a@example.com" } });
+    render(<SignupForm />);
+    await user.type(screen.getByLabelText("Email"), "a@example.com");
+    await user.type(screen.getByLabelText("Password"), "long enough");
+    await user.type(screen.getByLabelText("First name"), "Aysel");
+    await user.type(screen.getByLabelText("Date of birth"), "1995-04-12");
+    await user.type(screen.getByLabelText("City"), "Baku");
+    await user.click(screen.getByLabelText("Woman"));
+    await user.click(screen.getByLabelText("Men"));
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Check your inbox at a@example.com");
+    await user.click(screen.getByRole("button", { name: "Use a different email" }));
+    expect(screen.getByLabelText("Email")).toHaveValue("a@example.com");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});
 
 describe("ForgotPasswordForm", () => {
   it("gives the same answer whether or not the account exists", async () => {
