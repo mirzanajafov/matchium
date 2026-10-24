@@ -82,3 +82,11 @@ export async function authedFetch(path: string, call: Omit<Call, "token"> = {}):
   if (!token) return new Response(null, { status: 401 });
   return send(path, { ...call, token });
 }
+
+export async function relayJson(path: string): Promise<Response> {
+  const upstream = await authedFetch(path);
+  return new Response(upstream.body, {
+    status: upstream.status,
+    headers: { "content-type": "application/json", "cache-control": "no-store" },
+  });
+}

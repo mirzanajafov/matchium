@@ -4,12 +4,12 @@ import { logout } from "@/app/actions";
 import { AppNav } from "@/components/AppNav";
 import { VerifyEmailBanner } from "@/components/VerifyEmailBanner";
 import { Logo } from "@/components/Logo";
-import { getInbox } from "@/lib/queries";
+import { authedApi } from "@/lib/api";
 import type { Inbox } from "@/lib/types";
 
 async function loadInbox(): Promise<Inbox> {
   try {
-    return await getInbox();
+    return await authedApi<Inbox>("/inbox");
   } catch (error) {
     unstable_rethrow(error);
     return { newMatches: 0, unreadChats: 0 };

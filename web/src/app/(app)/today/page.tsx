@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { QuestionFlow } from "@/components/QuestionFlow";
 import { authedApi } from "@/lib/api";
-import { getInbox, getMe } from "@/lib/queries";
-import type { TodayQuestions } from "@/lib/types";
+import type { Inbox, Me, TodayQuestions } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Today" };
 
 export default async function TodayPage() {
-  const [today, me, inbox] = await Promise.all([authedApi<TodayQuestions>("/questions/today"), getMe(), getInbox()]);
+  const [today, me, inbox] = await Promise.all([
+    authedApi<TodayQuestions>("/questions/today"),
+    authedApi<Me>("/me"),
+    authedApi<Inbox>("/inbox"),
+  ]);
 
   return (
     <>

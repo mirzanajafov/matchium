@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { PUSH_COOKIE, SESSION_COOKIE } from "./session-cookie";
 
-const COOKIE = {
+const COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: "lax",
   secure: process.env.NODE_ENV === "production",
@@ -15,7 +15,7 @@ export async function getToken(): Promise<string | undefined> {
 }
 
 export async function setSession(token: string): Promise<void> {
-  (await cookies()).set(SESSION_COOKIE, token, COOKIE);
+  (await cookies()).set(SESSION_COOKIE, token, COOKIE_OPTIONS);
 }
 
 export async function clearSession(): Promise<void> {
@@ -34,5 +34,5 @@ export async function rememberPushEndpoint(endpoint: string | null): Promise<voi
     jar.delete(PUSH_COOKIE);
     return;
   }
-  jar.set(PUSH_COOKIE, endpoint, COOKIE);
+  jar.set(PUSH_COOKIE, endpoint, COOKIE_OPTIONS);
 }

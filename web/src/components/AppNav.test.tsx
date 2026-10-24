@@ -1,13 +1,18 @@
 import { act, render, screen } from "@testing-library/react";
-import { fetchInbox } from "@/lib/fetchers";
+import { SessionExpired, fetchInbox } from "@/lib/fetchers";
 import { AppNav } from "./AppNav";
 
-vi.mock("@/lib/fetchers", () => ({ fetchInbox: vi.fn() }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/today" }));
+vi.mock("@/lib/fetchers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/fetchers")>()),
+  fetchInbox: vi.fn(),
+}));
+const router = { replace: vi.fn() };
+vi.mock("next/navigation", () => ({ usePathname: () => "/today", useRouter: () => router }));
 
 describe("AppNav", () => {
   beforeEach(() => {
     vi.mocked(fetchInbox).mockReset();
+    router.replace.mockReset();
   });
 
   afterEach(() => {
@@ -38,5 +43,12 @@ describe("AppNav", () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
     expect(screen.getByRole("link", { name: "Chats, 2 new" })).toBeInTheDocument();
+  });
+
+  it("sends you to sign in again when the session is gone", async () => {
+    vi.mocked(fetchInbox).mockRejectedValue(new SessionExpired("/api/inbox answered 401"));
+    render(<AppNav initial={{ newMatches: 0, unreadChats: 0 }} />);
+    await act(async () => undefined);
+    expect(router.replace).toHaveBeenCalledWith("/session/expired");
   });
 });

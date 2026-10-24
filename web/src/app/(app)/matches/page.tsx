@@ -2,15 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MatchCard } from "@/components/MatchCard";
 import { authedApi } from "@/lib/api";
-import { getMe } from "@/lib/queries";
-import type { TodayMatches } from "@/lib/types";
+import type { Me, TodayMatches } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Matches" };
 
 const MIN_ANSWERS = 6;
 
 export default async function MatchesPage() {
-  const [{ matches }, me] = await Promise.all([authedApi<TodayMatches>("/matches/today"), getMe()]);
+  const [{ matches }, me] = await Promise.all([authedApi<TodayMatches>("/matches/today"), authedApi<Me>("/me")]);
 
   return (
     <>

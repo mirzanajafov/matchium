@@ -10,7 +10,8 @@ export function apiUrl(setting: string | undefined, production: boolean): string
     if (production) throw new Error("API_URL isn't set, so the web app doesn't know where the API is");
     return "http://localhost:3100";
   }
-  if (!URL.canParse(setting) || !/^https?:$/.test(new URL(setting).protocol)) {
+  const url = URL.parse(setting);
+  if (!url || !/^https?:$/.test(url.protocol)) {
     throw new Error(`API_URL="${setting}" isn't an http or https address`);
   }
   return setting.replace(/\/+$/, "");

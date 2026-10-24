@@ -1,9 +1,5 @@
-import { authedFetch } from "@/lib/api";
+import { relayJson } from "@/lib/api";
 
-export async function GET() {
-  const upstream = await authedFetch("/inbox");
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-  });
+export function GET() {
+  return relayJson("/inbox");
 }

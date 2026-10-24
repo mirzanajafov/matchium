@@ -1,8 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { sendMessage } from "@/app/actions";
-import { fetchMessages } from "@/lib/fetchers";
+import { SessionExpired, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 
 const FALLBACK_POLL_MS = 10_000;
@@ -23,6 +24,7 @@ export function merge(current: ChatMessage[], incoming: ChatMessage[]): ChatMess
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
 
 export function ChatThread({ matchId, personName, initialMessages }: ChatThreadProps) {
+  const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,9 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
         .then((fresh) => {
           if (active) setMessages((current) => merge(current, fresh));
         })
-        .catch(() => undefined);
+        .catch((error: unknown) => {
+          if (error instanceof SessionExpired) router.replace("/session/expired");
+        });
 
     const source = new EventSource(`/api/chats/${encodeURIComponent(matchId)}/stream`);
     source.addEventListener("open", catchUp);
@@ -67,7 +71,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
       source.close();
       clearInterval(fallback);
     };
-  }, [matchId]);
+  }, [matchId, router]);
 
   function send() {
     const body = draft.trim();
