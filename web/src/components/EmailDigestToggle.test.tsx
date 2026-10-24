@@ -68,7 +68,6 @@ describe("EmailDigestToggle", () => {
 
     await user.click(toggle);
     await screen.findByRole("alert");
-    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
 
     expect(states).toEqual(new Set(["true"]));
   });

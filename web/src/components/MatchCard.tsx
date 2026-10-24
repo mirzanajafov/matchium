@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { decide } from "@/actions/matches";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 import { confidenceCaption, dimensionLabel, joinWords, percent } from "@/lib/format";
 import { Avatar } from "./Avatar";
 import { ErrorMessage } from "./ErrorMessage";
@@ -13,23 +13,17 @@ import type { Match } from "@/lib/types";
 export function MatchCard({ match }: { match: Match }) {
   const [decision, setDecision] = useState(match.decision);
   const [mutual, setMutual] = useState(match.mutual);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { pending, error, run } = useServerAction();
   const { person } = match;
 
   function choose(like: boolean) {
-    setError(null);
-    startTransition(async () => {
-      const decided = await resolveAction(decide(match.id, like));
-      startTransition(() => {
-        if (!decided.ok) {
-          setError(decided.error);
-          return;
-        }
+    run(
+      () => decide(match.id, like),
+      (decided) => {
         setDecision(like ? "LIKE" : "PASS");
-        setMutual(decided.value.mutual);
-      });
-    });
+        setMutual(decided.mutual);
+      },
+    );
   }
 
   return (

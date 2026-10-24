@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
+import { recordWhile } from "@/test/frames";
 import { ChatThread } from "./ChatThread";
 
 vi.mock("@/actions/chats", () => ({ sendMessage: vi.fn() }));
@@ -103,6 +104,23 @@ describe("ChatThread", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't reach Matchium");
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Hello?");
+  });
+
+  it("frees Send in the same moment it says the message failed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(sendMessage).mockResolvedValue({ ok: false, error: "This chat is closed." });
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Hello?");
+    const send = screen.getByRole("button", { name: "Send" });
+    const locked = recordWhile(
+      () => screen.queryByRole("alert") !== null,
+      () => send.hasAttribute("disabled"),
+    );
+
+    await user.click(send);
+    await screen.findByRole("alert");
+
+    expect(locked).toEqual(new Set([false]));
   });
 
   it("shows messages pushed over the stream and closes it on unmount", async () => {

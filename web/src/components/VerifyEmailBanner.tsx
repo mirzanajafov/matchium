@@ -1,23 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { resendVerification } from "@/actions/account";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 
 export function VerifyEmailBanner() {
   const [answer, setAnswer] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { pending, error, run } = useServerAction();
 
   function resend() {
-    setError(null);
-    startTransition(async () => {
-      const resent = await resolveAction(resendVerification());
-      startTransition(() => {
-        if (resent.ok) setAnswer(resent.value);
-        else setError(resent.error);
-      });
-    });
+    run(resendVerification, setAnswer);
   }
 
   return (

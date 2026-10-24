@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { answerQuestion } from "@/actions/questions";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 import { certaintyHint } from "@/lib/format";
 import type { AnswerValues, DailyQuestion } from "@/lib/types";
 import { ErrorMessage } from "./ErrorMessage";
@@ -23,8 +23,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
   const [open, setOpen] = useState(() => questions.filter((q) => !q.answered));
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [certainty, setCertainty] = useState(initialCertainty);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { pending, error, run } = useServerAction();
 
   const total = questions.length;
   const current = open[0];
@@ -51,19 +50,14 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
 
   function submit() {
     if (!complete) return;
-    setError(null);
-    startTransition(async () => {
-      const answered = await resolveAction(answerQuestion(current.id, draft as AnswerValues));
-      startTransition(() => {
-        if (!answered.ok) {
-          setError(answered.error);
-          return;
-        }
-        setCertainty(answered.value.certainty);
+    run(
+      () => answerQuestion(current.id, draft as AnswerValues),
+      (answered) => {
+        setCertainty(answered.certainty);
         setOpen((rest) => rest.slice(1));
         setDraft(EMPTY);
-      });
-    });
+      },
+    );
   }
 
   return (

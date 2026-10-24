@@ -1,23 +1,20 @@
 "use client";
 
-import { useId, useOptimistic, useState, useTransition } from "react";
+import { useId, useOptimistic } from "react";
 import { setEmailDigest } from "@/actions/profile";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 import { ErrorMessage } from "./ErrorMessage";
 import { Switch } from "./Switch";
 
 export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
   const [shown, setShown] = useOptimistic(enabled);
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const { pending, error, run } = useServerAction();
   const errorId = useId();
 
   function toggle() {
-    setError(null);
-    startTransition(async () => {
+    run(() => {
       setShown(!shown);
-      const saved = await resolveAction(setEmailDigest(!shown));
-      if (!saved.ok) startTransition(() => setError(saved.error));
+      return setEmailDigest(!shown);
     });
   }
 
