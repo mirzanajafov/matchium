@@ -47,4 +47,8 @@ describe('trust proxy', () => {
   it('ignores the header when turned off', async () => {
     expect(await clientAddress('false', chain)).toMatch(/127\.0\.0\.1$/);
   });
+
+  it('refuses to start when told to trust every client', async () => {
+    await expect(clientAddress('true', chain)).rejects.toThrow('invalid IP address: true');
+  });
 });
