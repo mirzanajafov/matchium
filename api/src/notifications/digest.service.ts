@@ -1,70 +1,51 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { GoneException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { INVALID_LINK, PurposeTokens } from '../auth/purpose-tokens.js';
 import { ChatsService } from '../chats/chats.service.js';
 import type { Env } from '../config/env.js';
-import { digestEmail } from '../mail/digest-email.js';
+import { digestEmail } from '../mail/emails.js';
 import { Mailer } from '../mail/mailer.js';
-import { emailsSent } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-
-const UNSUBSCRIBE_PURPOSE = 'unsubscribe';
 
 @Injectable()
 export class DigestService {
-  private readonly log = new Logger(DigestService.name);
   private readonly webUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailer: Mailer,
-    private readonly jwt: JwtService,
+    private readonly tokens: PurposeTokens,
     private readonly chats: ChatsService,
     config: ConfigService<Env, true>,
   ) {
     this.webUrl = config.get('WEB_URL', { infer: true });
   }
 
-  async send(userId: string, newMatches: number): Promise<boolean> {
-    if (!this.mailer.enabled) return false;
+  async send(userId: string, newMatches: number): Promise<void> {
+    if (!this.mailer.enabled) return;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, displayName: true, emailDigest: true, emailVerifiedAt: true, bannedAt: true },
     });
-    if (!user?.emailDigest || !user.emailVerifiedAt || user.bannedAt) return false;
+    if (!user?.emailDigest || !user.emailVerifiedAt || user.bannedAt) return;
 
     const unreadChats = await this.chats.unreadCount(userId);
-    if (newMatches === 0 && unreadChats === 0) return false;
+    if (newMatches === 0 && unreadChats === 0) return;
 
-    const token = this.jwt.sign({ sub: userId, purpose: UNSUBSCRIBE_PURPOSE }, { expiresIn: '365d' });
-    const unsubscribeUrl = `${this.webUrl}/unsubscribe?token=${encodeURIComponent(token)}`;
-    const oneClickUrl = `${this.webUrl}/api/unsubscribe?token=${encodeURIComponent(token)}`;
+    const token = encodeURIComponent(this.tokens.sign('unsubscribe', { sub: userId }));
+    const unsubscribeUrl = `${this.webUrl}/unsubscribe?token=${token}`;
+    const oneClickUrl = `${this.webUrl}/api/unsubscribe?token=${token}`;
     const mail = digestEmail({ name: user.displayName, newMatches, unreadChats, webUrl: this.webUrl, unsubscribeUrl });
-    try {
-      await this.mailer.send({
-        to: user.email,
-        ...mail,
-        headers: { 'List-Unsubscribe': `<${oneClickUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
-      });
-      emailsSent.inc({ kind: 'digest', result: 'sent' });
-      return true;
-    } catch (error) {
-      emailsSent.inc({ kind: 'digest', result: 'failed' });
-      this.log.warn(`Digest to ${userId} failed: ${(error as Error).message}`);
-      return false;
-    }
+    await this.mailer.deliver('digest', {
+      to: user.email,
+      ...mail,
+      headers: { 'List-Unsubscribe': `<${oneClickUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+    });
   }
 
-  async unsubscribe(token: string): Promise<boolean> {
-    let userId: string;
-    try {
-      const payload = await this.jwt.verifyAsync<{ sub: string; purpose?: string }>(token);
-      if (payload.purpose !== UNSUBSCRIBE_PURPOSE) return false;
-      userId = payload.sub;
-    } catch {
-      return false;
-    }
-    const updated = await this.prisma.user.updateMany({ where: { id: userId }, data: { emailDigest: false } });
-    return updated.count > 0;
+  async unsubscribe(token: string) {
+    const { sub } = await this.tokens.read(token, 'unsubscribe');
+    const updated = await this.prisma.user.updateMany({ where: { id: sub }, data: { emailDigest: false } });
+    if (updated.count === 0) throw new GoneException(INVALID_LINK);
   }
 }

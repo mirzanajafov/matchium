@@ -7,12 +7,15 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { SessionController } from './session.controller.js';
 import { AuthSweeper } from './auth-sweeper.js';
+import { EmailVerificationService } from './email-verification.service.js';
+import { PasswordResetService } from './password-reset.service.js';
+import { PurposeTokens } from './purpose-tokens.js';
 import { SESSION_LIFETIME_DAYS } from './sessions.js';
+import { SignupService } from './signup.service.js';
 
 @Module({
   imports: [
     JwtModule.registerAsync({
-      global: true,
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
         secret: config.get('JWT_SECRET', { infer: true }),
@@ -22,6 +25,7 @@ import { SESSION_LIFETIME_DAYS } from './sessions.js';
     MailModule,
   ],
   controllers: [AuthController, SessionController],
-  providers: [AuthService, AuthSweeper],
+  providers: [AuthService, SignupService, EmailVerificationService, PasswordResetService, PurposeTokens, AuthSweeper],
+  exports: [JwtModule, PurposeTokens],
 })
 export class AuthModule {}
