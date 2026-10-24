@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { sendMessage } from "@/actions/chats";
+import { resolveAction } from "@/lib/action-client";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 
@@ -78,7 +79,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
     if (!body) return;
     setError(null);
     startSending(async () => {
-      const sent = await sendMessage(matchId, body);
+      const sent = await resolveAction(sendMessage(matchId, body));
       if (!sent.ok) {
         setError(sent.error);
         return;

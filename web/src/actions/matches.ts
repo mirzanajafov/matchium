@@ -15,8 +15,7 @@ export async function unmatch(
   matchId: string,
   report?: { reason: ReportReason; note?: string },
 ): Promise<ActionResult> {
-  return attempt(
-    () => authedApi(`/matches/${encodeURIComponent(matchId)}/unmatch`, { body: report ? { report } : {} }),
-    "That didn't work. Try again.",
-  );
+  return attempt(async () => {
+    await authedApi(`/matches/${encodeURIComponent(matchId)}/unmatch`, { body: report ? { report } : {} });
+  }, "That didn't work. Try again.");
 }

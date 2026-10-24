@@ -1,14 +1,18 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { api, authedApi } from "@/lib/api";
+import { ApiError, api, authedApi } from "@/lib/api";
 import { clearSession, getPushEndpoint, getToken, setSession } from "@/lib/session";
 import type { ActionResult, FormState } from "@/lib/types";
-import { type Refusals, attempt, field } from "./attempt";
+import { type Refusals, attempt } from "./attempt";
 
 const TRY_AGAIN = "Something went wrong on our side. Try again in a moment.";
 
 type AccountAnswer = { accessToken: string } | { checkEmail: true };
+
+function field(formData: FormData, name: string): string {
+  return String(formData.get(name) ?? "").trim();
+}
 
 async function submitAccountForm(
   path: string,
@@ -26,10 +30,13 @@ async function submitAccountForm(
 
 async function endSession(): Promise<void> {
   const [token, endpoint] = await Promise.all([getToken(), getPushEndpoint()]);
+  const warn = (step: string) => (error: unknown) => {
+    console.warn(`Logging out went on without ${step}`, error);
+  };
   if (token && endpoint) {
-    await api("/push/subscriptions", { method: "DELETE", body: { endpoint }, token }).catch(() => undefined);
+    await api("/push/subscriptions", { method: "DELETE", body: { endpoint }, token }).catch(warn("removing push"));
   }
-  if (token) await api("/auth/logout", { method: "POST", token }).catch(() => undefined);
+  if (token) await api("/auth/logout", { method: "POST", token }).catch(warn("ending the API session"));
   await clearSession();
 }
 
@@ -101,12 +108,22 @@ export async function resetPassword(token: string, _: FormState, formData: FormD
   return reset.ok ? { done: true } : { error: reset.error };
 }
 
-export async function resendVerification(): Promise<ActionResult> {
-  return attempt(
-    () => authedApi("/auth/verify-email/resend", { method: "POST" }),
-    "Couldn't send it. Try again in a moment.",
-    { 429: "We just sent a few. Check your inbox.", 409: "Your email is already confirmed." },
-  );
+const RESEND_ANSWERS: Partial<Record<number, string>> = {
+  409: "Your email is already confirmed.",
+  429: "We just sent a few. Check your inbox.",
+};
+
+export async function resendVerification(): Promise<ActionResult<string>> {
+  return attempt(async () => {
+    try {
+      await authedApi("/auth/verify-email/resend", { method: "POST" });
+      return "Sent. Check your inbox.";
+    } catch (error) {
+      const answer = error instanceof ApiError ? RESEND_ANSWERS[error.status] : undefined;
+      if (answer) return answer;
+      throw error;
+    }
+  }, "Couldn't send it. Try again in a moment.");
 }
 
 export async function deleteAccount(_: FormState, formData: FormData): Promise<FormState> {

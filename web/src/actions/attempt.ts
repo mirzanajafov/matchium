@@ -5,10 +5,6 @@ import type { ActionResult } from "@/lib/types";
 
 export type Refusals = Partial<Record<number, string>>;
 
-export function field(formData: FormData, name: string): string {
-  return String(formData.get(name) ?? "").trim();
-}
-
 function sentence(message: string): string {
   return message.charAt(0).toUpperCase() + message.slice(1) + ".";
 }

@@ -1,21 +1,19 @@
-import { unstable_rethrow } from "next/navigation";
+import { redirect } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { attempt } from "./attempt";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
-vi.mock("next/navigation", () => ({
-  unstable_rethrow: vi.fn((error: unknown) => {
-    if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
-  }),
-}));
 vi.mock("@/lib/session", () => ({ getToken: vi.fn() }));
 
 const fail = (error: Error) => () => Promise.reject(error);
 
 describe("attempt", () => {
+  const logged = vi.fn();
+
   beforeEach(() => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    logged.mockReset();
+    vi.spyOn(console, "error").mockImplementation(logged);
   });
 
   afterEach(() => {
@@ -36,9 +34,10 @@ describe("attempt", () => {
       ok: false,
       error: "Too many attempts.",
     });
+    expect(logged).not.toHaveBeenCalled();
   });
 
-  it("falls back to the action's message when the API or the network fails", async () => {
+  it("falls back to the action's message and logs it when the API or the network fails", async () => {
     expect(await attempt(fail(new ApiError(502, "Bad Gateway")), "Try again.")).toEqual({
       ok: false,
       error: "Try again.",
@@ -47,10 +46,11 @@ describe("attempt", () => {
       ok: false,
       error: "Try again.",
     });
+    expect(logged).toHaveBeenCalledTimes(2);
   });
 
   it("lets Next's redirects through instead of turning them into a message", async () => {
-    await expect(attempt(fail(new Error("NEXT_REDIRECT")), "fallback")).rejects.toThrow("NEXT_REDIRECT");
-    expect(unstable_rethrow).toHaveBeenCalled();
+    const expired = () => Promise.resolve().then(() => redirect("/session/expired"));
+    await expect(attempt(expired, "fallback")).rejects.toThrow("NEXT_REDIRECT");
   });
 });

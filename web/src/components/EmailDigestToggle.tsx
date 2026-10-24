@@ -2,6 +2,7 @@
 
 import { useId, useOptimistic, useState, useTransition } from "react";
 import { setEmailDigest } from "@/actions/profile";
+import { resolveAction } from "@/lib/action-client";
 
 export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
   const [shown, setShown] = useOptimistic(enabled);
@@ -13,7 +14,7 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
     setError(null);
     startTransition(async () => {
       setShown(!shown);
-      const saved = await setEmailDigest(!shown);
+      const saved = await resolveAction(setEmailDigest(!shown));
       if (!saved.ok) setError(saved.error);
     });
   }

@@ -38,7 +38,8 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
       .then(async (subscription) => {
         const payload = subscription && toPayload(subscription);
         if (payload) {
-          settle((await savePushSubscription(payload)).ok ? "on" : "failed");
+          const saved = await savePushSubscription(payload);
+          settle(saved.ok ? "on" : "failed");
         } else {
           settle(Notification.permission === "denied" ? "blocked" : "off");
         }
@@ -63,7 +64,8 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
       });
       const payload = toPayload(subscription);
       if (!payload) throw new Error("Incomplete subscription");
-      setStatus((await savePushSubscription(payload)).ok ? "on" : "failed");
+      const saved = await savePushSubscription(payload);
+      setStatus(saved.ok ? "on" : "failed");
     } catch {
       setStatus("failed");
     }
@@ -74,7 +76,8 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
     try {
       const subscription = await (await registration()).pushManager.getSubscription();
       if (subscription) {
-        if (!(await removePushSubscription(subscription.endpoint)).ok) {
+        const removed = await removePushSubscription(subscription.endpoint);
+        if (!removed.ok) {
           setStatus("failed");
           return;
         }

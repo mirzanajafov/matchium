@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { answerQuestion } from "@/actions/questions";
+import { resolveAction } from "@/lib/action-client";
 import { certaintyHint } from "@/lib/format";
 import type { AnswerValues, DailyQuestion } from "@/lib/types";
 import { Meter } from "./Meter";
@@ -51,7 +52,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
     if (!complete) return;
     setError(null);
     startTransition(async () => {
-      const answered = await answerQuestion(current.id, draft as AnswerValues);
+      const answered = await resolveAction(answerQuestion(current.id, draft as AnswerValues));
       if (!answered.ok) {
         setError(answered.error);
         return;

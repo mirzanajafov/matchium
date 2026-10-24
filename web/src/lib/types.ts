@@ -1,4 +1,4 @@
-export type ActionResult<T = unknown> = { ok: true; value: T } | { ok: false; error: string };
+export type ActionResult<T = void> = { ok: true; value: T } | { ok: false; error: string };
 
 export interface FormState {
   error?: string;

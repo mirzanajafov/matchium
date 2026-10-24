@@ -2,18 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { resendVerification } from "@/actions/account";
+import { resolveAction } from "@/lib/action-client";
 
 export function VerifyEmailBanner() {
-  const [sent, setSent] = useState(false);
+  const [answer, setAnswer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function resend() {
     setError(null);
     startTransition(async () => {
-      const result = await resendVerification();
-      if (result.ok) setSent(true);
-      else setError(result.error);
+      const resent = await resolveAction(resendVerification());
+      if (resent.ok) setAnswer(resent.value);
+      else setError(resent.error);
     });
   }
 
@@ -24,8 +25,8 @@ export function VerifyEmailBanner() {
     >
       <p>
         Confirm your email so we can reach you when push is off.{" "}
-        {sent ? (
-          <span role="status">Sent. Check your inbox.</span>
+        {answer ? (
+          <span role="status">{answer}</span>
         ) : (
           <button
             type="button"

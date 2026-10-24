@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { unsubscribeEmail } from "@/actions/profile";
+import { resolveAction } from "@/lib/action-client";
 import type { ActionResult } from "@/lib/types";
 
 export function UnsubscribeForm({ token }: { token: string }) {
@@ -12,7 +13,7 @@ export function UnsubscribeForm({ token }: { token: string }) {
   function stop() {
     setState(null);
     startTransition(async () => {
-      setState(await unsubscribeEmail(token));
+      setState(await resolveAction(unsubscribeEmail(token)));
     });
   }
 

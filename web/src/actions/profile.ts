@@ -34,36 +34,40 @@ export async function uploadPhoto(_: FormState, formData: FormData): Promise<For
   return { done: true };
 }
 
+async function changeProfile(change: () => Promise<unknown>, fallback: string): Promise<ActionResult> {
+  const changed = await attempt(async () => {
+    await change();
+  }, fallback);
+  if (changed.ok) revalidatePath("/me");
+  return changed;
+}
+
 export async function deletePhoto(photoId: string): Promise<ActionResult> {
-  const deleted = await attempt(
+  return changeProfile(
     () => authedApi(`/me/photos/${encodeURIComponent(photoId)}`, { method: "DELETE" }),
     "Couldn't delete that photo. Try again in a moment.",
   );
-  revalidatePath("/me");
-  return deleted;
 }
 
 export async function makeMainPhoto(photoId: string): Promise<ActionResult> {
-  const moved = await attempt(
+  return changeProfile(
     () => authedApi(`/me/photos/${encodeURIComponent(photoId)}/main`, { method: "POST" }),
     "Couldn't move that photo. Try again in a moment.",
   );
-  revalidatePath("/me");
-  return moved;
 }
 
 export async function setEmailDigest(enabled: boolean): Promise<ActionResult> {
-  const saved = await attempt(
+  return changeProfile(
     () => authedApi("/me/preferences", { method: "PATCH", body: { emailDigest: enabled } }),
     "Couldn't save that. Try again.",
   );
-  revalidatePath("/me");
-  return saved;
 }
 
 export async function unsubscribeEmail(token: string): Promise<ActionResult> {
   return attempt(
-    () => api(`/email/unsubscribe?token=${encodeURIComponent(token)}`, { method: "POST" }),
+    async () => {
+      await api(`/email/unsubscribe?token=${encodeURIComponent(token)}`, { method: "POST" });
+    },
     "That didn't work. Try again in a moment.",
     { 410: "This link doesn't work anymore." },
   );

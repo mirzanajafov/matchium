@@ -9,16 +9,17 @@ import { attempt } from "./attempt";
 const FAILED = "Something went wrong. Try again in a moment.";
 
 export async function savePushSubscription(subscription: PushSubscriptionPayload): Promise<ActionResult> {
-  const saved = await attempt(() => authedApi("/push/subscriptions", { body: subscription }), FAILED);
+  const saved = await attempt(async () => {
+    await authedApi("/push/subscriptions", { body: subscription });
+  }, FAILED);
   if (saved.ok) await rememberPushEndpoint(subscription.endpoint);
   return saved;
 }
 
 export async function removePushSubscription(endpoint: string): Promise<ActionResult> {
-  const removed = await attempt(
-    () => authedApi("/push/subscriptions", { method: "DELETE", body: { endpoint } }),
-    FAILED,
-  );
+  const removed = await attempt(async () => {
+    await authedApi("/push/subscriptions", { method: "DELETE", body: { endpoint } });
+  }, FAILED);
   if (removed.ok) await rememberPushEndpoint(null);
   return removed;
 }

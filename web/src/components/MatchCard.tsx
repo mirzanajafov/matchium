@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { decide } from "@/actions/matches";
+import { resolveAction } from "@/lib/action-client";
 import { confidenceCaption, dimensionLabel, joinWords, percent } from "@/lib/format";
 import { Avatar } from "./Avatar";
 import { PhotoStrip } from "./PhotoStrip";
@@ -18,7 +19,7 @@ export function MatchCard({ match }: { match: Match }) {
   function choose(like: boolean) {
     setError(null);
     startTransition(async () => {
-      const decided = await decide(match.id, like);
+      const decided = await resolveAction(decide(match.id, like));
       if (!decided.ok) {
         setError(decided.error);
         return;

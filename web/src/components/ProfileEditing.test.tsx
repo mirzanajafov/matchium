@@ -47,6 +47,17 @@ describe("ProfilePhotos", () => {
     expect(makeMainPhoto).toHaveBeenCalledWith(photo(3).id);
   });
 
+  it("says so under the photos when removing one fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(deletePhoto).mockResolvedValue({
+      ok: false,
+      error: "Couldn't delete that photo. Try again in a moment.",
+    });
+    render(<ProfilePhotos photos={[photo(1), photo(2)]} />);
+    await user.click(screen.getByRole("button", { name: "Remove photo 2" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't delete that photo");
+  });
+
   it("still sends the file after the async resize step", async () => {
     const user = userEvent.setup();
     vi.mocked(uploadPhoto).mockReset();

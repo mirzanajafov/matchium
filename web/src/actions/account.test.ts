@@ -1,6 +1,6 @@
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, authedApi } from "@/lib/api";
 import { clearSession, getPushEndpoint, getToken, setSession } from "@/lib/session";
-import { confirmSignup, login, requestPasswordReset, resetPassword, signup } from "./account";
+import { confirmSignup, login, requestPasswordReset, resendVerification, resetPassword, signup } from "./account";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
@@ -14,6 +14,7 @@ vi.mock("@/lib/session", () => ({
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   api: vi.fn(),
+  authedApi: vi.fn(),
 }));
 
 function form(fields: Record<string, string | File>): FormData {
@@ -25,6 +26,7 @@ function form(fields: Record<string, string | File>): FormData {
 describe("account actions", () => {
   beforeEach(() => {
     vi.mocked(api).mockReset();
+    vi.mocked(authedApi).mockReset();
     vi.mocked(setSession).mockReset();
     vi.mocked(getToken).mockReset();
     vi.mocked(getPushEndpoint).mockReset();
@@ -105,5 +107,14 @@ describe("account actions", () => {
       error: "Something went wrong on our side. Try again in a moment.",
       values: { email: "a@example.com" },
     });
+  });
+
+  it("answers a resend for a confirmed address, or one sent too often, with what to do instead", async () => {
+    vi.mocked(authedApi).mockRejectedValueOnce(new ApiError(409, "Your email is already confirmed"));
+    expect(await resendVerification()).toEqual({ ok: true, value: "Your email is already confirmed." });
+    vi.mocked(authedApi).mockRejectedValueOnce(new ApiError(429, "Too many attempts"));
+    expect(await resendVerification()).toEqual({ ok: true, value: "We just sent a few. Check your inbox." });
+    vi.mocked(authedApi).mockResolvedValueOnce(undefined);
+    expect(await resendVerification()).toEqual({ ok: true, value: "Sent. Check your inbox." });
   });
 });

@@ -91,6 +91,18 @@ describe("PushToggle", () => {
     expect(toggle).toHaveAttribute("aria-checked", "false");
   });
 
+  it("keeps the browser subscription when the server won't forget it", async () => {
+    const { pushManager } = browser({ subscribed: true, permission: "granted" });
+    vi.mocked(removePushSubscription).mockResolvedValue({ ok: false, error: "Something went wrong." });
+    render(<PushToggle publicKey="AQID" />);
+    await act(async () => undefined);
+
+    await act(async () => fireEvent.click(screen.getByRole("switch", { name: "Notifications" })));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Something went wrong. Try again in a moment.");
+    expect(await pushManager.getSubscription()).not.toBeNull();
+  });
+
   it("explains how to unblock when permission is denied", async () => {
     browser({ grant: "denied" });
     render(<PushToggle publicKey="AQID" />);

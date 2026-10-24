@@ -5,7 +5,10 @@ import { UnmatchPanel } from "./UnmatchPanel";
 
 const router = { replace: vi.fn(), refresh: vi.fn() };
 vi.mock("@/actions/matches", () => ({ unmatch: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => router,
+}));
 
 const MATCH = "8c1f7d2e-1111-4a4a-9999-000000000001";
 

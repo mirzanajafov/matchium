@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { useActionState, useState, useTransition } from "react";
 import { deletePhoto, makeMainPhoto, uploadPhoto } from "@/actions/profile";
-import type { ActionResult, FormState } from "@/lib/types";
+import { resolveAction } from "@/lib/action-client";
 import { shrinkForUpload } from "@/lib/shrink";
-import type { PhotoRef } from "@/lib/types";
+import type { ActionResult, FormState, PhotoRef } from "@/lib/types";
 import { photoUrl } from "./Avatar";
 
 const MAX_PHOTOS = 4;
@@ -20,8 +20,8 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
   function change(run: () => Promise<ActionResult>) {
     setChangeError(null);
     startChanging(async () => {
-      const result = await run();
-      if (!result.ok) setChangeError(result.error);
+      const changed = await resolveAction(run());
+      if (!changed.ok) setChangeError(changed.error);
     });
   }
 
@@ -83,6 +83,11 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
           </li>
         ))}
       </ul>
+      {changeError && (
+        <p role="alert" className="mt-2 text-sm text-warn">
+          {changeError}
+        </p>
+      )}
       {photos.length < MAX_PHOTOS && (
         <form action={action} className="mt-4">
           <label
@@ -101,9 +106,9 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
           </label>
         </form>
       )}
-      {(state.error ?? changeError) && (
+      {state.error && (
         <p role="alert" className="mt-2 text-sm text-warn">
-          {state.error ?? changeError}
+          {state.error}
         </p>
       )}
     </div>

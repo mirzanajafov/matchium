@@ -11,7 +11,10 @@ vi.mock("@/lib/fetchers", async (importOriginal) => ({
   fetchMessages: vi.fn(),
 }));
 const router = { replace: vi.fn() };
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => router,
+}));
 
 const MATCH = "8c1f7d2e-1111-4a4a-9999-000000000001";
 
@@ -105,15 +108,15 @@ describe("ChatThread", () => {
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("");
   });
 
-  it("keeps the draft when sending fails", async () => {
+  it("keeps the draft when Matchium can't be reached", async () => {
     const user = userEvent.setup();
-    vi.mocked(sendMessage).mockResolvedValue({ ok: false, error: "Message didn't go through. Try again." });
+    vi.mocked(sendMessage).mockRejectedValue(new TypeError("Failed to fetch"));
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
 
     await user.type(screen.getByRole("textbox", { name: "Message" }), "Hello?");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("didn't go through");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't reach Matchium");
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Hello?");
   });
 
