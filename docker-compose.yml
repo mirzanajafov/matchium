@@ -87,7 +87,7 @@ services:
     profiles: ["app"]
     environment:
       API_URL: http://matchium-api:3100
-      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
     ports:
       - "3101:3101"
     depends_on:
