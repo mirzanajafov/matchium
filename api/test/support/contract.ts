@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { EngineQuestion } from '../../src/engine/belief.js';
 
-export interface ContractQuestion extends EngineQuestion {
+interface ContractQuestion extends EngineQuestion {
   text: string;
 }
 
@@ -11,7 +11,7 @@ export interface QuestionContract {
   questions: ContractQuestion[];
 }
 
-export function contractPath(name: string): string {
+function contractPath(name: string): string {
   return fileURLToPath(new URL(`../../../contract/${name}`, import.meta.url));
 }
 

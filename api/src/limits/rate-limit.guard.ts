@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } 
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
+import { isRecord } from '../common/json.js';
 import type { AuthUser } from '../auth/current-user.decorator.js';
 import { type LimitRule, RATE_LIMITS } from './rate-limit.decorator.js';
 import { rateLimited } from '../observability/metrics.js';
@@ -10,7 +11,7 @@ import { RateLimiter } from './rate-limiter.js';
 function subject(rule: LimitRule, request: Request & { user?: AuthUser }): string | undefined {
   if (rule.by === 'ip') return request.ip;
   if (rule.by === 'user') return request.user?.id;
-  const value: unknown = (request.body as Record<string, unknown> | undefined)?.[rule.by];
+  const value = isRecord(request.body) ? request.body[rule.by] : undefined;
   if (typeof value !== 'string' || !value.trim()) return undefined;
   return rule.by === 'email' ? value.trim().toLowerCase() : createHash('sha256').update(value).digest('base64url');
 }

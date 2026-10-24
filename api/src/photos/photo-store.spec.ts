@@ -44,7 +44,7 @@ describe('S3PhotoStore', () => {
     await withStorage(
       '',
       async (store) => {
-        await expect(store.onModuleInit()).rejects.toThrow('Photo storage refused bucket matchium-photos');
+        await expect(store.onModuleInit()).rejects.toThrow('Checking photo bucket matchium-photos failed');
       },
       forbidden,
     );

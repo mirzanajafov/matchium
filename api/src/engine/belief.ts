@@ -43,17 +43,6 @@ export function entry(values: readonly number[], index: number): number {
   return value;
 }
 
-export function toBeliefState(row: BeliefState): BeliefState {
-  return {
-    muSelf: row.muSelf,
-    varSelf: row.varSelf,
-    muPref: row.muPref,
-    varPref: row.varPref,
-    logWSum: row.logWSum,
-    logWCount: row.logWCount,
-  };
-}
-
 export function priorBelief(): BeliefState {
   const filled = (value: number) => Array<number>(DIMENSION_COUNT).fill(value);
   return {

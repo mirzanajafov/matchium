@@ -45,7 +45,7 @@ export class PushService {
     }
     for (const result of results) {
       pushDeliveries.inc({ result: result.status === 'fulfilled' ? result.value : 'failed' });
-      if (result.status === 'rejected') this.log.warn(`Push delivery failed: ${String(result.reason)}`);
+      if (result.status === 'rejected') this.log.warn(`Push delivery failed: ${errorMessage(result.reason)}`);
     }
     return results.filter((r) => r.status === 'fulfilled' && r.value === 'sent').length;
   }

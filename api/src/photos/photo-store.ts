@@ -49,7 +49,7 @@ export class S3PhotoStore extends PhotoStore implements OnModuleInit {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
     } catch (error) {
       if (!(error instanceof NotFound))
-        throw new Error(`Photo storage refused bucket ${this.bucket}: ${errorMessage(error)}`);
+        throw new Error(`Checking photo bucket ${this.bucket} failed: ${errorMessage(error)}`);
       await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
       this.log.log(`Created bucket ${this.bucket}`);
     }

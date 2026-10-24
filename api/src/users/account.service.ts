@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { Clock, isoDay } from '../common/clock.js';
 import { toThousandths } from '../common/rounding.js';
-import { DIMENSIONS, entry, toBeliefState, weights } from '../engine/belief.js';
+import { type BeliefState, DIMENSIONS, entry, weights } from '../engine/belief.js';
 import { decisionOf, isMutual } from '../matches/participants.js';
 import { PhotosService } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -74,22 +74,21 @@ export class AccountService {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true } });
     if (!(await argon2.verify(user.passwordHash, password))) throw new ForbiddenException('Wrong password');
     const keys = await this.prisma.$transaction(async (tx) => {
-      const keys = await this.photos.lockKeys(tx, userId);
+      const owned = await this.photos.lockKeys(tx, userId);
       await tx.user.delete({ where: { id: userId } });
-      return keys;
+      return owned;
     });
     await this.photos.discard(keys);
   }
 
-  private model(row: Parameters<typeof toBeliefState>[0] & { muGap: number[] }) {
-    const state = toBeliefState(row);
+  private model(state: BeliefState & { muGap: number[] }) {
     const importance = weights(state);
     return Object.fromEntries(
       DIMENSIONS.map((dimension, k) => [
         dimension,
         {
           you: toThousandths(entry(state.muSelf, k)),
-          youWant: toThousandths(entry(state.muPref, k) + (row.muGap[k] ?? 0)),
+          youWant: toThousandths(entry(state.muPref, k) + (state.muGap[k] ?? 0)),
           importance: toThousandths(entry(importance, k)),
         },
       ]),

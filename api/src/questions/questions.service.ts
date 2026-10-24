@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
 import { toThousandths } from '../common/rounding.js';
 import type { Env } from '../config/env.js';
-import { BeliefState, DIMENSION_COUNT, certainty, observe, priorBelief, toBeliefState } from '../engine/belief.js';
+import { BeliefState, DIMENSION_COUNT, certainty, observe, priorBelief } from '../engine/belief.js';
 import { pickQuestions } from '../engine/selection.js';
 import { DailyQuestionSet } from '../generated/prisma/client.js';
 import { isUniqueViolation } from '../prisma/errors.js';
@@ -34,14 +34,11 @@ export class QuestionsService {
     ]);
     const answered = new Set(answers.map((a) => a.questionId));
     const byId = new Map(questions.map((q) => [q.id, q]));
-    return {
-      day: isoDay(day),
-      remaining: set.questionIds.length - answered.size,
-      questions: set.questionIds.flatMap((id) => {
-        const question = byId.get(id);
-        return question ? [{ id, text: question.text, answered: answered.has(id) }] : [];
-      }),
-    };
+    const listed = set.questionIds.flatMap((id) => {
+      const question = byId.get(id);
+      return question ? [{ id, text: question.text, answered: answered.has(id) }] : [];
+    });
+    return { day: isoDay(day), remaining: listed.filter((q) => !q.answered).length, questions: listed };
   }
 
   async answer(userId: string, questionId: string, dto: AnswerDto) {
@@ -60,7 +57,7 @@ export class QuestionsService {
       if (existing) throw new ConflictException('Question already answered');
 
       const values = { self: dto.self, partner: dto.partner, importance: dto.importance };
-      const state = observe(row ? toBeliefState(row) : priorBelief(), question, values);
+      const state = observe(row ?? priorBelief(), question, values);
       await tx.answer.create({ data: { userId, questionId, ...values } });
       await tx.belief.upsert({
         where: { userId },
@@ -91,7 +88,7 @@ export class QuestionsService {
       this.populationWeights(),
     ]);
     const questionIds = pickQuestions(
-      belief ? toBeliefState(belief) : priorBelief(),
+      belief ?? priorBelief(),
       bank,
       new Set(answers.map((a) => a.questionId)),
       this.perDay,

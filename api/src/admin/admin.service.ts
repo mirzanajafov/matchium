@@ -1,9 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { revokeSessions } from '../auth/sessions.js';
 import { Clock, isoDay } from '../common/clock.js';
 import { type ChatClosedEvent, publish } from '../common/db-events.js';
 import { isRecord } from '../common/json.js';
 import { involving } from '../matches/participants.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import type { ReportOutcome } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -53,6 +54,8 @@ function isEvidence(value: unknown): value is Evidence {
 
 @Injectable()
 export class AdminService {
+  private readonly log = new Logger(AdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
@@ -86,7 +89,7 @@ export class AdminService {
         banned: row.reported ? row.reported.bannedAt !== null : row.outcome === 'BANNED',
         reportsAgainst: against.get(row.reportedEmail) ?? 1,
       },
-      messages: Array.isArray(row.evidence) ? row.evidence.flatMap((item) => (isEvidence(item) ? [item] : [])) : [],
+      messages: this.evidence(row.id, row.evidence),
     }));
   }
 
@@ -126,6 +129,15 @@ export class AdminService {
       return open;
     });
     return { outcome, closedMatches: closedMatches.length };
+  }
+
+  private evidence(reportId: string, stored: Prisma.JsonValue): Evidence[] {
+    const items = Array.isArray(stored) ? stored : [];
+    const readable = items.flatMap((item) => (isEvidence(item) ? [item] : []));
+    if (readable.length < items.length || !Array.isArray(stored)) {
+      this.log.warn(`Report ${reportId} has evidence that can't be read`);
+    }
+    return readable;
   }
 
   private account(p: Account): AccountView {
