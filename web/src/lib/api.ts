@@ -28,7 +28,7 @@ function messageFrom(data: unknown): string | undefined {
 }
 
 export function trustedProxyHops(setting = "0"): number {
-  if (!/^\d+$/.test(setting)) throw new Error(`TRUSTED_PROXY_HOPS must be a whole number of proxies, not "${setting}"`);
+  if (!/^\d+$/.test(setting)) throw new Error(`TRUSTED_PROXY_HOPS="${setting}" isn't a whole number of proxies`);
   return Number(setting);
 }
 
