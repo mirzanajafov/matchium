@@ -1264,7 +1264,7 @@ describe('photos and bio', () => {
     expect(photos.objects.size).toBe(4);
   });
 
-  it('still answers truthfully when storage refuses to delete', async () => {
+  it('keeps the 409 and the 204 when storage refuses to delete', async () => {
     const alice = await register();
     const ids: string[] = [];
     for (let i = 0; i < 4; i += 1) ids.push((await upload(alice.token)).body.id);
