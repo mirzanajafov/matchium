@@ -39,6 +39,7 @@ def test_settings_come_from_the_environment_unless_given(monkeypatch: pytest.Mon
 def test_an_option_beats_a_broken_environment_value(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MATCH_AT", "soon")
     monkeypatch.setenv("MATCHES_PER_USER", "many")
+    monkeypatch.delenv("MIN_ANSWERS", raising=False)
     args = parse_args(["--at", "04:30", "--per-user", "2", "--database-url", "x"])
     assert (args.at, args.per_user) == (dt.time(4, 30), 2)
 
