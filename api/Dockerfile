@@ -17,4 +17,4 @@ COPY api/prisma ./prisma
 COPY contract /app/contract
 USER node
 EXPOSE 3100
-CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/seed.ts && node dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/seed.ts && exec node dist/main"]

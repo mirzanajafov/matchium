@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
-import { configureApp } from '../src/app.setup.js';
+import { appOptions, configureApp } from '../src/app.setup.js';
 import { Clock } from '../src/common/clock.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { SessionSweeper } from '../src/auth/session-sweeper.js';
@@ -100,23 +100,28 @@ async function register(overrides: Record<string, unknown> = {}) {
   return { token: res.body.accessToken as string, id: me.body.id as string, email: body.email };
 }
 
-beforeAll(async () => {
-  clock = new FixedClock();
-  pushes = new FakePushSender();
-  mails = new FakeMailer();
-  photos = new FakePhotoStore();
+async function startApp({ mailer = mails, store = photos }: { mailer?: Mailer; store?: PhotoStore } = {}) {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(PushSender)
     .useValue(pushes)
     .overrideProvider(Mailer)
-    .useValue(mails)
+    .useValue(mailer)
     .overrideProvider(PhotoStore)
-    .useValue(photos)
+    .useValue(store)
     .compile();
-  app = configureApp(moduleRef.createNestApplication());
-  await app.init();
+  const started = configureApp(moduleRef.createNestApplication(appOptions));
+  await started.init();
+  return started;
+}
+
+beforeAll(async () => {
+  clock = new FixedClock();
+  pushes = new FakePushSender();
+  mails = new FakeMailer();
+  photos = new FakePhotoStore();
+  app = await startApp();
   prisma = app.get(PrismaService);
 });
 
@@ -1141,6 +1146,127 @@ describe('email digest', () => {
     await http().post('/email/unsubscribe').query({ token: alice.token }).expect(410);
     await http().post('/email/unsubscribe').query({ token }).expect(200);
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailDigest).toBe(false);
+  });
+});
+
+describe('shutdown', { timeout: 15_000 }, () => {
+  class HeldMailer extends FakeMailer {
+    holding = 0;
+    open: () => void = () => undefined;
+    private readonly opened = new Promise<void>((resolve) => {
+      this.open = resolve;
+    });
+
+    async send(mail: Mail): Promise<void> {
+      this.holding += 1;
+      await this.opened;
+      await super.send(mail);
+    }
+  }
+
+  class HeldPhotoStore extends FakePhotoStore {
+    holding = false;
+    release: () => void = () => undefined;
+
+    put(key: string, body: Buffer): Promise<void> {
+      this.holding = true;
+      return new Promise((resolve) => {
+        this.release = () => {
+          this.release = () => undefined;
+          resolve(super.put(key, body));
+        };
+      });
+    }
+  }
+
+  async function matched() {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    const match = await prisma.match.create({
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
+    });
+    return { alice, bob, match };
+  }
+
+  it('finishes the match emails it has started, and turns new requests away meanwhile', async () => {
+    const { alice, bob } = await matched();
+    await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
+    const mailer = new HeldMailer();
+    const restarting = await startApp({ mailer });
+    let closing: Promise<void> | undefined;
+    try {
+      await restarting.listen(0, '127.0.0.1');
+      await vi.waitFor(() => expect(mailer.holding).toBe(2));
+      closing = restarting.close();
+      const refused = await fetch(`${await restarting.getUrl()}/health`);
+      expect([refused.status, refused.headers.get('connection')]).toEqual([503, 'close']);
+
+      mailer.open();
+      await closing;
+      const digests = mailer.sent.filter((mail) => mail.headers?.['List-Unsubscribe']);
+      expect(digests.map((mail) => mail.to).toSorted()).toEqual([alice.email, bob.email].toSorted());
+    } finally {
+      mailer.open();
+      await (closing ?? restarting.close());
+    }
+  });
+
+  it('ends open chat streams so the shutdown can finish', async () => {
+    const { alice, bob, match } = await matched();
+    for (const who of [alice, bob]) {
+      await http()
+        .post(`/matches/${match.id}/decision`)
+        .set('Authorization', `Bearer ${who.token}`)
+        .send({ like: true })
+        .expect(200);
+    }
+    const restarting = await startApp();
+    let closing: Promise<void> | undefined;
+    try {
+      await restarting.listen(0, '127.0.0.1');
+      const stream = await fetch(`${await restarting.getUrl()}/chats/${match.id}/stream`, {
+        headers: { Authorization: `Bearer ${alice.token}` },
+      });
+      expect(stream.status).toBe(200);
+      closing = restarting.close();
+      await closing;
+      await stream.text();
+    } finally {
+      await (closing ?? restarting.close());
+    }
+  });
+
+  it('lets a request already being served finish before the database closes', async () => {
+    const alice = await register();
+    const store = new HeldPhotoStore();
+    const photo = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#8a6' } })
+      .jpeg()
+      .toBuffer();
+    const restarting = await startApp({ store });
+    let closing: Promise<void> | undefined;
+    try {
+      const upload = request(restarting.getHttpServer())
+        .post('/me/photos')
+        .set('Authorization', `Bearer ${alice.token}`)
+        .attach('photo', photo, 'me.jpg')
+        .then((res) => res.status);
+      await vi.waitFor(() => expect(store.holding).toBe(true));
+      closing = restarting.close();
+      await vi.waitFor(() => expect(restarting.getHttpServer().listening).toBe(false));
+      store.release();
+      expect(await upload).toBe(201);
+    } finally {
+      store.release();
+      await (closing ?? restarting.close());
+    }
   });
 });
 

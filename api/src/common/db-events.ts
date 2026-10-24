@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import pg from 'pg';
-import { Observable, Subject, filter, map } from 'rxjs';
+import { Observable, Subject, endWith, filter, ignoreElements, map } from 'rxjs';
 
 export const CHAT_CHANNEL = 'chat_messages';
 export const MATCHES_CHANNEL = 'matches_ready';
@@ -53,6 +53,10 @@ export class DbEvents implements OnModuleInit, OnModuleDestroy {
 
   get reconnected(): Observable<void> {
     return this.connected.asObservable();
+  }
+
+  get stopped(): Observable<void> {
+    return this.events.pipe(ignoreElements(), endWith(undefined));
   }
 
   private async connect() {

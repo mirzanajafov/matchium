@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
-import { Observable, concatMap, defer, filter, finalize, interval, map, merge, takeWhile } from 'rxjs';
+import { Observable, concatMap, defer, filter, finalize, interval, map, merge, takeUntil, takeWhile } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
 import { photoSelect } from '../photos/photos.service.js';
 import { openStreams } from '../observability/metrics.js';
@@ -139,7 +139,10 @@ export class ChatsService {
       }),
     );
     const heartbeat = interval(HEARTBEAT_MS).pipe(map((): MessageEvent => ({ type: 'ping', data: '' })));
-    const stream = merge(messages, heartbeat).pipe(takeWhile((event) => event.type !== 'closed', true));
+    const stream = merge(messages, heartbeat).pipe(
+      takeUntil(this.events.stopped),
+      takeWhile((event) => event.type !== 'closed', true),
+    );
     return defer(() => {
       openStreams.inc();
       return stream.pipe(finalize(() => openStreams.dec()));

@@ -14,6 +14,7 @@ interface MatchesReady {
 export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(MatchNotifier.name);
   private subscription?: Subscription;
+  private delivering = Promise.resolve(0);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -30,12 +31,18 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
       this.events.reconnected.pipe(map(today)),
       this.events.on<MatchesReady>(MATCHES_CHANNEL).pipe(map((event) => event.day)),
     )
-      .pipe(concatMap((day) => this.deliver(day).catch((error: Error) => this.fail(day, error))))
+      .pipe(
+        concatMap((day) => {
+          this.delivering = this.deliver(day).catch((error: Error) => this.fail(day, error));
+          return this.delivering;
+        }),
+      )
       .subscribe();
   }
 
-  onModuleDestroy() {
+  async onModuleDestroy() {
     this.subscription?.unsubscribe();
+    await this.delivering;
   }
 
   async deliver(day: string): Promise<number> {
@@ -51,17 +58,23 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
       GROUP BY person`;
 
     await Promise.all(
-      claimed.map(async ({ userId, count }) => {
-        const pushed = await this.push.notify(userId, {
-          title: 'Your matches are here',
-          body: count === 1 ? 'You have a new match today.' : `You have ${count} new matches today.`,
-          url: '/today',
-          tag: 'matches',
-        });
-        if (pushed === 0) await this.digest.send(userId, count);
-      }),
+      claimed.map(({ userId, count }) =>
+        this.notify(userId, count).catch((error: Error) =>
+          this.log.warn(`Could not tell ${userId} about the ${day} matches: ${error.message}`),
+        ),
+      ),
     );
     return claimed.length;
+  }
+
+  private async notify(userId: string, count: number) {
+    const pushed = await this.push.notify(userId, {
+      title: 'Your matches are here',
+      body: count === 1 ? 'You have a new match today.' : `You have ${count} new matches today.`,
+      url: '/today',
+      tag: 'matches',
+    });
+    if (pushed === 0) await this.digest.send(userId, count);
   }
 
   private fail(day: string, error: Error): number {
