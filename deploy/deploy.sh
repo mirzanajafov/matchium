@@ -10,6 +10,7 @@ force=false
 say() { printf '\n== %s\n' "$1"; }
 
 healthy() {
+  say "Waiting for the API and web app"
   for _ in $(seq 1 60); do
     api=$(docker inspect -f '{{.State.Health.Status}}' matchium-api 2>/dev/null || true)
     if [ "$api" = healthy ] && "${compose[@]}" exec -T web node -e \
@@ -22,8 +23,7 @@ healthy() {
 }
 
 release() {
-  "${compose[@]}" build
-  "${compose[@]}" up -d --remove-orphans
+  "${compose[@]}" build && "${compose[@]}" up -d --remove-orphans
 }
 
 previous=$(git rev-parse HEAD)
@@ -40,21 +40,17 @@ say "Backing up before the deploy"
 
 say "Deploying $(git log --oneline -1 "$target")"
 git merge --ff-only --quiet "$target"
-release
-
-say "Waiting for the API and web app"
-if healthy; then
+if release && healthy; then
   docker image prune -f --filter "label=com.docker.compose.project=matchium" > /dev/null
   say "Live: $(git log --oneline -1)"
   exit 0
 fi
 
-say "Not healthy, rolling back to $(git log --oneline -1 "$previous")"
+say "Failed or not healthy, rolling back to $(git log --oneline -1 "$previous")"
 git reset --hard --quiet "$previous"
-release
-if healthy; then
-  echo "Rolled back. Database migrations from the failed release stay applied;"
-  echo "the dump taken above is in backups/db if the schema change has to be undone."
+if release && healthy; then
+  echo "Rolled back. Database migrations from the failed release stay applied."
+  echo "The dump taken above is in backups/db if the schema change has to be undone."
 else
   echo "Rollback is not healthy either. Check: ${compose[*]} logs api web" >&2
 fi

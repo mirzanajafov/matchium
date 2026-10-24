@@ -12,7 +12,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "matchium"]
+      test: ["CMD", "pg_isready", "-h", "localhost", "-U", "matchium"]
       interval: 5s
       retries: 10
 
