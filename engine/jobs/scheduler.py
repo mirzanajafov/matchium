@@ -58,9 +58,9 @@ def serve(
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the nightly matching job every day at a fixed UTC time.")
-    parser.add_argument("--at", type=dt.time.fromisoformat, default=os.environ.get("MATCH_AT", "03:00"))
-    parser.add_argument("--per-user", type=int, default=os.environ.get("MATCHES_PER_USER", "3"))
-    parser.add_argument("--min-answers", type=int, default=os.environ.get("MIN_ANSWERS", "6"))
+    parser.add_argument("--at", type=dt.time.fromisoformat, default=os.environ.get("MATCH_AT") or "03:00")
+    parser.add_argument("--per-user", type=int, default=os.environ.get("MATCHES_PER_USER") or "3")
+    parser.add_argument("--min-answers", type=int, default=os.environ.get("MIN_ANSWERS") or "6")
     parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
     args = parser.parse_args(argv)
     if not args.database_url:

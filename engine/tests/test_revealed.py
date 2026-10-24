@@ -85,6 +85,7 @@ def test_no_decisions_is_a_no_op():
 
 
 def test_normal_cdf_takes_a_number_or_an_array_of_any_shape() -> None:
+    assert normal_cdf(0.0).shape == ()
     assert normal_cdf(0.0) == pytest.approx(0.5)
     assert normal_cdf(np.array(1.0)) == pytest.approx(0.5 * math.erfc(-1 / math.sqrt(2)))
     assert normal_cdf(np.array([[-1.0], [1.0]])).sum() == pytest.approx(1.0)

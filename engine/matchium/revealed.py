@@ -21,7 +21,7 @@ class Decisions:
 
 
 def normal_cdf(x: float | np.ndarray) -> np.ndarray:
-    return 0.5 * _erfc(-np.asarray(x, dtype=float) / math.sqrt(2))
+    return np.asarray(0.5 * _erfc(-np.asarray(x, dtype=float) / math.sqrt(2)))
 
 
 def pool_spread(scores: np.ndarray, eligible: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

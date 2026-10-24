@@ -31,6 +31,7 @@ class FakeTime:
 def test_settings_come_from_the_environment_unless_given(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MATCH_AT", "05:15")
     monkeypatch.setenv("MATCHES_PER_USER", "2")
+    monkeypatch.setenv("MIN_ANSWERS", "")
     args = parse_args(["--database-url", "postgresql://db"])
     assert (args.at, args.per_user, args.min_answers) == (dt.time(5, 15), 2, 6)
 
@@ -42,10 +43,14 @@ def test_an_option_beats_a_broken_environment_value(monkeypatch: pytest.MonkeyPa
     assert (args.at, args.per_user) == (dt.time(4, 30), 2)
 
 
-def test_a_broken_environment_value_is_a_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_broken_environment_value_is_a_usage_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setenv("MATCH_AT", "soon")
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as stopped:
         parse_args(["--database-url", "x"])
+    assert stopped.value.code == 2
+    assert "argument --at" in capsys.readouterr().err
 
 
 def test_next_run_is_today_before_the_hour_and_tomorrow_after():
