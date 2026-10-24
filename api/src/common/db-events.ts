@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import pg from 'pg';
 import { Observable, Subject, endWith, filter, ignoreElements, map } from 'rxjs';
 import type { Env } from '../config/env.js';
+import { isoDay } from './clock.js';
 import type { Prisma } from '../generated/prisma/client.js';
 
 export interface ChatMessageEvent {
@@ -38,8 +39,21 @@ interface Notification {
   payload: string;
 }
 
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function isIsoDay(value: string): boolean {
+  const time = Date.parse(value);
+  return !Number.isNaN(time) && isoDay(new Date(time)) === value;
 }
 
 function readChatEvent(value: unknown): ChatEvent | undefined {
@@ -48,12 +62,12 @@ function readChatEvent(value: unknown): ChatEvent | undefined {
   if (typeof matchId !== 'string') return undefined;
   if (closed === true) return { matchId, closed };
   if (typeof id !== 'string' || typeof senderId !== 'string' || typeof body !== 'string') return undefined;
-  if (typeof createdAt !== 'string') return undefined;
+  if (typeof createdAt !== 'string' || Number.isNaN(Date.parse(createdAt))) return undefined;
   return { id, matchId, senderId, body, createdAt };
 }
 
 function readMatchesReady(value: unknown): MatchesReadyEvent | undefined {
-  if (!isRecord(value) || typeof value.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value.day)) return undefined;
+  if (!isRecord(value) || typeof value.day !== 'string' || !isIsoDay(value.day)) return undefined;
   return { day: value.day };
 }
 
@@ -99,12 +113,7 @@ export class DbEvents implements OnModuleInit, OnModuleDestroy {
     return this.events.pipe(
       filter((notification) => notification.channel === channel),
       map((notification) => {
-        let event: Events[C] | undefined;
-        try {
-          event = read(JSON.parse(notification.payload));
-        } catch {
-          event = undefined;
-        }
+        const event = read(parseJson(notification.payload));
         if (!event) this.log.warn(`Ignoring malformed ${channel} notification`);
         return event;
       }),
