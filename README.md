@@ -86,7 +86,9 @@ The quickest way to see the whole thing is Docker alone:
 docker compose --profile app up -d --build   # web on http://localhost:3101, API on :3100
 ```
 
-That starts Postgres, the API (it migrates and seeds the question bank on start), the web app and the nightly scheduler. Push stays off unless you pass `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`.
+That starts Postgres, a one-off container that applies the migrations and seeds the question bank, then the API, the web app and the nightly scheduler. The API image itself only runs the app, so a restart doesn't touch the schema. Push stays off unless you pass `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`.
+
+One catch: MinIO took its images off Docker Hub, so the MinIO image is pinned by digest and only starts where it's already cached. On a fresh machine `docker compose up` stops there. Moving photos to another S3 server is next on my list.
 
 For development you need Docker, Node 24 and Python 3.11+.
 
