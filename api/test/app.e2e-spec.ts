@@ -1238,6 +1238,25 @@ describe('account security', () => {
     expect(statuses).toContain(410);
   });
 
+  it('refuses a reset link for an account banned while the new password was being hashed', async () => {
+    const alice = await register();
+    await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
+    const token = linkToken(
+      mails.sent.find((m) => m.subject === 'Reset your Matchium password')!.text,
+      '/reset-password',
+    );
+    let reset = Promise.resolve(0);
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: alice.id }, data: { bannedAt: new Date() } });
+      reset = http()
+        .post('/auth/password/reset')
+        .send({ token, password: 'a new password' })
+        .then((res) => res.status);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    expect(await reset).toBe(410);
+  });
+
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {
     mails.server = 'stalled';
     const alice = await register();
