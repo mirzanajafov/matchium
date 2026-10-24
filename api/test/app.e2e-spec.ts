@@ -10,7 +10,7 @@ import { RateLimiter } from '../src/limits/rate-limiter.js';
 import { type Mail, Mailer } from '../src/mail/mailer.js';
 import { PhotoStore } from '../src/photos/photo-store.js';
 import sharp from 'sharp';
-import { MatchNotifier } from '../src/push/match-notifier.js';
+import { MatchNotifier } from '../src/notifications/match-notifier.js';
 import { type Delivery, type PushMessage, PushSender, type PushTarget } from '../src/push/push-sender.js';
 
 class FakePushSender extends PushSender {

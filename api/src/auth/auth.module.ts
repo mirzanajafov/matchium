@@ -1,14 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import type { Env } from '../config/env.js';
-import { RateLimitGuard } from '../limits/rate-limit.guard.js';
+import { MailModule } from '../mail/mail.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { SessionController } from './session.controller.js';
 import { AuthSweeper } from './auth-sweeper.js';
-import { JwtAuthGuard } from './jwt-auth.guard.js';
 
 @Module({
   imports: [
@@ -20,13 +18,9 @@ import { JwtAuthGuard } from './jwt-auth.guard.js';
         signOptions: { expiresIn: '7d' },
       }),
     }),
+    MailModule,
   ],
   controllers: [AuthController, SessionController],
-  providers: [
-    AuthService,
-    AuthSweeper,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: RateLimitGuard },
-  ],
+  providers: [AuthService, AuthSweeper],
 })
 export class AuthModule {}
