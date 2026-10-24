@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
-import { configureApp } from '../src/app.setup.js';
+import { appOptions, configureApp } from '../src/app.setup.js';
 import { Clock } from '../src/common/clock.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { SessionSweeper } from '../src/auth/session-sweeper.js';
@@ -10,7 +10,6 @@ import { RateLimiter } from '../src/limits/rate-limiter.js';
 import { type Mail, Mailer } from '../src/mail/mailer.js';
 import { PhotoStore } from '../src/photos/photo-store.js';
 import sharp from 'sharp';
-import { setTimeout as sleep } from 'node:timers/promises';
 import { MatchNotifier } from '../src/push/match-notifier.js';
 import { type Delivery, type PushMessage, PushSender, type PushTarget } from '../src/push/push-sender.js';
 
@@ -71,13 +70,12 @@ class FakeMailer extends Mailer {
   readonly enabled = true;
   sent: Mail[] = [];
   delivered: Mail[] = [];
-  server: 'up' | 'slow' | 'stalled' | 'down' = 'up';
+  server: 'up' | 'stalled' | 'down' = 'up';
 
   async send(mail: Mail): Promise<void> {
     this.sent.push(mail);
     if (this.server === 'stalled') await new Promise(() => undefined);
     if (this.server === 'down') throw new Error('Connection refused');
-    if (this.server === 'slow') await sleep(100);
     this.delivered.push(mail);
   }
 }
@@ -104,7 +102,7 @@ async function register(overrides: Record<string, unknown> = {}) {
   return { token: res.body.accessToken as string, id: me.body.id as string, email: body.email };
 }
 
-async function startApp(mailer: Mailer, store: PhotoStore) {
+async function startApp({ mailer = mails, store = photos }: { mailer?: Mailer; store?: PhotoStore } = {}) {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(Clock)
     .useValue(clock)
@@ -115,7 +113,7 @@ async function startApp(mailer: Mailer, store: PhotoStore) {
     .overrideProvider(PhotoStore)
     .useValue(store)
     .compile();
-  const started = configureApp(moduleRef.createNestApplication());
+  const started = configureApp(moduleRef.createNestApplication(appOptions));
   await started.init();
   return started;
 }
@@ -125,7 +123,7 @@ beforeAll(async () => {
   pushes = new FakePushSender();
   mails = new FakeMailer();
   photos = new FakePhotoStore();
-  app = await startApp(mails, photos);
+  app = await startApp();
   prisma = app.get(PrismaService);
 });
 
@@ -1155,6 +1153,20 @@ describe('email digest', () => {
 });
 
 describe('shutdown', () => {
+  class HeldMailer extends FakeMailer {
+    holding = 0;
+    open: () => void = () => undefined;
+    private readonly opened = new Promise<void>((resolve) => {
+      this.open = resolve;
+    });
+
+    async send(mail: Mail): Promise<void> {
+      this.holding += 1;
+      await this.opened;
+      await super.send(mail);
+    }
+  }
+
   class HeldPhotoStore extends FakePhotoStore {
     holding = false;
     release: () => void = () => undefined;
@@ -1187,15 +1199,27 @@ describe('shutdown', () => {
     return { alice, bob, match };
   }
 
-  it('finishes the match emails it has started before the app stops', async () => {
+  it('finishes the match emails it has started, and turns new requests away meanwhile', async () => {
     const { alice, bob } = await matched();
     await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
-    mails.server = 'slow';
-    const restarting = await startApp(mails, photos);
-    await restarting.close();
+    const mailer = new HeldMailer();
+    const restarting = await startApp({ mailer });
+    let closing: Promise<void> | undefined;
+    try {
+      await restarting.listen(0, '127.0.0.1');
+      await vi.waitFor(() => expect(mailer.holding).toBe(2));
+      closing = restarting.close();
+      const refused = await fetch(`${await restarting.getUrl()}/health`);
+      expect([refused.status, refused.headers.get('connection')]).toEqual([503, 'close']);
 
-    const digests = mails.delivered.filter((mail) => mail.headers?.['List-Unsubscribe']);
-    expect(digests.map((mail) => mail.to).toSorted()).toEqual([alice.email, bob.email].toSorted());
+      mailer.open();
+      await closing;
+      const digests = mailer.delivered.filter((mail) => mail.headers?.['List-Unsubscribe']);
+      expect(digests.map((mail) => mail.to).toSorted()).toEqual([alice.email, bob.email].toSorted());
+    } finally {
+      mailer.open();
+      await (closing ?? restarting.close());
+    }
   });
 
   it('ends open chat streams so the shutdown can finish', async () => {
@@ -1207,7 +1231,7 @@ describe('shutdown', () => {
         .send({ like: true })
         .expect(200);
     }
-    const restarting = await startApp(mails, photos);
+    const restarting = await startApp();
     let closing: Promise<void> | undefined;
     try {
       await restarting.listen(0, '127.0.0.1');
@@ -1229,7 +1253,7 @@ describe('shutdown', () => {
     const photo = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#8a6' } })
       .jpeg()
       .toBuffer();
-    const restarting = await startApp(mails, store);
+    const restarting = await startApp({ store });
     let closing: Promise<void> | undefined;
     try {
       const upload = request(restarting.getHttpServer())

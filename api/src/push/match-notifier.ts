@@ -57,21 +57,24 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
       FROM claimed, unnest(ARRAY["userAId", "userBId"]) AS person
       GROUP BY person`;
 
-    const sent = await Promise.allSettled(
-      claimed.map(async ({ userId, count }) => {
-        const pushed = await this.push.notify(userId, {
-          title: 'Your matches are here',
-          body: count === 1 ? 'You have a new match today.' : `You have ${count} new matches today.`,
-          url: '/today',
-          tag: 'matches',
-        });
-        if (pushed === 0) await this.digest.send(userId, count);
-      }),
+    await Promise.all(
+      claimed.map(({ userId, count }) =>
+        this.notify(userId, count).catch((error: Error) =>
+          this.log.warn(`Could not tell ${userId} about the ${day} matches: ${error.message}`),
+        ),
+      ),
     );
-    for (const result of sent) {
-      if (result.status === 'rejected') this.log.warn(`A ${day} match notification failed: ${String(result.reason)}`);
-    }
     return claimed.length;
+  }
+
+  private async notify(userId: string, count: number) {
+    const pushed = await this.push.notify(userId, {
+      title: 'Your matches are here',
+      body: count === 1 ? 'You have a new match today.' : `You have ${count} new matches today.`,
+      url: '/today',
+      tag: 'matches',
+    });
+    if (pushed === 0) await this.digest.send(userId, count);
   }
 
   private fail(day: string, error: Error): number {
