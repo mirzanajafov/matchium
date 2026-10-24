@@ -134,13 +134,14 @@ export class AuthService implements OnModuleInit {
     }
     const now = this.clock.now();
     const passwordHash = await argon2.hash(password);
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: user.id },
+    await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.user.updateMany({
+        where: { id: user.id, passwordHash: user.passwordHash },
         data: { passwordHash, emailVerifiedAt: user.emailVerifiedAt ?? now },
-      }),
-      this.prisma.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } }),
-    ]);
+      });
+      if (changed.count === 0) throw new GoneException(INVALID_LINK);
+      await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: now } });
+    });
   }
 
   private sendVerification(user: { id: string; email: string; displayName: string }) {

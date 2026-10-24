@@ -1,8 +1,8 @@
-import { IsEmail, IsString, Length, MaxLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
 
 export class TokenDto {
   @IsString()
-  @MaxLength(2000)
+  @IsNotEmpty()
   token: string;
 }
 

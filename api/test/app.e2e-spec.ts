@@ -1136,6 +1136,7 @@ describe('email digest', () => {
 
     await http().get('/me').set(as(token)).expect(401);
     await http().post('/email/unsubscribe').expect(400);
+    await http().post('/email/unsubscribe').query({ token: '' }).expect(400);
     await http().post('/email/unsubscribe').query({ token: 'nonsense' }).expect(410);
     await http().post('/email/unsubscribe').query({ token: alice.token }).expect(410);
     await http().post('/email/unsubscribe').query({ token }).expect(200);
@@ -1221,6 +1222,20 @@ describe('account security', () => {
     await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(401);
     const fresh = await http().post('/auth/login').send({ email: alice.email, password: 'a new password' }).expect(200);
     expect((await http().get('/me').set(as(fresh.body.accessToken)).expect(200)).body.emailVerified).toBe(true);
+  });
+
+  it('uses a reset link once, even when it is sent twice at the same moment', async () => {
+    const alice = await register();
+    await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
+    const token = linkToken(
+      mails.sent.find((m) => m.subject === 'Reset your Matchium password')!.text,
+      '/reset-password',
+    );
+    const reset = async () =>
+      (await http().post('/auth/password/reset').send({ token, password: 'a new password' })).status;
+    const statuses = await Promise.all([reset(), reset()]);
+    expect(statuses).toContain(204);
+    expect(statuses).toContain(410);
   });
 
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {
