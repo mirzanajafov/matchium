@@ -1,14 +1,10 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Subscription, concatMap, from, map, merge } from 'rxjs';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
-import { DbEvents, MATCHES_CHANNEL } from '../common/db-events.js';
+import { DbEvents } from '../common/db-events.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import { DigestService } from './digest.service.js';
-
-interface MatchesReady {
-  day: string;
-}
 
 @Injectable()
 export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
@@ -29,7 +25,7 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
     this.subscription = merge(
       from([today()]),
       this.events.reconnected.pipe(map(today)),
-      this.events.on<MatchesReady>(MATCHES_CHANNEL).pipe(map((event) => event.day)),
+      this.events.on('matches_ready').pipe(map((event) => event.day)),
     )
       .pipe(
         concatMap((day) => {
@@ -46,7 +42,6 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
   }
 
   async deliver(day: string): Promise<number> {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return 0;
     const claimed = await this.prisma.$queryRaw<{ userId: string; count: number }[]>`
       WITH claimed AS (
         UPDATE "Match" SET "notifiedAt" = now()

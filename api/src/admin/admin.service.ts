@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { revokeSessions } from '../auth/sessions.js';
 import { Clock, isoDay } from '../common/clock.js';
-import { CHAT_CHANNEL } from '../common/db-events.js';
+import { type ChatClosedEvent, publish } from '../common/db-events.js';
 import { involving } from '../matches/participants.js';
 import type { ReportOutcome } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -104,9 +104,7 @@ export class AdminService {
         where: { id: { in: open.map((m) => m.id) } },
         data: { closedAt: now, closedById: adminId },
       });
-      for (const { id } of open) {
-        await tx.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify({ matchId: id, closed: true })})`;
-      }
+      await publish(tx, 'chat_messages', ...open.map(({ id }): ChatClosedEvent => ({ matchId: id, closed: true })));
       return open;
     });
     return { outcome, closedMatches: closedMatches.length };
