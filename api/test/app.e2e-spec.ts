@@ -1210,7 +1210,7 @@ describe('shutdown', () => {
     const restarting = await startApp(mails, photos);
     let closing: Promise<void> | undefined;
     try {
-      await restarting.listen(0);
+      await restarting.listen(0, '127.0.0.1');
       const stream = await fetch(`${await restarting.getUrl()}/chats/${match.id}/stream`, {
         headers: { Authorization: `Bearer ${alice.token}` },
       });

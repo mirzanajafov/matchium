@@ -57,7 +57,7 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
       FROM claimed, unnest(ARRAY["userAId", "userBId"]) AS person
       GROUP BY person`;
 
-    await Promise.all(
+    const sent = await Promise.allSettled(
       claimed.map(async ({ userId, count }) => {
         const pushed = await this.push.notify(userId, {
           title: 'Your matches are here',
@@ -68,6 +68,9 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
         if (pushed === 0) await this.digest.send(userId, count);
       }),
     );
+    for (const result of sent) {
+      if (result.status === 'rejected') this.log.warn(`A ${day} match notification failed: ${String(result.reason)}`);
+    }
     return claimed.length;
   }
 
