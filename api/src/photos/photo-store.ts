@@ -68,9 +68,7 @@ export class S3PhotoStore extends PhotoStore implements OnModuleInit {
       new DeleteObjectsCommand({ Bucket: this.bucket, Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true } }),
     );
     if (Errors?.length) {
-      throw new Error(
-        `Storage refused ${Errors.map(({ Key, Code }) => `${String(Key)} (${String(Code)})`).join(', ')}`,
-      );
+      throw new Error(`Storage refused ${Errors.map(({ Key = '?', Code = '?' }) => `${Key} (${Code})`).join(', ')}`);
     }
   }
 
