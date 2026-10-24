@@ -1,10 +1,11 @@
 import numpy as np
+from numpy.typing import NDArray
 
 from .model import Beliefs, observation_var, posterior_var
 from .questions import Question
 
 
-def _variance_drop(var: np.ndarray, obs_var: np.ndarray) -> np.ndarray:
+def _variance_drop(var: NDArray[np.float64], obs_var: NDArray[np.float64]) -> NDArray[np.float64]:
     return var - posterior_var(var, obs_var)
 
 
@@ -40,9 +41,7 @@ def adaptive(
     return picks
 
 
-def random_order(
-    beliefs: Beliefs, bank: list[Question], users: np.ndarray, n: int, rng: np.random.Generator
-) -> np.ndarray:
+def random_order(beliefs: Beliefs, users: np.ndarray, n: int, rng: np.random.Generator) -> np.ndarray:
     picks = np.full((len(users), n), -1)
     for i, u in enumerate(users):
         open_questions = np.flatnonzero(~beliefs.answered[u])

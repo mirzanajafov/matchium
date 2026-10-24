@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import psycopg
+from psycopg.rows import class_row
 
 from matchium import DIMENSIONS, Beliefs
 from matchium.allocation import MIN_MUTUAL_SCORE, greedy_b_matching
@@ -18,6 +19,24 @@ GENDERS = ("WOMAN", "MAN", "NONBINARY")
 LOCK_KEY = "matchium-nightly"
 MATCHES_CHANNEL = "matches_ready"
 log = logging.getLogger("matchium.nightly")
+
+
+@dataclass(frozen=True)
+class User:
+    id: str
+    gender: str
+    seeking: list[str]
+    city: str
+    mu_self: list[float]
+    var_self: list[float]
+    mu_pref: list[float]
+    var_pref: list[float]
+    log_w_sum: list[float]
+    log_w_count: list[float]
+    mu_gap: list[float]
+    var_gap: list[float]
+    mu_bar: float | None
+    var_bar: float | None
 
 
 @dataclass
@@ -38,37 +57,37 @@ class PlannedMatch:
     friction: str
 
 
-def city_key(user: dict) -> str:
-    return user["city"].strip().lower()
+def city_key(user: User) -> str:
+    return user.city.strip().lower()
 
 
-def by_city(users: list[dict]) -> list[list[dict]]:
-    groups: dict[str, list[dict]] = {}
+def by_city(users: list[User]) -> list[list[User]]:
+    groups: dict[str, list[User]] = {}
     for user in users:
         groups.setdefault(city_key(user), []).append(user)
     return [groups[key] for key in sorted(groups)]
 
 
-def build_pool(users: list[dict], history: list[tuple[str, str]]) -> Pool:
+def build_pool(users: list[User], history: list[tuple[str, str]]) -> Pool:
     n = len(users)
-    ids = [u["id"] for u in users]
+    ids = [u.id for u in users]
     beliefs = Beliefs(n, len(DIMENSIONS), 0)
     for i, u in enumerate(users):
-        beliefs.mu_self[i] = u["muSelf"]
-        beliefs.var_self[i] = u["varSelf"]
-        beliefs.mu_pref[i] = u["muPref"]
-        beliefs.var_pref[i] = u["varPref"]
-        beliefs.log_w_sum[i] = u["logWSum"]
-        beliefs.log_w_count[i] = u["logWCount"]
-        if u.get("muGap"):
-            beliefs.mu_gap[i] = u["muGap"]
-            beliefs.var_gap[i] = u["varGap"]
-        if u.get("muBar") is not None:
-            beliefs.mu_bar[i] = u["muBar"]
-            beliefs.var_bar[i] = u["varBar"]
+        beliefs.mu_self[i] = u.mu_self
+        beliefs.var_self[i] = u.var_self
+        beliefs.mu_pref[i] = u.mu_pref
+        beliefs.var_pref[i] = u.var_pref
+        beliefs.log_w_sum[i] = u.log_w_sum
+        beliefs.log_w_count[i] = u.log_w_count
+        if u.mu_gap:
+            beliefs.mu_gap[i] = u.mu_gap
+            beliefs.var_gap[i] = u.var_gap
+        if u.mu_bar is not None and u.var_bar is not None:
+            beliefs.mu_bar[i] = u.mu_bar
+            beliefs.var_bar[i] = u.var_bar
 
-    gender = np.array([GENDERS.index(u["gender"]) for u in users], dtype=int)
-    seeks = np.array([[g in u["seeking"] for g in GENDERS] for u in users], dtype=bool).reshape(n, len(GENDERS))
+    gender = np.array([GENDERS.index(u.gender) for u in users], dtype=int)
+    seeks = np.array([[g in u.seeking for g in GENDERS] for u in users], dtype=bool).reshape(n, len(GENDERS))
     city = np.array([city_key(u) for u in users])
     eligible = seeks[:, gender] & seeks[:, gender].T & (city[:, None] == city[None, :])
     np.fill_diagonal(eligible, False)
@@ -86,7 +105,7 @@ def learn_decisions(pool: Pool, decisions: list[tuple[str, str, bool]]) -> np.nd
     known = [(index[a], index[b], liked) for a, b, liked in decisions if a in index and b in index]
     if not known:
         return np.array([], dtype=int)
-    chooser, target, liked = (np.array(column) for column in zip(*known))
+    chooser, target, liked = (np.array(column) for column in zip(*known, strict=True))
     directed = directed_scores(pool.beliefs)
     learn(pool.beliefs, Decisions(chooser, target, liked.astype(bool)), *pool_spread(directed.mean, pool.eligible))
     return np.unique(chooser)
@@ -110,35 +129,20 @@ def plan(pool: Pool, per_user: int) -> list[PlannedMatch]:
     return planned
 
 
-def load_users(conn: psycopg.Connection, min_answers: int) -> list[dict]:
-    rows = conn.execute(
-        """
-        SELECT u.id::text, u.gender::text, u.seeking::text[], u.city,
-               b."muSelf", b."varSelf", b."muPref", b."varPref", b."logWSum", b."logWCount",
-               b."muGap", b."varGap", b."muBar", b."varBar"
-        FROM "User" u JOIN "Belief" b ON b."userId" = u.id
-        WHERE b."answerCount" >= %s AND u."bannedAt" IS NULL
-        ORDER BY u.id
-        """,
-        (min_answers,),
-    ).fetchall()
-    keys = (
-        "id",
-        "gender",
-        "seeking",
-        "city",
-        "muSelf",
-        "varSelf",
-        "muPref",
-        "varPref",
-        "logWSum",
-        "logWCount",
-        "muGap",
-        "varGap",
-        "muBar",
-        "varBar",
-    )
-    return [dict(zip(keys, row)) for row in rows]
+def load_users(conn: psycopg.Connection, min_answers: int) -> list[User]:
+    with conn.cursor(row_factory=class_row(User)) as cur:
+        return cur.execute(
+            """
+            SELECT u.id::text, u.gender::text, u.seeking::text[], u.city,
+                   b."muSelf" AS mu_self, b."varSelf" AS var_self, b."muPref" AS mu_pref, b."varPref" AS var_pref,
+                   b."logWSum" AS log_w_sum, b."logWCount" AS log_w_count,
+                   b."muGap" AS mu_gap, b."varGap" AS var_gap, b."muBar" AS mu_bar, b."varBar" AS var_bar
+            FROM "User" u JOIN "Belief" b ON b."userId" = u.id
+            WHERE b."answerCount" >= %s AND u."bannedAt" IS NULL
+            ORDER BY u.id
+            """,
+            (min_answers,),
+        ).fetchall()
 
 
 def apply_decisions(conn: psycopg.Connection, pools: list[Pool]) -> int:
@@ -211,7 +215,7 @@ def run(conn: psycopg.Connection, day: dt.date, per_user: int, min_answers: int)
         return len(planned)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Score every eligible pair and write the day's matches.")
     parser.add_argument("--date", type=dt.date.fromisoformat, default=dt.datetime.now(dt.UTC).date())
     parser.add_argument("--per-user", type=int, default=3)

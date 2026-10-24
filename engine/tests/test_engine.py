@@ -11,7 +11,7 @@ from matchium.selection import adaptive, random_order
 from sim.population import answer, attraction, generate
 
 
-def random_beliefs(rng, n=12, d=len(DIMENSIONS)):
+def random_beliefs(rng: np.random.Generator, n: int = 12, d: int = len(DIMENSIONS)) -> Beliefs:
     b = Beliefs(n, d, len(load_bank()))
     b.mu_self = rng.standard_normal((n, d))
     b.mu_pref = rng.standard_normal((n, d))
@@ -23,14 +23,14 @@ def random_beliefs(rng, n=12, d=len(DIMENSIONS)):
     return b
 
 
-def test_bank_shape():
+def test_bank_shape() -> None:
     bank = load_bank()
     assert len(bank) == 96
     assert len({q.id for q in bank}) == 96
-    assert Counter(q.dimension for q in bank) == {k: 12 for k in range(len(DIMENSIONS))}
+    assert Counter(q.dimension for q in bank) == dict.fromkeys(range(len(DIMENSIONS)), 12)
 
 
-def test_observe_moves_mean_and_shrinks_variance():
+def test_observe_moves_mean_and_shrinks_variance() -> None:
     bank = load_bank()
     q = next(q for q in bank if not q.reverse)
     b = Beliefs(2, len(DIMENSIONS), len(bank))
@@ -43,7 +43,7 @@ def test_observe_moves_mean_and_shrinks_variance():
     assert b.answered[0, 0] and not b.answered[1, 0]
 
 
-def test_reverse_question_flips_sign():
+def test_reverse_question_flips_sign() -> None:
     bank = load_bank()
     q = next(q for q in bank if q.reverse)
     b = Beliefs(1, len(DIMENSIONS), len(bank))
@@ -51,7 +51,7 @@ def test_reverse_question_flips_sign():
     assert b.mu_self[0, q.dimension] < 0
 
 
-def test_directed_scores_match_brute_force():
+def test_directed_scores_match_brute_force() -> None:
     rng = np.random.default_rng(0)
     b = random_beliefs(rng)
     s = directed_scores(b)
@@ -64,12 +64,12 @@ def test_directed_scores_match_brute_force():
             std = np.sqrt((w[u] ** 2 * (4 * diff**2 * s2 + 2 * s2**2)).sum()) / d
             assert s.mean[u, v] == pytest.approx(mean)
             assert s.std[u, v] == pytest.approx(std)
-    u, v = np.meshgrid(np.arange(b.n_users), np.arange(b.n_users), indexing="ij")
-    mean, std = pair_scores(b, u.ravel(), v.ravel())
+    us, vs = np.meshgrid(np.arange(b.n_users), np.arange(b.n_users), indexing="ij")
+    mean, std = pair_scores(b, us.ravel(), vs.ravel())
     assert np.allclose(mean, s.mean.ravel()) and np.allclose(std, s.std.ravel())
 
 
-def test_mutual_scores_symmetric_and_masked():
+def test_mutual_scores_symmetric_and_masked() -> None:
     rng = np.random.default_rng(1)
     n = 10
     eligible = rng.random((n, n)) < 0.6
@@ -81,7 +81,7 @@ def test_mutual_scores_symmetric_and_masked():
     assert np.all((m[eligible] > 0) & (m[eligible] < 1))
 
 
-def test_confidence_rises_with_answers():
+def test_confidence_rises_with_answers() -> None:
     rng = np.random.default_rng(2)
     bank = load_bank()
     pop = generate(60, len(DIMENSIONS), rng)
@@ -94,7 +94,7 @@ def test_confidence_rises_with_answers():
     assert after > before
 
 
-def test_adaptive_picks_distinct_unanswered_questions():
+def test_adaptive_picks_distinct_unanswered_questions() -> None:
     rng = np.random.default_rng(3)
     bank = load_bank()
     b = random_beliefs(rng, n=5)
@@ -105,24 +105,24 @@ def test_adaptive_picks_distinct_unanswered_questions():
         assert np.all(row >= 10)
 
 
-def test_adaptive_spreads_a_day_across_dimensions():
+def test_adaptive_spreads_a_day_across_dimensions() -> None:
     bank = load_bank()
     b = Beliefs(1, len(DIMENSIONS), len(bank))
     picks = adaptive(b, bank, np.array([0]), len(DIMENSIONS))
     assert len({bank[i].dimension for i in picks[0]}) == len(DIMENSIONS)
 
 
-def test_policies_stop_when_bank_is_exhausted():
+def test_policies_stop_when_bank_is_exhausted() -> None:
     rng = np.random.default_rng(4)
     bank = load_bank()
     b = Beliefs(2, len(DIMENSIONS), len(bank))
     b.answered[:, :-2] = True
-    for picks in (adaptive(b, bank, np.arange(2), 5), random_order(b, bank, np.arange(2), 5, rng)):
+    for picks in (adaptive(b, bank, np.arange(2), 5), random_order(b, np.arange(2), 5, rng)):
         assert np.all(np.sort(picks, axis=1)[:, -2:] == [len(bank) - 2, len(bank) - 1])
         assert np.all(np.sort(picks, axis=1)[:, :3] == -1)
 
 
-def test_greedy_b_matching_respects_capacity_and_history():
+def test_greedy_b_matching_respects_capacity_and_history() -> None:
     rng = np.random.default_rng(5)
     n, k = 30, 2
     eligible = np.ones((n, n), dtype=bool)
@@ -138,7 +138,7 @@ def test_greedy_b_matching_respects_capacity_and_history():
     assert np.all(eligible[pairs[:, 0], pairs[:, 1]])
 
 
-def test_naive_top_k_concentrates_exposure():
+def test_naive_top_k_concentrates_exposure() -> None:
     n = 20
     eligible = np.ones((n, n), dtype=bool)
     np.fill_diagonal(eligible, False)
@@ -150,7 +150,7 @@ def test_naive_top_k_concentrates_exposure():
     assert np.bincount(greedy.ravel(), minlength=n).max() <= 3
 
 
-def test_explain_names_real_dimensions():
+def test_explain_names_real_dimensions() -> None:
     rng = np.random.default_rng(6)
     b = random_beliefs(rng, n=3)
     why = explain(b, 0, 1)
@@ -158,7 +158,7 @@ def test_explain_names_real_dimensions():
     assert why["friction"] in DIMENSIONS
 
 
-def test_new_users_have_zero_confidence():
+def test_new_users_have_zero_confidence() -> None:
     n = 4
     b = Beliefs(n, len(DIMENSIONS), len(load_bank()))
     eligible = ~np.eye(n, dtype=bool)
@@ -166,7 +166,7 @@ def test_new_users_have_zero_confidence():
     assert np.allclose(conf[eligible], 0.0)
 
 
-def test_learning_beats_random_on_synthetic_population():
+def test_learning_beats_random_on_synthetic_population() -> None:
     rng = np.random.default_rng(7)
     bank = load_bank()
     pop = generate(200, len(DIMENSIONS), rng)

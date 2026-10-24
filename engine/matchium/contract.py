@@ -1,6 +1,7 @@
 import argparse
 import json
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
 import numpy as np
 
@@ -11,7 +12,27 @@ from .selection import adaptive
 CONTRACT_DIR = Path(__file__).resolve().parents[2] / "contract"
 
 
-def questions_payload() -> dict:
+class ScenarioStep(TypedDict):
+    questionId: str
+    self: int
+    partner: int
+    importance: int
+    after: dict[str, list[float]]
+    nextPicks: NotRequired[list[str]]
+
+
+class Scenario(TypedDict):
+    populationWeights: list[float]
+    initialPicks: list[str]
+    steps: list[ScenarioStep]
+
+
+class EngineVectors(TypedDict):
+    picksPerDay: int
+    scenarios: list[Scenario]
+
+
+def questions_payload() -> dict[str, object]:
     return {
         "dimensions": list(DIMENSIONS),
         "questions": [
@@ -21,7 +42,7 @@ def questions_payload() -> dict:
     }
 
 
-def _state(beliefs: Beliefs) -> dict:
+def _state(beliefs: Beliefs) -> dict[str, list[float]]:
     return {
         "muSelf": beliefs.mu_self[0].tolist(),
         "varSelf": beliefs.var_self[0].tolist(),
@@ -32,20 +53,22 @@ def _state(beliefs: Beliefs) -> dict:
     }
 
 
-def vectors_payload(seed: int = 11, n_scenarios: int = 5, answers_per_scenario: int = 20, picks: int = 6) -> dict:
+def vectors_payload(
+    seed: int = 11, n_scenarios: int = 5, answers_per_scenario: int = 20, picks: int = 6
+) -> EngineVectors:
     rng = np.random.default_rng(seed)
     bank = load_bank()
     ids = [q.id for q in bank]
-    scenarios = []
+    scenarios: list[Scenario] = []
     for _ in range(n_scenarios):
         beliefs = Beliefs(1, len(DIMENSIONS), len(bank))
         population_weights = 2.0 ** rng.normal(0, 0.5, len(DIMENSIONS))
-        steps = []
+        steps: list[ScenarioStep] = []
         order = rng.permutation(len(bank))[:answers_per_scenario]
         for step, q_index in enumerate(order):
             answers = rng.integers(1, 6, size=3)
             beliefs.observe(np.array([0]), int(q_index), bank[q_index], answers[:1], answers[1:2], answers[2:3])
-            entry = {
+            entry: ScenarioStep = {
                 "questionId": ids[q_index],
                 "self": int(answers[0]),
                 "partner": int(answers[1]),
@@ -75,7 +98,7 @@ def write(directory: Path = CONTRACT_DIR) -> None:
     (directory / "engine-vectors.json").write_text(json.dumps(vectors_payload(), indent=2) + "\n")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Write the question bank and engine test vectors shared with the API.")
     parser.add_argument("--out", type=Path, default=CONTRACT_DIR)
     write(parser.parse_args().out)

@@ -20,7 +20,7 @@ def precision_at_k(pred: np.ndarray, truth: np.ndarray, eligible: np.ndarray, k:
     for u in range(len(pred)):
         pool = np.flatnonzero(eligible[u])
         n_best = max(1, int(round(top * len(pool))))
-        if len(pool) < k or n_best < 1:
+        if len(pool) < k:
             continue
         best = set(pool[np.argsort(-truth[u, pool])[:n_best]])
         picked = pool[np.argsort(-pred[u, pool])[:k]]

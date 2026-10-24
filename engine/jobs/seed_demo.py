@@ -26,7 +26,9 @@ WOMEN = [
 MEN = ["Murad", "Elvin", "Tural", "Rashad", "Orkhan", "Kamran", "Farid", "Ilkin", "Samir", "Emil", "Nijat", "Ramil"]
 
 
-def call(base: str, path: str, body: dict | None = None, token: str | None = None, client: str | None = None) -> dict:
+def call(
+    base: str, path: str, body: dict[str, object] | None = None, token: str | None = None, client: str | None = None
+) -> object:
     headers = {"content-type": "application/json"}
     if token:
         headers["authorization"] = f"Bearer {token}"
@@ -42,20 +44,32 @@ def call(base: str, path: str, body: dict | None = None, token: str | None = Non
         return json.loads(response.read())
 
 
-def sign_in(base: str, profile: dict, client: str | None) -> str:
+def sign_in(base: str, profile: dict[str, object], client: str | None) -> str:
     try:
         session = call(base, "/auth/register", profile, client=client)
     except urllib.error.HTTPError as error:
         if error.code != 409:
             raise
         credentials = {"email": profile["email"], "password": profile["password"]}
-        return call(base, "/auth/login", credentials, client=client)["accessToken"]
-    if "accessToken" not in session:
-        raise SystemExit("This API wants new accounts to confirm their email first. Seed an API with SMTP_URL empty.")
-    return session["accessToken"]
+        session = call(base, "/auth/login", credentials, client=client)
+    match session:
+        case {"accessToken": str(token)}:
+            return token
+        case _:
+            raise SystemExit(
+                "This API wants new accounts to confirm their email first. Seed an API with SMTP_URL empty."
+            )
 
 
-def main():
+def unanswered(today: object) -> list[str]:
+    match today:
+        case {"questions": list(questions)}:
+            return [question["id"] for question in questions if not question["answered"]]
+        case _:
+            raise SystemExit("The API sent today's questions in a shape this script doesn't know.")
+
+
+def main() -> None:
     parser = argparse.ArgumentParser(description="Create synthetic users through the API and answer today's questions.")
     parser.add_argument("--api", default="http://localhost:3100")
     parser.add_argument("--users", type=int, default=40)
@@ -88,14 +102,11 @@ def main():
         }
         client = f"198.18.{i // 250}.{i % 250 + 1}" if args.own_addresses else None
         token = sign_in(args.api, profile, client)
-        today = call(args.api, "/questions/today", token=token)
-        for question in today["questions"]:
-            if question["answered"]:
-                continue
-            self_answer, pref_answer, importance = answer(pop, np.array([i]), bank[question["id"]], rng)
+        for question_id in unanswered(call(args.api, "/questions/today", token=token)):
+            self_answer, pref_answer, importance = answer(pop, np.array([i]), bank[question_id], rng)
             call(
                 args.api,
-                f"/questions/{question['id']}/answer",
+                f"/questions/{question_id}/answer",
                 {"self": int(self_answer[0]), "partner": int(pref_answer[0]), "importance": int(importance[0])},
                 token,
             )

@@ -2,6 +2,7 @@ import warnings
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 
 from matchium.model import IMPORTANCE_SLOPE
 from matchium.questions import Question
@@ -12,13 +13,13 @@ IMPORTANCE_ANSWER_NOISE = 0.5
 
 @dataclass
 class Population:
-    traits: np.ndarray
-    prefs: np.ndarray
-    stated_prefs: np.ndarray
-    weights: np.ndarray
-    chemistry: np.ndarray
-    gender: np.ndarray
-    eligible: np.ndarray
+    traits: NDArray[np.float64]
+    prefs: NDArray[np.float64]
+    stated_prefs: NDArray[np.float64]
+    weights: NDArray[np.float64]
+    chemistry: NDArray[np.float64]
+    gender: NDArray[np.int64]
+    eligible: NDArray[np.bool_]
 
     @property
     def n_users(self) -> int:
@@ -59,13 +60,13 @@ def generate(
     return Population(traits, prefs, stated, weights, chemistry, gender, eligible)
 
 
-def predictable_attraction(pop: Population) -> np.ndarray:
+def predictable_attraction(pop: Population) -> NDArray[np.float64]:
     w, p, t = pop.weights, pop.prefs, pop.traits
     squared = (w * p**2).sum(1)[:, None] - 2 * (w * p) @ t.T + w @ (t**2).T
-    return -squared / w.shape[1]
+    return -squared / np.size(w, 1)
 
 
-def attraction(pop: Population) -> np.ndarray:
+def attraction(pop: Population) -> NDArray[np.float64]:
     return predictable_attraction(pop) + pop.chemistry
 
 

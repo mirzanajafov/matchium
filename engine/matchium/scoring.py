@@ -1,5 +1,6 @@
 import warnings
 from dataclasses import dataclass
+from typing import TypedDict
 
 import numpy as np
 
@@ -13,6 +14,12 @@ MUTUAL_SHARPNESS = 1.5
 class DirectedScores:
     mean: np.ndarray
     std: np.ndarray
+
+
+class Explanation(TypedDict):
+    aligned: list[str]
+    friction: str
+    per_dimension: dict[str, float]
 
 
 def directed_scores(beliefs: Beliefs) -> DirectedScores:
@@ -73,7 +80,7 @@ def confidence(directed: DirectedScores, weights: np.ndarray, eligible: np.ndarr
     return np.where(eligible, (removed + removed.T) / 2, 0.0)
 
 
-def explain(beliefs: Beliefs, u: int, v: int, top: int = 2) -> dict:
+def explain(beliefs: Beliefs, u: int, v: int, top: int = 2) -> Explanation:
     w = beliefs.weights
     cost_uv = w[u] * (beliefs.pref_mean[u] - beliefs.mu_self[v]) ** 2
     cost_vu = w[v] * (beliefs.pref_mean[v] - beliefs.mu_self[u]) ** 2

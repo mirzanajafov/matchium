@@ -1,7 +1,10 @@
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
+
+from sim.results import DecisionRow, Results
 
 WIDTH, HEIGHT = 640, 360
 LEFT, RIGHT, TOP, BOTTOM = 56, 175, 44, 44
@@ -11,8 +14,8 @@ INK, MUTED, GRID = "#1d1f1c", "#6b6f68", "#e3e1d9"
 @dataclass
 class Series:
     label: str
-    x: list[float]
-    y: list[float]
+    x: Sequence[float]
+    y: Sequence[float]
     color: str
     dashed: bool = False
 
@@ -60,7 +63,7 @@ def line_chart(title: str, series: list[Series], x_label: str, y_label: str, y_r
     )
 
     for i, s in enumerate(series):
-        points = " ".join(f"{px(x):.1f},{py(y):.1f}" for x, y in zip(s.x, s.y))
+        points = " ".join(f"{px(x):.1f},{py(y):.1f}" for x, y in zip(s.x, s.y, strict=True))
         dash = ' stroke-dasharray="5 4"' if s.dashed else ""
         parts.append(
             f'<polyline points="{points}" fill="none" stroke="{s.color}" stroke-width="2.5" '
@@ -76,7 +79,7 @@ def line_chart(title: str, series: list[Series], x_label: str, y_label: str, y_r
     return "\n".join(parts) + "\n"
 
 
-def question_chart(results: dict) -> str:
+def question_chart(results: Results) -> str:
     days = [row["day"] for row in results["adaptive"]]
     oracle = results["baselines"]["oracle"]["spearman"]
     return line_chart(
@@ -92,11 +95,11 @@ def question_chart(results: dict) -> str:
     )
 
 
-def decision_chart(results: dict) -> str:
+def decision_chart(results: Results) -> str:
     runs = results["decisions"]
     days = [row["day"] for row in runs["misreporting"]["survey"]]
 
-    def spearman(rows: list[dict]) -> list[float]:
+    def spearman(rows: list[DecisionRow]) -> list[float]:
         return [row["spearman"] for row in rows]
 
     return line_chart(
@@ -112,13 +115,13 @@ def decision_chart(results: dict) -> str:
     )
 
 
-def render(results: dict, directory: Path) -> None:
+def render(results: Results, directory: Path) -> None:
     (directory / "questions.svg").write_text(question_chart(results))
     if "decisions" in results:
         (directory / "decisions.svg").write_text(decision_chart(results))
 
 
-def main():
+def main() -> None:
     directory = Path(__file__).resolve().parents[1] / "results"
     render(json.loads((directory / "latest.json").read_text()), directory)
 
