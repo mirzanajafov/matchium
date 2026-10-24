@@ -9,6 +9,18 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const errorId = useId();
 
+  function toggle() {
+    setError(null);
+    startTransition(async () => {
+      setShown(!shown);
+      try {
+        await setEmailDigest(!shown);
+      } catch {
+        setError("Couldn't save that. Try again.");
+      }
+    });
+  }
+
   return (
     <div className="flex items-start justify-between gap-4">
       <div>
@@ -29,17 +41,7 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
         aria-label="Match emails"
         aria-describedby={error ? errorId : undefined}
         disabled={pending}
-        onClick={() => {
-          setError(null);
-          startTransition(async () => {
-            setShown(!shown);
-            try {
-              await setEmailDigest(!shown);
-            } catch {
-              setError("Couldn't save that. Try again.");
-            }
-          });
-        }}
+        onClick={toggle}
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
           shown ? "bg-accent" : "bg-line"
         }`}

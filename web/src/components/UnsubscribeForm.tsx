@@ -8,6 +8,17 @@ export function UnsubscribeForm({ token }: { token: string }) {
   const [state, setState] = useState<{ done: boolean; error?: string }>({ done: false });
   const [pending, startTransition] = useTransition();
 
+  function stop() {
+    setState({ done: false });
+    startTransition(async () => {
+      try {
+        setState(await unsubscribeEmail(token));
+      } catch {
+        setState({ done: false, error: "That didn't work. Try again in a moment." });
+      }
+    });
+  }
+
   if (state.done) {
     return (
       <p role="status" className="mt-4">
@@ -31,16 +42,7 @@ export function UnsubscribeForm({ token }: { token: string }) {
       <button
         type="button"
         disabled={pending}
-        onClick={() => {
-          setState({ done: false });
-          startTransition(async () => {
-            try {
-              setState(await unsubscribeEmail(token));
-            } catch {
-              setState({ done: false, error: "That didn't work. Try again in a moment." });
-            }
-          });
-        }}
+        onClick={stop}
         className="h-11 w-full rounded-lg bg-foreground font-medium text-background disabled:opacity-40"
       >
         {pending ? "One sec..." : "Stop these emails"}

@@ -40,6 +40,7 @@ describe("UnsubscribeForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Try again in a moment");
 
     await user.click(screen.getByRole("button", { name: "Stop these emails" }));
+    expect(unsubscribeEmail).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

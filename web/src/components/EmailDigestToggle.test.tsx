@@ -38,7 +38,7 @@ describe("EmailDigestToggle", () => {
 
     vi.mocked(setEmailDigest).mockReturnValueOnce(new Promise<void>(() => undefined));
     await user.click(toggle);
-    expect(setEmailDigest).toHaveBeenLastCalledWith(false);
+    expect(setEmailDigest).toHaveBeenNthCalledWith(2, false);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
