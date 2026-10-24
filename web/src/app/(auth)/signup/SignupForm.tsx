@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { signup, type FormState } from "@/app/actions";
 import { Field } from "@/components/Field";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -22,7 +22,21 @@ const choice =
 
 export function SignupForm() {
   const [state, action, pending] = useActionState<FormState, FormData>(signup, {});
+  const [dismissed, setDismissed] = useState<FormState>();
   const values = state.values ?? {};
+
+  if (state.done && state !== dismissed) {
+    return (
+      <div className="mt-6 space-y-3">
+        <p role="status">
+          Check your inbox at {values.email}. Open the link we sent and enter your password to finish signing up.
+        </p>
+        <button type="button" onClick={() => setDismissed(state)} className="text-sm font-medium underline">
+          Use a different email
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form action={action} className="mt-6 space-y-4">

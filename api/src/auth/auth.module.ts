@@ -6,7 +6,7 @@ import { RateLimitGuard } from '../limits/rate-limit.guard.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { SessionController } from './session.controller.js';
-import { SessionSweeper } from './session-sweeper.js';
+import { AuthSweeper } from './auth-sweeper.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 
 @Module({
@@ -23,7 +23,7 @@ import { JwtAuthGuard } from './jwt-auth.guard.js';
   controllers: [AuthController, SessionController],
   providers: [
     AuthService,
-    SessionSweeper,
+    AuthSweeper,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
   ],

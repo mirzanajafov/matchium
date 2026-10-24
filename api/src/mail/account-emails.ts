@@ -39,3 +39,34 @@ export function passwordResetEmail(name: string, url: string) {
     ),
   };
 }
+
+export function signupEmail(url: string, days: number) {
+  const footer = "If you didn't sign up for Matchium, ignore this email. No account is made without the password.";
+  return {
+    subject: 'Finish signing up for Matchium',
+    text: `Hi there,\n\nTo finish signing up, open this link and enter the password you chose (it works for ${days} days): ${url}\n\n${footer}`,
+    html: layout(
+      'there',
+      [`To finish signing up, open the link and enter the password you chose. It works for ${days} days.`],
+      { label: 'Finish signing up', url },
+      footer,
+    ),
+  };
+}
+
+export function accountExistsEmail(name: string, webUrl: string) {
+  const footer = "If this wasn't you, ignore this email. Nothing about your account changed.";
+  const login = `${webUrl}/login`;
+  return {
+    subject: 'You already have a Matchium account',
+    text: `Hi ${name},\n\nSomeone just tried to sign up for Matchium with this address, and it already has an account. If it was you, log in here: ${login}\nForgot your password? Reset it here: ${webUrl}/forgot-password\n\n${footer}`,
+    html: layout(
+      name,
+      [
+        'Someone just tried to sign up for Matchium with this address, and it already has an account. If it was you, log in instead. You can reset a forgotten password from the login page.',
+      ],
+      { label: 'Log in', url: login },
+      footer,
+    ),
+  };
+}

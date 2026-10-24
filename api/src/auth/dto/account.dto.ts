@@ -11,6 +11,12 @@ export class ForgotPasswordDto {
   email: string;
 }
 
+export class ConfirmSignupDto extends TokenDto {
+  @IsString()
+  @Length(8, 128)
+  password: string;
+}
+
 export class ResetPasswordDto extends TokenDto {
   @IsString()
   @Length(8, 128)

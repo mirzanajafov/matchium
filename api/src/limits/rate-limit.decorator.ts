@@ -1,6 +1,6 @@
 import { SetMetadata } from '@nestjs/common';
 
-export type LimitKey = 'ip' | 'user' | 'email';
+export type LimitKey = 'ip' | 'user' | 'email' | 'token';
 
 export interface LimitRule {
   name: string;
