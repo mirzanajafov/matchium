@@ -15,7 +15,7 @@ export function configureApp(app: INestApplication): INestApplication {
   }
   app.use(httpMetrics);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
-  app.enableShutdownHooks();
+  app.enableShutdownHooks([], { useProcessExit: true });
   return app;
 }
 

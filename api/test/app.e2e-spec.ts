@@ -70,12 +70,15 @@ class FakePhotoStore extends PhotoStore {
 class FakeMailer extends Mailer {
   readonly enabled = true;
   sent: Mail[] = [];
-  server: 'up' | 'stalled' | 'down' = 'up';
+  delivered: Mail[] = [];
+  server: 'up' | 'slow' | 'stalled' | 'down' = 'up';
 
-  send(mail: Mail): Promise<void> {
+  async send(mail: Mail): Promise<void> {
     this.sent.push(mail);
-    if (this.server === 'stalled') return new Promise(() => undefined);
-    return this.server === 'down' ? Promise.reject(new Error('Connection refused')) : Promise.resolve();
+    if (this.server === 'stalled') await new Promise(() => undefined);
+    if (this.server === 'down') throw new Error('Connection refused');
+    if (this.server === 'slow') await sleep(100);
+    this.delivered.push(mail);
   }
 }
 let counter = 0;
@@ -131,6 +134,7 @@ beforeEach(async () => {
   clock.current = new Date('2026-09-23T09:00:00Z');
   pushes.sent = [];
   mails.sent = [];
+  mails.delivered = [];
   mails.server = 'up';
   photos.objects.clear();
   photos.refuseDeletes = false;
@@ -1151,16 +1155,6 @@ describe('email digest', () => {
 });
 
 describe('shutdown', () => {
-  class SlowMailer extends Mailer {
-    readonly enabled = true;
-    delivered: string[] = [];
-
-    async send(mail: Mail): Promise<void> {
-      await sleep(100);
-      this.delivered.push(mail.to);
-    }
-  }
-
   class HeldPhotoStore extends FakePhotoStore {
     holding = false;
     release: () => void = () => undefined;
@@ -1188,12 +1182,44 @@ describe('shutdown', () => {
       },
     });
     await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
-    const mailer = new SlowMailer();
+    mails.server = 'slow';
 
-    const restarting = await startApp(mailer, photos);
+    const restarting = await startApp(mails, photos);
     await restarting.close();
 
-    expect(new Set(mailer.delivered)).toEqual(new Set([alice.email, bob.email]));
+    expect(new Set(mails.delivered.map((mail) => mail.to))).toEqual(new Set([alice.email, bob.email]));
+  });
+
+  it('ends open chat streams so the shutdown can finish', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    const match = await prisma.match.create({
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
+    });
+    for (const who of [alice, bob]) {
+      await http()
+        .post(`/matches/${match.id}/decision`)
+        .set('Authorization', `Bearer ${who.token}`)
+        .send({ like: true })
+        .expect(200);
+    }
+    const restarting = await startApp(mails, photos);
+    await restarting.listen(0);
+    const stream = await fetch(`${await restarting.getUrl()}/chats/${match.id}/stream`, {
+      headers: { Authorization: `Bearer ${alice.token}` },
+    });
+    expect(stream.status).toBe(200);
+
+    await restarting.close();
+    await stream.text();
   });
 
   it('lets a request already being served finish before the database closes', async () => {
@@ -1212,6 +1238,7 @@ describe('shutdown', () => {
         .then((res) => res.status);
       await vi.waitFor(() => expect(store.holding).toBe(true));
       closing = restarting.close();
+      await vi.waitFor(() => expect(restarting.getHttpServer().listening).toBe(false));
       store.release();
       expect(await upload).toBe(201);
     } finally {

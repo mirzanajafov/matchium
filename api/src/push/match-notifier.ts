@@ -14,7 +14,7 @@ interface MatchesReady {
 export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(MatchNotifier.name);
   private subscription?: Subscription;
-  private delivering: Promise<unknown> = Promise.resolve();
+  private delivering = Promise.resolve(0);
 
   constructor(
     private readonly prisma: PrismaService,
