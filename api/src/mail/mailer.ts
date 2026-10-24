@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
 
@@ -16,10 +16,11 @@ export abstract class Mailer {
 }
 
 @Injectable()
-export class SmtpMailer extends Mailer implements OnModuleDestroy {
+export class SmtpMailer extends Mailer implements OnApplicationShutdown {
   readonly enabled: boolean;
   private readonly transport?: Transporter;
   private readonly from: string;
+  private readonly inFlight = new Set<Promise<unknown>>();
 
   constructor(config: ConfigService) {
     super();
@@ -31,10 +32,17 @@ export class SmtpMailer extends Mailer implements OnModuleDestroy {
 
   async send(mail: Mail): Promise<void> {
     if (!this.transport) throw new Error('Email is not configured');
-    await this.transport.sendMail({ from: this.from, ...mail });
+    const delivery = this.transport.sendMail({ from: this.from, ...mail });
+    this.inFlight.add(delivery);
+    try {
+      await delivery;
+    } finally {
+      this.inFlight.delete(delivery);
+    }
   }
 
-  onModuleDestroy() {
+  async onApplicationShutdown() {
+    await Promise.allSettled(this.inFlight);
     this.transport?.close();
   }
 }

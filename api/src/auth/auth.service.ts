@@ -74,7 +74,7 @@ export class AuthService implements OnModuleInit {
       if (isUniqueViolation(error)) throw new ConflictException('This email is already registered');
       throw error;
     }
-    await this.sendVerification(user);
+    this.sendVerification(user);
     return this.issue(user.id);
   }
 
@@ -100,7 +100,7 @@ export class AuthService implements OnModuleInit {
   async resendVerification(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (user.emailVerifiedAt) throw new ConflictException('Your email is already confirmed');
-    await this.sendVerification(user);
+    this.sendVerification(user);
   }
 
   async verifyEmail(token: string) {
@@ -119,7 +119,7 @@ export class AuthService implements OnModuleInit {
       { sub: user.id, purpose: RESET_PURPOSE, stamp: passwordStamp(user.passwordHash) },
       { expiresIn: '30m' },
     );
-    await this.deliver(
+    void this.deliver(
       'reset',
       user.email,
       passwordResetEmail(user.displayName, `${this.webUrl}/reset-password?token=${token}`),
@@ -143,10 +143,10 @@ export class AuthService implements OnModuleInit {
     ]);
   }
 
-  private async sendVerification(user: { id: string; email: string; displayName: string }) {
+  private sendVerification(user: { id: string; email: string; displayName: string }) {
     if (!this.mailer.enabled) return;
     const token = this.jwt.sign({ sub: user.id, purpose: VERIFY_PURPOSE, email: user.email }, { expiresIn: '3d' });
-    await this.deliver(
+    void this.deliver(
       'verify',
       user.email,
       verificationEmail(user.displayName, `${this.webUrl}/verify-email?token=${token}`),
