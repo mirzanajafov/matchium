@@ -69,14 +69,12 @@ class FakePhotoStore extends PhotoStore {
 class FakeMailer extends Mailer {
   readonly enabled = true;
   sent: Mail[] = [];
-  delivered: Mail[] = [];
   server: 'up' | 'stalled' | 'down' = 'up';
 
-  async send(mail: Mail): Promise<void> {
+  send(mail: Mail): Promise<void> {
     this.sent.push(mail);
-    if (this.server === 'stalled') await new Promise(() => undefined);
-    if (this.server === 'down') throw new Error('Connection refused');
-    this.delivered.push(mail);
+    if (this.server === 'stalled') return new Promise(() => undefined);
+    return this.server === 'down' ? Promise.reject(new Error('Connection refused')) : Promise.resolve();
   }
 }
 let counter = 0;
@@ -132,7 +130,6 @@ beforeEach(async () => {
   clock.current = new Date('2026-09-23T09:00:00Z');
   pushes.sent = [];
   mails.sent = [];
-  mails.delivered = [];
   mails.server = 'up';
   photos.objects.clear();
   photos.refuseDeletes = false;
@@ -1214,7 +1211,7 @@ describe('shutdown', () => {
 
       mailer.open();
       await closing;
-      const digests = mailer.delivered.filter((mail) => mail.headers?.['List-Unsubscribe']);
+      const digests = mailer.sent.filter((mail) => mail.headers?.['List-Unsubscribe']);
       expect(digests.map((mail) => mail.to).toSorted()).toEqual([alice.email, bob.email].toSorted());
     } finally {
       mailer.open();
