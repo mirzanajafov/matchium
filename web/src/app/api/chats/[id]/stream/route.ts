@@ -1,9 +1,12 @@
 import type { NextRequest } from "next/server";
-import { openApiStream } from "@/lib/api";
+import { authedFetch } from "@/lib/api";
 
 export async function GET(request: NextRequest, { params }: RouteContext<"/api/chats/[id]/stream">) {
   const { id } = await params;
-  const upstream = await openApiStream(`/chats/${encodeURIComponent(id)}/stream`, request.signal);
+  const upstream = await authedFetch(`/chats/${encodeURIComponent(id)}/stream`, {
+    accept: "text/event-stream",
+    signal: request.signal,
+  });
   if (!upstream.ok || !upstream.body) return new Response(null, { status: upstream.status });
 
   return new Response(upstream.body, {

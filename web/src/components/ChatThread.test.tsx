@@ -1,10 +1,17 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { fetchMessages, sendMessage } from "@/app/actions";
+import { sendMessage } from "@/app/actions";
+import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 import { ChatThread, merge } from "./ChatThread";
 
-vi.mock("@/app/actions", () => ({ fetchMessages: vi.fn(), sendMessage: vi.fn() }));
+vi.mock("@/app/actions", () => ({ sendMessage: vi.fn() }));
+vi.mock("@/lib/fetchers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/fetchers")>()),
+  fetchMessages: vi.fn(),
+}));
+const router = { replace: vi.fn() };
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const MATCH = "8c1f7d2e-1111-4a4a-9999-000000000001";
 
@@ -141,6 +148,15 @@ describe("ChatThread", () => {
     });
     expect(fetchMessages).toHaveBeenCalledWith(MATCH, first.createdAt);
     expect(screen.getByText("Sent while you were offline")).toBeInTheDocument();
+  });
+
+  it("sends you to sign in again when catching up finds the session gone", async () => {
+    vi.mocked(fetchMessages).mockRejectedValue(new SessionExpiredError("401"));
+    render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
+    await act(async () => {
+      FakeEventSource.instances[0].emit("open");
+    });
+    expect(router.replace).toHaveBeenCalledWith("/session/expired");
   });
 
   it("falls back to polling if the stream is closed for good", async () => {
