@@ -15,8 +15,10 @@ export class FakePushSender extends PushSender {
   }
 }
 
+export const START = new Date('2026-09-23T09:00:00Z');
+
 export class FixedClock extends Clock {
-  current = new Date('2026-09-23T09:00:00Z');
+  current = START;
 
   now() {
     return new Date(this.current);

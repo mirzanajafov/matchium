@@ -1,6 +1,6 @@
 import sharp from 'sharp';
-import { prisma, clock, photos, http, useTestApp } from './support/app.js';
-import { as, register, woman, man, createMatch } from './support/builders.js';
+import { clock, http, photos, prisma, useTestApp } from './support/app.js';
+import { as, createMatch, man, register, registerAdmin, woman } from './support/builders.js';
 
 useTestApp();
 
@@ -66,8 +66,7 @@ describe('photos and bio', () => {
     const alice = await woman('Alice');
     const bob = await man('Bob');
     const stranger = await register();
-    const admin = await register();
-    await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
+    const admin = await registerAdmin();
     const { id } = (await upload(alice.token)).body;
     await http()
       .patch('/me/profile')

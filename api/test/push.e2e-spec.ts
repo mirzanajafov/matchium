@@ -1,6 +1,6 @@
 import { MatchNotifier } from '../src/notifications/match-notifier.js';
-import { app, prisma, pushes, http, useTestApp } from './support/app.js';
-import { as, register, matchedPair } from './support/builders.js';
+import { app, http, prisma, pushes, useTestApp } from './support/app.js';
+import { as, matchedPair, register } from './support/builders.js';
 
 useTestApp();
 

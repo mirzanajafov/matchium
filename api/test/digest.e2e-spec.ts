@@ -1,6 +1,6 @@
 import { MatchNotifier } from '../src/notifications/match-notifier.js';
-import { app, prisma, pushes, mails, http, useTestApp } from './support/app.js';
-import { as, woman, man, createMatch } from './support/builders.js';
+import { app, http, mails, prisma, pushes, useTestApp } from './support/app.js';
+import { as, createMatch, man, woman } from './support/builders.js';
 
 useTestApp();
 
@@ -11,12 +11,8 @@ describe('email digest', () => {
     const alice = await woman('Alice');
     const bob = await man('Bob');
     const carol = await woman('Carol');
-    for (const [a, b] of [
-      [alice, bob],
-      [carol, bob],
-    ] as const) {
-      await createMatch(a, b);
-    }
+    await createMatch(alice, bob);
+    await createMatch(carol, bob);
     await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
     return { alice, bob, carol };
   }

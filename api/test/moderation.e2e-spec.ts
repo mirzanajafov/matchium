@@ -1,12 +1,11 @@
-import { prisma, clock, http, useTestApp } from './support/app.js';
-import { as, register, woman, man, createMatch, openChatStream } from './support/builders.js';
+import { clock, http, prisma, useTestApp } from './support/app.js';
+import { as, createMatch, man, openChatStream, registerAdmin, woman } from './support/builders.js';
 
 useTestApp();
 
 describe('moderation', () => {
   async function reported() {
-    const admin = await register({ displayName: 'Admin' });
-    await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
+    const admin = await registerAdmin();
     const alice = await woman('Alice');
     const mallory = await man('Mallory');
     const carol = await woman('Carol');

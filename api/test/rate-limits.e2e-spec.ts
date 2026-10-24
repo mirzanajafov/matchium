@@ -1,6 +1,6 @@
 import { RateLimiter } from '../src/limits/rate-limiter.js';
-import { app, prisma, clock, mails, http, useTestApp } from './support/app.js';
-import { as, signup, register, matchedPair } from './support/builders.js';
+import { app, clock, http, mails, prisma, useTestApp } from './support/app.js';
+import { as, matchedPair, register, signup } from './support/builders.js';
 
 useTestApp();
 

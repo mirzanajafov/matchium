@@ -1,6 +1,6 @@
 import { AuthSweeper } from '../src/auth/auth-sweeper.js';
-import { app, prisma, clock, mails, http, useTestApp } from './support/app.js';
-import { as, linkToken, signup, finishSignup, register, registerWithoutEmail } from './support/builders.js';
+import { app, clock, http, mails, prisma, useTestApp } from './support/app.js';
+import { as, finishSignup, linkToken, register, registerWithoutEmail, signup } from './support/builders.js';
 
 useTestApp();
 
@@ -203,6 +203,39 @@ describe('account security', () => {
     await http().get('/me').set(as(phone)).expect(401);
     await http().get('/me').set(as(laptop)).expect(200);
     await http().post('/auth/logout').expect(401);
+  });
+
+  it('signs out every device at once', async () => {
+    const alice = await register();
+    const second = (
+      await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200)
+    ).body.accessToken as string;
+    await http().post('/auth/logout-all').set(as(alice.token)).expect(204);
+    await http().get('/me').set(as(alice.token)).expect(401);
+    await http().get('/me').set(as(second)).expect(401);
+  });
+
+  it('sweeps revoked and expired sessions but keeps live ones', async () => {
+    const alice = await register();
+    const now = clock.now().getTime();
+    const day = 24 * 60 * 60 * 1000;
+    await prisma.session.createMany({
+      data: [
+        { userId: alice.id, createdAt: new Date(now - 3 * day), revokedAt: new Date(now - 2 * day) },
+        { userId: alice.id, createdAt: new Date(now - 9 * day) },
+        { userId: alice.id, createdAt: new Date(now - day), revokedAt: new Date(now - 60 * 1000) },
+      ],
+    });
+    expect(await app.get(AuthSweeper).sweep()).toEqual({ sessions: 2, signups: 0 });
+    expect(await prisma.session.count({ where: { userId: alice.id } })).toBe(2);
+    await http().get('/me').set(as(alice.token)).expect(200);
+  });
+
+  it('sweeps a session from sign-in once the app clock is past its lifetime', async () => {
+    const alice = await register();
+    clock.current = new Date(clock.current.getTime() + 9 * 24 * 60 * 60 * 1000);
+    await app.get(AuthSweeper).sweep();
+    expect(await prisma.session.count({ where: { userId: alice.id } })).toBe(0);
   });
 
   it('resets a forgotten password once and signs every device out', async () => {

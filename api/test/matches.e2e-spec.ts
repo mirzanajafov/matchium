@@ -1,5 +1,5 @@
-import { prisma, clock, http, useTestApp } from './support/app.js';
-import { as, register, woman, man, matchedPair, createMatch, openChatStream } from './support/builders.js';
+import { clock, http, prisma, useTestApp } from './support/app.js';
+import { as, createMatch, man, matchedPair, openChatStream, register, woman } from './support/builders.js';
 
 useTestApp();
 

@@ -1,8 +1,8 @@
 import sharp from 'sharp';
 import request from 'supertest';
 import type { Mail } from '../src/mail/mailer.js';
-import { prisma, http, startApp, useTestApp } from './support/app.js';
-import { as, register, matchedPair } from './support/builders.js';
+import { http, prisma, startApp, useTestApp } from './support/app.js';
+import { as, matchedPair, register } from './support/builders.js';
 import { FakeMailer, FakePhotoStore } from './support/fakes.js';
 
 useTestApp();

@@ -1,4 +1,4 @@
-import { prisma, clock, http, useTestApp } from './support/app.js';
+import { clock, http, prisma, useTestApp } from './support/app.js';
 import { as, register } from './support/builders.js';
 
 useTestApp();

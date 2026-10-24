@@ -1,6 +1,5 @@
-import { AuthSweeper } from '../src/auth/auth-sweeper.js';
-import { app, prisma, clock, mails, http, useTestApp } from './support/app.js';
-import { as, signup, register, woman, man, createMatch } from './support/builders.js';
+import { http, mails, prisma, useTestApp } from './support/app.js';
+import { as, createMatch, man, registerAdmin, signup, woman } from './support/builders.js';
 
 useTestApp();
 
@@ -59,8 +58,7 @@ describe('account data', () => {
 
 describe('safety after deletion', () => {
   it('keeps a report and its evidence when the reported person deletes their account, and keeps them out', async () => {
-    const admin = await register();
-    await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
+    const admin = await registerAdmin();
     const alice = await woman('Alice');
     const mallory = await man('Mallory');
     const match = await createMatch(alice, mallory);
@@ -101,38 +99,5 @@ describe('safety after deletion', () => {
     mails.enabled = false;
     const refused = await http().post('/auth/register').send(again).expect(403);
     expect(refused.body.message).toMatch(/can't be used/);
-  });
-
-  it('signs out every device at once', async () => {
-    const alice = await register();
-    const second = (
-      await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(200)
-    ).body.accessToken as string;
-    await http().post('/auth/logout-all').set(as(alice.token)).expect(204);
-    await http().get('/me').set(as(alice.token)).expect(401);
-    await http().get('/me').set(as(second)).expect(401);
-  });
-
-  it('sweeps revoked and expired sessions but keeps live ones', async () => {
-    const alice = await register();
-    const now = clock.now().getTime();
-    const day = 24 * 60 * 60 * 1000;
-    await prisma.session.createMany({
-      data: [
-        { userId: alice.id, createdAt: new Date(now - 3 * day), revokedAt: new Date(now - 2 * day) },
-        { userId: alice.id, createdAt: new Date(now - 9 * day) },
-        { userId: alice.id, createdAt: new Date(now - day), revokedAt: new Date(now - 60 * 1000) },
-      ],
-    });
-    expect(await app.get(AuthSweeper).sweep()).toEqual({ sessions: 2, signups: 0 });
-    expect(await prisma.session.count({ where: { userId: alice.id } })).toBe(2);
-    await http().get('/me').set(as(alice.token)).expect(200);
-  });
-
-  it('sweeps a session from sign-in once the app clock is past its lifetime', async () => {
-    const alice = await register();
-    clock.current = new Date(clock.current.getTime() + 9 * 24 * 60 * 60 * 1000);
-    await app.get(AuthSweeper).sweep();
-    expect(await prisma.session.count({ where: { userId: alice.id } })).toBe(0);
   });
 });

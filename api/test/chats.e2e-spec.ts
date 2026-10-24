@@ -1,5 +1,5 @@
-import { prisma, clock, http, useTestApp } from './support/app.js';
-import { as, register, woman, man, matchedPair, createMatch, openChatStream } from './support/builders.js';
+import { clock, http, prisma, useTestApp } from './support/app.js';
+import { as, createMatch, man, matchedPair, openChatStream, register, woman } from './support/builders.js';
 
 useTestApp();
 
@@ -138,10 +138,8 @@ describe('chat stream', () => {
   }
 
   it('pushes new messages to the other person, skips malformed ones and marks them read', async () => {
-    const alice = await woman('Alice');
-    const bob = await man('Bob');
+    const { alice, bob, match } = await matchedPair();
     const stranger = await register();
-    const match = await createMatch(alice, bob);
 
     expect((await openStream(match.id, alice.token)).status).toBe(403);
     for (const who of [alice, bob]) {

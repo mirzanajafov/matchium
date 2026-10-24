@@ -8,7 +8,7 @@ import { Mailer } from '../../src/mail/mailer.js';
 import { PhotoStore } from '../../src/photos/photo-store.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { PushSender } from '../../src/push/push-sender.js';
-import { FakeMailer, FakePhotoStore, FakePushSender, FixedClock } from './fakes.js';
+import { FakeMailer, FakePhotoStore, FakePushSender, FixedClock, START } from './fakes.js';
 
 export let app: INestApplication;
 export let prisma: PrismaService;
@@ -37,6 +37,10 @@ export function http() {
   return request(app.getHttpServer());
 }
 
+function truncate() {
+  return prisma.$executeRawUnsafe('TRUNCATE "User", "RateLimit", "PendingSignup" CASCADE');
+}
+
 export function useTestApp() {
   beforeAll(async () => {
     app = await startApp();
@@ -44,8 +48,8 @@ export function useTestApp() {
   });
 
   beforeEach(async () => {
-    await prisma.$executeRawUnsafe('TRUNCATE "User", "RateLimit", "PendingSignup" CASCADE');
-    clock.current = new Date('2026-09-23T09:00:00Z');
+    await truncate();
+    clock.current = START;
     pushes.sent = [];
     pushes.gone.clear();
     mails.sent = [];
@@ -56,6 +60,7 @@ export function useTestApp() {
   });
 
   afterAll(async () => {
+    await truncate();
     await app.close();
   });
 }

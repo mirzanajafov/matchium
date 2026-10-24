@@ -37,7 +37,7 @@ export function finishSignup(email: string, password: string) {
     .send({ token: linkToken(sent.text, '/confirm-signup'), password });
 }
 
-export async function signedIn(token: string, email: string) {
+async function signedIn(token: string, email: string) {
   const me = await http().get('/me').set(as(token)).expect(200);
   return { token, id: me.body.id as string, email };
 }
@@ -65,6 +65,12 @@ export function man(displayName: string) {
   return register({ gender: 'MAN', seeking: ['WOMAN'], displayName });
 }
 
+export async function registerAdmin() {
+  const admin = await register({ displayName: 'Admin' });
+  await prisma.user.update({ where: { id: admin.id }, data: { role: 'ADMIN' } });
+  return admin;
+}
+
 export async function matchedPair() {
   const alice = await woman('Alice');
   const bob = await man('Bob');
@@ -78,7 +84,7 @@ export async function openChatStream(matchId: string, token: string, signal?: Ab
 export function createMatch(
   userA: { id: string },
   userB: { id: string },
-  fields: Partial<Prisma.MatchUncheckedCreateInput> = {},
+  fields: Partial<Pick<Prisma.MatchUncheckedCreateInput, 'score' | 'confidence' | 'aligned' | 'friction'>> = {},
 ) {
   return prisma.match.create({
     data: {
