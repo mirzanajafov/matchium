@@ -3,15 +3,86 @@ import { ConfigService } from '@nestjs/config';
 import pg from 'pg';
 import { Observable, Subject, endWith, filter, ignoreElements, map } from 'rxjs';
 import type { Env } from '../config/env.js';
+import { isoDay } from './clock.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
-export const CHAT_CHANNEL = 'chat_messages';
-export const MATCHES_CHANNEL = 'matches_ready';
-const CHANNELS = [CHAT_CHANNEL, MATCHES_CHANNEL];
+export interface ChatMessageEvent {
+  id: string;
+  matchId: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ChatClosedEvent {
+  matchId: string;
+  closed: true;
+}
+
+export type ChatEvent = ChatMessageEvent | ChatClosedEvent;
+
+export interface MatchesReadyEvent {
+  day: string;
+}
+
+interface Events {
+  chat_messages: ChatEvent;
+  matches_ready: MatchesReadyEvent;
+}
+
+type Channel = keyof Events;
+
 const RECONNECT_MS = 1000;
 
 interface Notification {
   channel: string;
   payload: string;
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isIsoDay(value: string): boolean {
+  const time = Date.parse(value);
+  return !Number.isNaN(time) && isoDay(new Date(time)) === value;
+}
+
+function readChatEvent(value: unknown): ChatEvent | undefined {
+  if (!isRecord(value)) return undefined;
+  const { id, matchId, senderId, body, createdAt, closed } = value;
+  if (typeof matchId !== 'string') return undefined;
+  if (closed === true) return { matchId, closed };
+  if (typeof id !== 'string' || typeof senderId !== 'string' || typeof body !== 'string') return undefined;
+  if (typeof createdAt !== 'string' || Number.isNaN(Date.parse(createdAt))) return undefined;
+  return { id, matchId, senderId, body, createdAt };
+}
+
+function readMatchesReady(value: unknown): MatchesReadyEvent | undefined {
+  if (!isRecord(value) || typeof value.day !== 'string' || !isIsoDay(value.day)) return undefined;
+  return { day: value.day };
+}
+
+const readers: { [C in Channel]: (value: unknown) => Events[C] | undefined } = {
+  chat_messages: readChatEvent,
+  matches_ready: readMatchesReady,
+};
+
+export function isClosed(event: ChatEvent): event is ChatClosedEvent {
+  return 'closed' in event;
+}
+
+export function publish<C extends Channel>(db: Prisma.TransactionClient, channel: C, ...events: Events[C][]) {
+  const payloads = events.map((event) => JSON.stringify(event));
+  return db.$executeRaw`SELECT pg_notify(${channel}, payload) FROM unnest(${payloads}::text[]) AS payload`;
 }
 
 @Injectable()
@@ -37,18 +108,16 @@ export class DbEvents implements OnModuleInit, OnModuleDestroy {
     await this.client?.end().catch(() => undefined);
   }
 
-  on<T>(channel: string): Observable<T> {
+  on<C extends Channel>(channel: C): Observable<Events[C]> {
+    const read = readers[channel];
     return this.events.pipe(
-      filter((event) => event.channel === channel),
-      map((event): T | undefined => {
-        try {
-          return JSON.parse(event.payload) as T;
-        } catch {
-          this.log.warn(`Ignoring malformed ${channel} notification`);
-          return undefined;
-        }
+      filter((notification) => notification.channel === channel),
+      map((notification) => {
+        const event = read(parseJson(notification.payload));
+        if (!event) this.log.warn(`Ignoring malformed ${channel} notification`);
+        return event;
       }),
-      filter((value): value is T => value !== undefined),
+      filter((event): event is Events[C] => event !== undefined),
     );
   }
 
@@ -72,7 +141,7 @@ export class DbEvents implements OnModuleInit, OnModuleDestroy {
     client.on('end', () => this.scheduleReconnect(client));
 
     await client.connect();
-    for (const channel of CHANNELS) await client.query(`LISTEN ${channel}`);
+    for (const channel of Object.keys(readers)) await client.query(`LISTEN ${channel}`);
     this.client = client;
   }
 

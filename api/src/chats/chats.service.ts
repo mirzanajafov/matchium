@@ -6,7 +6,7 @@ import { openStreams } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import { counterpart, involving, isMutual, isParticipant } from '../matches/participants.js';
-import { CHAT_CHANNEL, DbEvents } from '../common/db-events.js';
+import { type ChatMessageEvent, DbEvents, isClosed, publish } from '../common/db-events.js';
 
 const publicProfile = {
   select: { id: true, displayName: true, birthDate: true, city: true, photos: { ...photoSelect, take: 1 } },
@@ -14,23 +14,6 @@ const publicProfile = {
 const PAGE_SIZE = 200;
 const HEARTBEAT_MS = 25_000;
 const PREVIEW_LENGTH = 120;
-
-export interface ChatEvent {
-  id: string;
-  matchId: string;
-  senderId: string;
-  body: string;
-  createdAt: string;
-}
-
-interface ClosedEvent {
-  matchId: string;
-  closed: true;
-}
-
-function isClosed(event: ChatEvent | ClosedEvent): event is ClosedEvent {
-  return 'closed' in event;
-}
 
 interface MessageRow {
   id: string;
@@ -106,8 +89,8 @@ export class ChatsService {
       RETURNING id, "matchId", "senderId", body, "createdAt"`;
     if (!row) throw new NotFoundException('Chat not found');
     await this.markRead(matchId, userId);
-    const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
-    await this.prisma.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;
+    const event: ChatMessageEvent = { ...row, createdAt: row.createdAt.toISOString() };
+    await publish(this.prisma, 'chat_messages', event);
     const recipient = counterpart(match, userId);
     const sender = counterpart(match, recipient.id);
     this.push.notifyInBackground(recipient.id, {
@@ -121,7 +104,7 @@ export class ChatsService {
 
   async stream(userId: string, matchId: string): Promise<Observable<MessageEvent>> {
     await this.openChat(userId, matchId);
-    const messages = this.events.on<ChatEvent | ClosedEvent>(CHAT_CHANNEL).pipe(
+    const messages = this.events.on('chat_messages').pipe(
       filter((event) => event.matchId === matchId),
       concatMap(async (event): Promise<MessageEvent> => {
         if (isClosed(event)) return { type: 'closed', data: '' };

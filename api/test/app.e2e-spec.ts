@@ -639,7 +639,7 @@ describe('chat stream', () => {
     return { status: response.status, next, close: () => abort.abort() };
   }
 
-  it('pushes new messages to the other person and marks them read', async () => {
+  it('pushes new messages to the other person, skips malformed ones and marks them read', async () => {
     const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
     const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
     const stranger = await register();
@@ -664,9 +664,12 @@ describe('chat stream', () => {
 
     const stream = await openStream(match.id, alice.token);
     expect(stream.status).toBe(200);
+    const broken = { id: 'x', matchId: match.id, senderId: bob.id, body: 'never shown', createdAt: 'soon' };
+    await prisma.$executeRaw`SELECT pg_notify('chat_messages', ${JSON.stringify(broken)})`;
     await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'Are you there?' }).expect(201);
 
     const received = await stream.next(/Are you there\?/);
+    expect(received).not.toContain('never shown');
     expect(received).toContain('event: message');
     expect(received).toContain('"fromMe":false');
     stream.close();
@@ -795,17 +798,21 @@ describe('push notifications', () => {
     },
   );
 
-  it('announces the nightly matches once, even if the signal arrives twice', async () => {
+  it('announces the nightly matches once, even if the signal arrives twice, and skips malformed signals', async () => {
     const { alice, bob } = await mutualPair();
     await http().post('/push/subscriptions').set(as(alice.token)).send(subscription(5)).expect(204);
     await http().post('/push/subscriptions').set(as(bob.token)).send(subscription(6)).expect(204);
 
-    await prisma.$executeRaw`SELECT pg_notify('matches_ready', '{"day":"2026-09-23"}')`;
+    const deliver = vi.spyOn(app.get(MatchNotifier), 'deliver');
+    for (const payload of ['not json', '{"day":"not a day"}', '{"day":"2026-02-30"}', '{"day":"2026-09-23"}']) {
+      await prisma.$executeRaw`SELECT pg_notify('matches_ready', ${payload})`;
+    }
     await vi.waitFor(() => expect(pushes.sent).toHaveLength(2));
+    expect(deliver.mock.calls).toEqual([['2026-09-23']]);
+    deliver.mockRestore();
     expect(sentTo(subscription(5).endpoint)[0]).toMatchObject({ body: 'You have a new match today.', url: '/today' });
 
     expect(await app.get(MatchNotifier).deliver('2026-09-23')).toBe(0);
-    expect(await app.get(MatchNotifier).deliver('not a day')).toBe(0);
     expect(pushes.sent).toHaveLength(2);
   });
 });
@@ -1105,6 +1112,49 @@ describe('moderation', () => {
     expect((await prisma.user.findUniqueOrThrow({ where: { id: mallory.id } })).bannedAt).toEqual(now);
     const sessions = await prisma.session.findMany({ where: { userId: mallory.id }, select: { revokedAt: true } });
     expect(sessions).toEqual([{ revokedAt: now }]);
+  });
+
+  it('ends every open chat of a banned person', async () => {
+    const { admin, mallory, carol, other } = await reported();
+    const dora = await register({ gender: 'WOMAN', seeking: ['MAN'], displayName: 'Dora' });
+    const third = await prisma.match.create({
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: dora.id,
+        userBId: mallory.id,
+        score: 0.5,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
+    });
+    for (const [matchId, who] of [
+      [other.id, carol],
+      [other.id, mallory],
+      [third.id, dora],
+      [third.id, mallory],
+    ] as const) {
+      await http().post(`/matches/${matchId}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    const server = app.getHttpServer() as import('node:http').Server;
+    if (!server.listening) await app.listen(0);
+    const { port } = server.address() as import('node:net').AddressInfo;
+    const streams = await Promise.all(
+      [
+        [other.id, carol.token],
+        [third.id, dora.token],
+      ].map(([matchId, token]) =>
+        fetch(`http://127.0.0.1:${port}/chats/${matchId}/stream`, { headers: { Authorization: `Bearer ${token}` } }),
+      ),
+    );
+
+    const [report] = (await http().get('/admin/reports').set(as(admin.token)).expect(200)).body;
+    await http()
+      .post(`/admin/reports/${report.id}/resolve`)
+      .set(as(admin.token))
+      .send({ outcome: 'BANNED' })
+      .expect(200);
+    for (const stream of streams) expect(await stream.text()).toContain('event: closed');
   });
 
   it('dismisses without touching the account', async () => {

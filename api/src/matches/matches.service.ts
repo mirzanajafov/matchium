@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Clock, ageOn, isoDay, utcDay } from '../common/clock.js';
-import { CHAT_CHANNEL } from '../common/db-events.js';
+import { publish } from '../common/db-events.js';
 import type { Match } from '../generated/prisma/client.js';
 import { photoRefs, photoSelect } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -118,9 +118,7 @@ export class MatchesService {
           update: { reason: report.reason, note: report.note ?? null },
         });
       }
-      if (closed.count > 0) {
-        await tx.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify({ matchId, closed: true })})`;
-      }
+      if (closed.count > 0) await publish(tx, 'chat_messages', { matchId, closed: true });
     });
     return { closed: true, reported: Boolean(report) };
   }
