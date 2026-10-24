@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatThread, Inbox } from "./types";
+import type { ChatMessage, Conversation, Inbox } from "./types";
 
 export class SessionExpiredError extends Error {}
 
@@ -15,6 +15,6 @@ export function fetchInbox(): Promise<Inbox> {
 
 export async function fetchMessages(matchId: string, after?: string): Promise<ChatMessage[]> {
   const query = after ? `?after=${encodeURIComponent(after)}` : "";
-  const thread = await getJson<ChatThread>(`/api/chats/${encodeURIComponent(matchId)}/messages${query}`);
-  return thread.messages;
+  const conversation = await getJson<Conversation>(`/api/chats/${encodeURIComponent(matchId)}/messages${query}`);
+  return conversation.messages;
 }

@@ -4,15 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { unmatch } from "@/actions/matches";
 import { resolveAction } from "@/lib/action-client";
+import { REPORT_REASON_LABELS } from "@/lib/labels";
 import type { ReportReason } from "@/lib/types";
-
-const REASONS: { value: ReportReason; label: string }[] = [
-  { value: "HARASSMENT", label: "Harassment or threats" },
-  { value: "SPAM", label: "Spam or scam" },
-  { value: "FAKE_PROFILE", label: "Fake profile" },
-  { value: "UNDERAGE", label: "Might be under 18" },
-  { value: "OTHER", label: "Something else" },
-];
+import { ErrorMessage } from "./ErrorMessage";
 
 export function UnmatchPanel({ matchId, personName }: { matchId: string; personName: string }) {
   const [open, setOpen] = useState(false);
@@ -65,9 +59,9 @@ export function UnmatchPanel({ matchId, personName }: { matchId: string; personN
               onChange={(event) => setReason(event.target.value as ReportReason)}
               className="mt-1 h-10 w-full rounded-lg border border-line bg-background px-2"
             >
-              {REASONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {Object.entries(REPORT_REASON_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -85,11 +79,7 @@ export function UnmatchPanel({ matchId, personName }: { matchId: string; personN
         </div>
       )}
 
-      {error && (
-        <p role="alert" className="mt-3 text-warn">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mt-3" />
       <div className="mt-4 flex gap-2">
         <button
           type="button"

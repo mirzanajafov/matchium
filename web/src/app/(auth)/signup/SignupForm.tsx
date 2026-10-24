@@ -2,15 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { signup } from "@/actions/account";
+import { GENDERS } from "@/lib/labels";
 import type { FormState } from "@/lib/types";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Field } from "@/components/Field";
 import { SubmitButton } from "@/components/SubmitButton";
-
-const GENDERS = [
-  { value: "WOMAN", label: "Woman", plural: "Women" },
-  { value: "MAN", label: "Man", plural: "Men" },
-  { value: "NONBINARY", label: "Non-binary", plural: "Non-binary" },
-];
 
 function latestAllowedBirthDate(): string {
   const date = new Date();
@@ -71,17 +67,17 @@ export function SignupForm() {
       <fieldset>
         <legend className="text-sm font-medium">I am</legend>
         <div className="mt-1.5 grid grid-cols-3 gap-2">
-          {GENDERS.map((g) => (
-            <label key={g.value} className={choice}>
+          {Object.entries(GENDERS).map(([value, { label }]) => (
+            <label key={value} className={choice}>
               <input
                 type="radio"
                 name="gender"
-                value={g.value}
+                value={value}
                 required
-                defaultChecked={values.gender === g.value}
+                defaultChecked={values.gender === value}
                 className="sr-only"
               />
-              {g.label}
+              {label}
             </label>
           ))}
         </div>
@@ -90,26 +86,22 @@ export function SignupForm() {
       <fieldset>
         <legend className="text-sm font-medium">Interested in</legend>
         <div className="mt-1.5 grid grid-cols-3 gap-2">
-          {GENDERS.map((g) => (
-            <label key={g.value} className={choice}>
+          {Object.entries(GENDERS).map(([value, { plural }]) => (
+            <label key={value} className={choice}>
               <input
                 type="checkbox"
                 name="seeking"
-                value={g.value}
-                defaultChecked={values.seeking?.split(",").includes(g.value)}
+                value={value}
+                defaultChecked={values.seeking?.split(",").includes(value)}
                 className="sr-only"
               />
-              {g.plural}
+              {plural}
             </label>
           ))}
         </div>
       </fieldset>
 
-      {state.error && (
-        <p role="alert" className="text-sm text-warn">
-          {state.error}
-        </p>
-      )}
+      <ErrorMessage message={state.error} />
       <SubmitButton pending={pending}>Create account</SubmitButton>
     </form>
   );

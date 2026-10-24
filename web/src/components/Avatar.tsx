@@ -1,8 +1,5 @@
 import Image from "next/image";
-
-export function photoUrl(id: string): string {
-  return `/api/photos/${id}`;
-}
+import { photoUrl } from "@/lib/photos";
 
 export function Avatar({ name, photo, size = 40 }: { name: string; photo: string | null; size?: number }) {
   if (photo) {

@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { login } from "@/actions/account";
 import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export function LoginForm() {
@@ -17,11 +18,7 @@ export function LoginForm() {
       <Link href="/forgot-password" className="block text-sm text-muted hover:text-foreground">
         Forgot your password?
       </Link>
-      {state.error && (
-        <p role="alert" className="text-sm text-warn">
-          {state.error}
-        </p>
-      )}
+      <ErrorMessage message={state.error} />
       <SubmitButton pending={pending}>Log in</SubmitButton>
     </form>
   );

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { requestPasswordReset } from "@/actions/account";
 import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export function ForgotPasswordForm() {
@@ -21,11 +22,7 @@ export function ForgotPasswordForm() {
   return (
     <form action={action} className="mt-6 space-y-4">
       <Field label="Email" name="email" type="email" autoComplete="email" required defaultValue={state.values?.email} />
-      {state.error && (
-        <p role="alert" className="text-sm text-warn">
-          {state.error}
-        </p>
-      )}
+      <ErrorMessage message={state.error} />
       <SubmitButton pending={pending}>Send me a link</SubmitButton>
     </form>
   );

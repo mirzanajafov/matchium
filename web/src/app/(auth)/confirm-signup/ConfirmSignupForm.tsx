@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { confirmSignup } from "@/actions/account";
 import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export function ConfirmSignupForm({ token }: { token: string }) {
@@ -12,11 +13,7 @@ export function ConfirmSignupForm({ token }: { token: string }) {
   return (
     <form action={action} className="mt-6 space-y-4">
       <Field label="Password" name="password" type="password" autoComplete="current-password" minLength={8} required />
-      {state.error && (
-        <p role="alert" className="text-sm text-warn">
-          {state.error}
-        </p>
-      )}
+      <ErrorMessage message={state.error} />
       <SubmitButton pending={pending}>Finish signing up</SubmitButton>
     </form>
   );

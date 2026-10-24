@@ -9,12 +9,10 @@ import { ProfilePhotos } from "@/components/ProfilePhotos";
 import { PushToggle } from "@/components/PushToggle";
 import { api, authedApi } from "@/lib/api";
 import { certaintyHint, longDate, shiftSentence } from "@/lib/format";
-import type { Gender, Me } from "@/lib/types";
+import { GENDERS } from "@/lib/labels";
+import type { Me } from "@/lib/types";
 
 export const metadata: Metadata = { title: "You" };
-
-const GENDER_LABELS: Record<Gender, string> = { WOMAN: "Woman", MAN: "Man", NONBINARY: "Non-binary" };
-const SEEKING_LABELS: Record<Gender, string> = { WOMAN: "women", MAN: "men", NONBINARY: "non-binary people" };
 
 export default async function MePage() {
   const [me, push] = await Promise.all([
@@ -25,8 +23,8 @@ export default async function MePage() {
     ["Email", me.email],
     ["Born", longDate(me.birthDate)],
     ["City", me.city],
-    ["Gender", GENDER_LABELS[me.gender]],
-    ["Interested in", me.seeking.map((g) => SEEKING_LABELS[g]).join(", ")],
+    ["Gender", GENDERS[me.gender].label],
+    ["Interested in", me.seeking.map((g) => GENDERS[g].plural.toLowerCase()).join(", ")],
     ["Questions answered", String(me.answerCount)],
   ];
 

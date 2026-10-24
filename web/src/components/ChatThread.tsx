@@ -5,7 +5,9 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { sendMessage } from "@/actions/chats";
 import { resolveAction } from "@/lib/action-client";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
+import { mergeMessages } from "@/lib/messages";
 import type { ChatMessage } from "@/lib/types";
+import { ErrorMessage } from "./ErrorMessage";
 
 const FALLBACK_POLL_MS = 10_000;
 
@@ -13,13 +15,6 @@ interface ChatThreadProps {
   matchId: string;
   personName: string;
   initialMessages: ChatMessage[];
-}
-
-export function merge(current: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
-  const known = new Set(current.map((m) => m.id));
-  const unseen = incoming.filter((m) => !known.has(m.id));
-  if (unseen.length === 0) return current;
-  return [...current, ...unseen].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
 }
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -45,7 +40,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
     const catchUp = () =>
       fetchMessages(matchId, latest.current)
         .then((fresh) => {
-          if (active) setMessages((current) => merge(current, fresh));
+          if (active) setMessages((current) => mergeMessages(current, fresh));
         })
         .catch((error: unknown) => {
           if (active && error instanceof SessionExpiredError) router.replace("/session/expired");
@@ -55,7 +50,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
     source.addEventListener("open", catchUp);
     source.addEventListener("message", (event: MessageEvent<string>) => {
       const message = JSON.parse(event.data) as ChatMessage;
-      if (active) setMessages((current) => merge(current, [message]));
+      if (active) setMessages((current) => mergeMessages(current, [message]));
     });
     source.addEventListener("closed", () => {
       source.close();
@@ -84,7 +79,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
         setError(sent.error);
         return;
       }
-      setMessages((current) => merge(current, [sent.value]));
+      setMessages((current) => mergeMessages(current, [sent.value]));
       setDraft("");
     });
   }
@@ -147,11 +142,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
           </button>
         </form>
       )}
-      {error && (
-        <p role="alert" className="px-4 pb-3 text-sm text-warn">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="px-4 pb-3" />
     </section>
   );
 }

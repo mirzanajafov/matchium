@@ -6,6 +6,7 @@ import { answerQuestion } from "@/actions/questions";
 import { resolveAction } from "@/lib/action-client";
 import { certaintyHint } from "@/lib/format";
 import type { AnswerValues, DailyQuestion } from "@/lib/types";
+import { ErrorMessage } from "./ErrorMessage";
 import { Meter } from "./Meter";
 import { Scale } from "./Scale";
 
@@ -102,11 +103,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
           onChange={set("importance")}
         />
 
-        {error && (
-          <p role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
-            {error}
-          </p>
-        )}
+        <ErrorMessage message={error} className="rounded-lg bg-warn-soft px-3 py-2" />
 
         <button
           type="submit"

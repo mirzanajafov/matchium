@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { PhotoRef } from "@/lib/types";
-import { photoUrl } from "./Avatar";
+import { photoUrl } from "@/lib/photos";
 
 export function PhotoStrip({ name, photos }: { name: string; photos: PhotoRef[] }) {
   if (photos.length === 0) return null;
