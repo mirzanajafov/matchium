@@ -10,6 +10,7 @@ import { RateLimiter } from '../src/limits/rate-limiter.js';
 import { type Mail, Mailer } from '../src/mail/mailer.js';
 import { PhotoStore } from '../src/photos/photo-store.js';
 import sharp from 'sharp';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { MatchNotifier } from '../src/push/match-notifier.js';
 import { type Delivery, type PushMessage, PushSender, type PushTarget } from '../src/push/push-sender.js';
 
@@ -1141,6 +1142,52 @@ describe('email digest', () => {
     await http().post('/email/unsubscribe').query({ token: alice.token }).expect(410);
     await http().post('/email/unsubscribe').query({ token }).expect(200);
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailDigest).toBe(false);
+  });
+});
+
+describe('shutdown', () => {
+  class SlowMailer extends Mailer {
+    readonly enabled = true;
+    delivered: string[] = [];
+
+    async send(mail: Mail): Promise<void> {
+      await sleep(100);
+      this.delivered.push(mail.to);
+    }
+  }
+
+  it('finishes the match emails it has started before the app stops', async () => {
+    const alice = await register({ gender: 'WOMAN', seeking: ['MAN'] });
+    const bob = await register({ gender: 'MAN', seeking: ['WOMAN'] });
+    await prisma.match.create({
+      data: {
+        day: new Date('2026-09-23'),
+        userAId: alice.id,
+        userBId: bob.id,
+        score: 0.6,
+        confidence: 0.4,
+        aligned: ['family'],
+        friction: 'tidiness',
+      },
+    });
+    await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
+    const mailer = new SlowMailer();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(Clock)
+      .useValue(clock)
+      .overrideProvider(PushSender)
+      .useValue(pushes)
+      .overrideProvider(Mailer)
+      .useValue(mailer)
+      .overrideProvider(PhotoStore)
+      .useValue(photos)
+      .compile();
+    const restarting = configureApp(moduleRef.createNestApplication());
+
+    await restarting.init();
+    await restarting.close();
+
+    expect(new Set(mailer.delivered)).toEqual(new Set([alice.email, bob.email]));
   });
 });
 

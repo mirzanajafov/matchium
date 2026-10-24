@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Subscription, concatMap, from, map, merge } from 'rxjs';
+import { Subject, concatMap, from, lastValueFrom, map, merge, takeUntil } from 'rxjs';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
 import { DbEvents, MATCHES_CHANNEL } from '../common/db-events.js';
 import { DigestService } from '../mail/digest.service.js';
@@ -13,7 +13,8 @@ interface MatchesReady {
 @Injectable()
 export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(MatchNotifier.name);
-  private subscription?: Subscription;
+  private readonly stopping = new Subject<void>();
+  private finished: Promise<unknown> = Promise.resolve();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -25,17 +26,23 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     const today = () => isoDay(utcDay(this.clock.now()));
-    this.subscription = merge(
+    const days = merge(
       from([today()]),
       this.events.reconnected.pipe(map(today)),
       this.events.on<MatchesReady>(MATCHES_CHANNEL).pipe(map((event) => event.day)),
-    )
-      .pipe(concatMap((day) => this.deliver(day).catch((error: Error) => this.fail(day, error))))
-      .subscribe();
+    );
+    this.finished = lastValueFrom(
+      days.pipe(
+        takeUntil(this.stopping),
+        concatMap((day) => this.deliver(day).catch((error: Error) => this.fail(day, error))),
+      ),
+      { defaultValue: 0 },
+    );
   }
 
-  onModuleDestroy() {
-    this.subscription?.unsubscribe();
+  async onModuleDestroy() {
+    this.stopping.next();
+    await this.finished;
   }
 
   async deliver(day: string): Promise<number> {
