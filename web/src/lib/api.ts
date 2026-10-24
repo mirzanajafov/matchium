@@ -27,14 +27,20 @@ function messageFrom(data: unknown): string | undefined {
   return typeof message === "string" ? message : undefined;
 }
 
-const TRUSTED_PROXY_HOPS = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS ?? 1) || 1);
+export function trustedProxyHops(setting = "0"): number {
+  if (!/^\d+$/.test(setting)) throw new Error(`TRUSTED_PROXY_HOPS="${setting}" isn't a whole number of proxies`);
+  return Number(setting);
+}
+
+const TRUSTED_PROXY_HOPS = trustedProxyHops(process.env.TRUSTED_PROXY_HOPS);
 
 export function clientFromForwarded(header: string | null, hops = TRUSTED_PROXY_HOPS): string | undefined {
+  if (hops === 0) return undefined;
   const entries = (header ?? "")
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
-  return entries.at(-hops) ?? entries[0];
+  return entries.at(-hops);
 }
 
 async function clientAddress(): Promise<string | undefined> {
