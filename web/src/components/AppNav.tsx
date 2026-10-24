@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { SessionExpired, fetchInbox } from "@/lib/fetchers";
+import { SessionExpiredError, fetchInbox } from "@/lib/fetchers";
 import type { Inbox } from "@/lib/types";
 import { NavLink } from "./NavLink";
 
@@ -21,7 +21,7 @@ export function AppNav({ initial }: { initial: Inbox }) {
           if (active) setInbox(next);
         })
         .catch((error: unknown) => {
-          if (error instanceof SessionExpired) router.replace("/session/expired");
+          if (active && error instanceof SessionExpiredError) router.replace("/session/expired");
         });
     refresh();
     const timer = setInterval(refresh, REFRESH_MS);

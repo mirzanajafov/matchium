@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { api, authedFetch, clientFromForwarded, relayJson } from "./api";
+import { getToken } from "./session";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
@@ -22,7 +23,7 @@ describe("clientFromForwarded", () => {
 });
 
 describe("requests to the API", () => {
-  const fetch = vi.fn();
+  const fetch = vi.fn<typeof globalThis.fetch>();
 
   beforeEach(() => {
     fetch.mockReset().mockResolvedValue(Response.json({ ok: true }));
@@ -34,23 +35,22 @@ describe("requests to the API", () => {
     vi.unstubAllGlobals();
   });
 
-  function sent(): RequestInit {
-    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
-    return init;
+  function sent(): RequestInit | undefined {
+    return fetch.mock.calls[0]?.[1];
   }
 
   it("sends an object as JSON", async () => {
     await api("/auth/login", { body: { email: "a@example.com" } });
     expect(sent()).toMatchObject({ method: "POST", body: '{"email":"a@example.com"}' });
-    expect(sent().headers).toMatchObject({ "content-type": "application/json" });
+    expect(sent()?.headers).toMatchObject({ "content-type": "application/json" });
   });
 
   it("leaves the content type of an upload to fetch, so the multipart boundary is set", async () => {
     const form = new FormData();
     form.set("photo", new Blob(["jpeg"]), "me.jpg");
     await api("/me/photos", { body: form });
-    expect(sent().body).toBe(form);
-    expect(sent().headers).not.toHaveProperty("content-type");
+    expect(sent()?.body).toBe(form);
+    expect(sent()?.headers).not.toHaveProperty("content-type");
   });
 
   it("passes the API's answer and status through for the browser's own routes", async () => {
@@ -58,11 +58,10 @@ describe("requests to the API", () => {
     const response = await relayJson("/inbox");
     expect(response.status).toBe(503);
     expect(await response.text()).toBe('{"newMatches":1}');
-    expect(sent().headers).toMatchObject({ authorization: "Bearer token-1" });
+    expect(sent()?.headers).toMatchObject({ authorization: "Bearer token-1" });
   });
 
   it("answers 401 itself when there is no session to send", async () => {
-    const { getToken } = await import("./session");
     vi.mocked(getToken).mockResolvedValueOnce(undefined);
     expect((await authedFetch("/photos/1")).status).toBe(401);
     expect(fetch).not.toHaveBeenCalled();

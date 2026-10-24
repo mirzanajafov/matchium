@@ -1,5 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
-import { SessionExpired, fetchInbox } from "@/lib/fetchers";
+import { SessionExpiredError, fetchInbox } from "@/lib/fetchers";
 import { AppNav } from "./AppNav";
 
 vi.mock("@/lib/fetchers", async (importOriginal) => ({
@@ -46,7 +46,7 @@ describe("AppNav", () => {
   });
 
   it("sends you to sign in again when the session is gone", async () => {
-    vi.mocked(fetchInbox).mockRejectedValue(new SessionExpired("/api/inbox answered 401"));
+    vi.mocked(fetchInbox).mockRejectedValue(new SessionExpiredError("/api/inbox answered 401"));
     render(<AppNav initial={{ newMatches: 0, unreadChats: 0 }} />);
     await act(async () => undefined);
     expect(router.replace).toHaveBeenCalledWith("/session/expired");

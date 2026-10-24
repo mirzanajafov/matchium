@@ -1,7 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { sendMessage } from "@/app/actions";
-import { SessionExpired, fetchMessages } from "@/lib/fetchers";
+import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 import { ChatThread, merge } from "./ChatThread";
 
@@ -151,7 +151,7 @@ describe("ChatThread", () => {
   });
 
   it("sends you to sign in again when catching up finds the session gone", async () => {
-    vi.mocked(fetchMessages).mockRejectedValue(new SessionExpired("401"));
+    vi.mocked(fetchMessages).mockRejectedValue(new SessionExpiredError("401"));
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
     await act(async () => {
       FakeEventSource.instances[0].emit("open");

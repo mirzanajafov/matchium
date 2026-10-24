@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { sendMessage } from "@/app/actions";
-import { SessionExpired, fetchMessages } from "@/lib/fetchers";
+import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 
 const FALLBACK_POLL_MS = 10_000;
@@ -47,7 +47,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
           if (active) setMessages((current) => merge(current, fresh));
         })
         .catch((error: unknown) => {
-          if (error instanceof SessionExpired) router.replace("/session/expired");
+          if (active && error instanceof SessionExpiredError) router.replace("/session/expired");
         });
 
     const source = new EventSource(`/api/chats/${encodeURIComponent(matchId)}/stream`);

@@ -1,4 +1,4 @@
-import { SessionExpired, fetchInbox, fetchMessages } from "./fetchers";
+import { SessionExpiredError, fetchInbox, fetchMessages } from "./fetchers";
 
 describe("fetchers", () => {
   afterEach(() => {
@@ -16,8 +16,8 @@ describe("fetchers", () => {
 
   it("tells a session that is gone apart from an API that is only having trouble", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
-    await expect(fetchInbox()).rejects.toBeInstanceOf(SessionExpired);
+    await expect(fetchInbox()).rejects.toBeInstanceOf(SessionExpiredError);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 502 })));
-    await expect(fetchInbox()).rejects.not.toBeInstanceOf(SessionExpired);
+    await expect(fetchInbox()).rejects.not.toBeInstanceOf(SessionExpiredError);
   });
 });
