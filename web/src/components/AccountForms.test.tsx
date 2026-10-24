@@ -54,6 +54,10 @@ describe("ResetPasswordForm", () => {
 });
 
 describe("VerifyEmailBanner", () => {
+  beforeEach(() => {
+    vi.mocked(resendVerification).mockReset();
+  });
+
   it("resends the link and says so", async () => {
     const user = userEvent.setup();
     vi.mocked(resendVerification).mockResolvedValue({ sent: true });
@@ -61,5 +65,18 @@ describe("VerifyEmailBanner", () => {
     await user.click(screen.getByRole("button", { name: "Send the link again" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Sent. Check your inbox.");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("says so in the banner when the server can't send it, and lets you try again", async () => {
+    const user = userEvent.setup();
+    vi.mocked(resendVerification).mockRejectedValueOnce(new Error("API answered 502"));
+    render(<VerifyEmailBanner />);
+    await user.click(screen.getByRole("button", { name: "Send the link again" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't send it. Try again in a moment.");
+
+    vi.mocked(resendVerification).mockResolvedValueOnce({ sent: true });
+    await user.click(screen.getByRole("button", { name: "Send the link again" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Sent. Check your inbox.");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

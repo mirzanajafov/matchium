@@ -5,7 +5,20 @@ import { resendVerification } from "@/app/actions";
 
 export function VerifyEmailBanner() {
   const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  function resend() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await resendVerification();
+        setMessage(result.sent ? "Sent. Check your inbox." : (result.error ?? "Try again later."));
+      } catch {
+        setError("Couldn't send it. Try again in a moment.");
+      }
+    });
+  }
 
   return (
     <aside
@@ -20,18 +33,18 @@ export function VerifyEmailBanner() {
           <button
             type="button"
             disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await resendVerification();
-                setMessage(result.sent ? "Sent. Check your inbox." : (result.error ?? "Try again later."));
-              })
-            }
+            onClick={resend}
             className="font-medium underline disabled:opacity-50"
           >
             Send the link again
           </button>
         )}
       </p>
+      {error && (
+        <p role="alert" className="mt-1 font-medium">
+          {error}
+        </p>
+      )}
     </aside>
   );
 }
