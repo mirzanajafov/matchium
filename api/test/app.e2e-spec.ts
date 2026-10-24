@@ -67,10 +67,11 @@ class FakePhotoStore extends PhotoStore {
 class FakeMailer extends Mailer {
   readonly enabled = true;
   sent: Mail[] = [];
+  stalled = false;
 
   send(mail: Mail): Promise<void> {
     this.sent.push(mail);
-    return Promise.resolve();
+    return this.stalled ? new Promise(() => undefined) : Promise.resolve();
   }
 }
 let counter = 0;
@@ -121,6 +122,7 @@ beforeEach(async () => {
   clock.current = new Date('2026-09-23T09:00:00Z');
   pushes.sent = [];
   mails.sent = [];
+  mails.stalled = false;
   photos.objects.clear();
   pushes.gone.clear();
 });
@@ -1154,6 +1156,13 @@ describe('account security', () => {
     await http().post('/auth/login').send({ email: alice.email, password: 'correct horse battery' }).expect(401);
     const fresh = await http().post('/auth/login').send({ email: alice.email, password: 'a new password' }).expect(200);
     expect((await http().get('/me').set(as(fresh.body.accessToken)).expect(200)).body.emailVerified).toBe(true);
+  });
+
+  it('answers a reset request without waiting for the mail server', async () => {
+    const alice = await register();
+    mails.stalled = true;
+    await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
+    expect(mails.sent.map((m) => m.subject)).toContain('Reset your Matchium password');
   });
 
   it('limits reset requests per address', async () => {

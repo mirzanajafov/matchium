@@ -119,7 +119,7 @@ export class AuthService implements OnModuleInit {
       { sub: user.id, purpose: RESET_PURPOSE, stamp: passwordStamp(user.passwordHash) },
       { expiresIn: '30m' },
     );
-    await this.deliver(
+    void this.deliver(
       'reset',
       user.email,
       passwordResetEmail(user.displayName, `${this.webUrl}/reset-password?token=${token}`),
