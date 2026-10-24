@@ -56,18 +56,20 @@ def serve(
         run_with_retry(job, due.date(), sleep, retry_delay, attempts)
 
 
-def main():
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the nightly matching job every day at a fixed UTC time.")
-    parser.add_argument(
-        "--at", type=dt.time.fromisoformat, default=dt.time.fromisoformat(os.environ.get("MATCH_AT", "03:00"))
-    )
-    parser.add_argument("--per-user", type=int, default=int(os.environ.get("MATCHES_PER_USER", "3")))
-    parser.add_argument("--min-answers", type=int, default=int(os.environ.get("MIN_ANSWERS", "6")))
+    parser.add_argument("--at", type=dt.time.fromisoformat, default=os.environ.get("MATCH_AT") or "03:00")
+    parser.add_argument("--per-user", type=int, default=os.environ.get("MATCHES_PER_USER") or "3")
+    parser.add_argument("--min-answers", type=int, default=os.environ.get("MIN_ANSWERS") or "6")
     parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if not args.database_url:
         parser.error("set DATABASE_URL or pass --database-url")
+    return args
 
+
+def main():
+    args = parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     serve(lambda day: run_day(args.database_url, day, args.per_user, args.min_answers), args.at)
 

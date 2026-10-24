@@ -16,7 +16,7 @@ def observation_var(question: Question) -> float:
     return question.noise**2 + QUANTIZATION_VAR
 
 
-def posterior_var(var: np.ndarray, obs_var: float) -> np.ndarray:
+def posterior_var(var: np.ndarray, obs_var: float | np.ndarray) -> np.ndarray:
     return var * obs_var / (var + obs_var)
 
 

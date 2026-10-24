@@ -1,8 +1,9 @@
 import numpy as np
+import pytest
 
 from matchium import DIMENSIONS, Beliefs
 from matchium.model import BAR_PRIOR_MEAN, GAP_PRIOR_VAR
-from matchium.revealed import Decisions, learn, pool_spread
+from matchium.revealed import Decisions, learn, normal_cdf, pool_spread
 from matchium.scoring import directed_scores
 
 
@@ -79,3 +80,12 @@ def test_no_decisions_is_a_no_op():
     empty = np.array([], dtype=int)
     learn(b, Decisions(empty, empty, empty.astype(bool)), *spread(b))
     assert np.all(b.mu_gap == 0) and np.all(b.mu_bar == BAR_PRIOR_MEAN)
+
+
+def test_normal_cdf_takes_a_number_or_an_array_of_any_shape() -> None:
+    assert normal_cdf(0.0).shape == ()
+    assert normal_cdf(0.0) == pytest.approx(0.5)
+    assert normal_cdf(np.array(1.0)) == pytest.approx(0.8413447460685429)
+    both_tails = normal_cdf(np.array([[-1.0], [1.0]]))
+    assert both_tails.shape == (2, 1)
+    assert both_tails[:, 0] == pytest.approx([0.15865525393145707, 0.8413447460685429])

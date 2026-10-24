@@ -7,7 +7,7 @@ from .model import Beliefs
 from .scoring import pair_scores, standardize
 
 DECISION_NOISE = 0.6
-_erfc = np.frompyfunc(math.erfc, 1, 1)
+_erfc = np.vectorize(math.erfc, otypes=[float])
 
 
 @dataclass
@@ -20,8 +20,8 @@ class Decisions:
         return len(self.chooser)
 
 
-def normal_cdf(x: np.ndarray) -> np.ndarray:
-    return 0.5 * _erfc(-np.asarray(x, dtype=float) / math.sqrt(2)).astype(float)
+def normal_cdf(x: float | np.ndarray) -> np.ndarray:
+    return np.asarray(0.5 * _erfc(-np.asarray(x, dtype=float) / math.sqrt(2)))
 
 
 def pool_spread(scores: np.ndarray, eligible: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
