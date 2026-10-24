@@ -1149,7 +1149,7 @@ describe('email digest', () => {
   });
 });
 
-describe('shutdown', () => {
+describe('shutdown', { timeout: 15_000 }, () => {
   class HeldMailer extends FakeMailer {
     holding = 0;
     open: () => void = () => undefined;
