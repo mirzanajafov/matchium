@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { deleteAccount } from "@/actions/account";
 import type { FormState } from "@/lib/types";
+import { ErrorMessage } from "./ErrorMessage";
 import { Field } from "./Field";
 
 export function DeleteAccountForm() {
@@ -23,11 +24,7 @@ export function DeleteAccountForm() {
         This deletes your profile, answers, matches and messages for good. People you matched with lose the chat too.
       </p>
       <Field label="Password" name="password" type="password" autoComplete="current-password" required />
-      {state.error && (
-        <p role="alert" className="text-sm text-warn">
-          {state.error}
-        </p>
-      )}
+      <ErrorMessage message={state.error} />
       <div className="flex gap-2">
         <button
           type="submit"

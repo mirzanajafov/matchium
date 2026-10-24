@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { UnsubscribeForm } from "@/components/UnsubscribeForm";
+import { UnsubscribeForm } from "./UnsubscribeForm";
 
 export const metadata: Metadata = { title: "Email settings", robots: { index: false } };
 

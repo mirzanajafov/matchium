@@ -5,13 +5,13 @@ import { Avatar } from "@/components/Avatar";
 import { ChatThread } from "@/components/ChatThread";
 import { UnmatchPanel } from "@/components/UnmatchPanel";
 import { ApiError, authedApi } from "@/lib/api";
-import type { ChatThread as Thread } from "@/lib/types";
+import type { Conversation } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Chat" };
 
-async function loadThread(id: string): Promise<Thread> {
+async function loadConversation(id: string): Promise<Conversation> {
   try {
-    return await authedApi<Thread>(`/chats/${encodeURIComponent(id)}/messages`);
+    return await authedApi<Conversation>(`/chats/${encodeURIComponent(id)}/messages`);
   } catch (error) {
     if (error instanceof ApiError && [400, 403, 404].includes(error.status)) notFound();
     throw error;
@@ -20,7 +20,7 @@ async function loadThread(id: string): Promise<Thread> {
 
 export default async function ChatPage({ params }: PageProps<"/chats/[id]">) {
   const { id } = await params;
-  const thread = await loadThread(id);
+  const conversation = await loadConversation(id);
 
   return (
     <>
@@ -28,14 +28,14 @@ export default async function ChatPage({ params }: PageProps<"/chats/[id]">) {
         All chats
       </Link>
       <h1 className="mt-2 flex items-center gap-3 text-2xl font-semibold">
-        <Avatar name={thread.person.displayName} photo={thread.person.photo} size={40} />
-        {thread.person.displayName}
+        <Avatar name={conversation.person.displayName} photo={conversation.person.photo} size={40} />
+        {conversation.person.displayName}
       </h1>
       <div className="mt-6">
-        <ChatThread matchId={id} personName={thread.person.displayName} initialMessages={thread.messages} />
+        <ChatThread matchId={id} personName={conversation.person.displayName} initialMessages={conversation.messages} />
       </div>
       <div className="mt-4">
-        <UnmatchPanel matchId={id} personName={thread.person.displayName} />
+        <UnmatchPanel matchId={id} personName={conversation.person.displayName} />
       </div>
     </>
   );

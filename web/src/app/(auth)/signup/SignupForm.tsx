@@ -2,15 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { signup } from "@/actions/account";
+import { GENDERS } from "@/lib/labels";
 import type { FormState } from "@/lib/types";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { Field } from "@/components/Field";
 import { SubmitButton } from "@/components/SubmitButton";
-
-const GENDERS = [
-  { value: "WOMAN", label: "Woman", plural: "Women" },
-  { value: "MAN", label: "Man", plural: "Men" },
-  { value: "NONBINARY", label: "Non-binary", plural: "Non-binary" },
-];
 
 function latestAllowedBirthDate(): string {
   const date = new Date();
@@ -105,11 +101,7 @@ export function SignupForm() {
         </div>
       </fieldset>
 
-      {state.error && (
-        <p role="alert" className="text-sm text-warn">
-          {state.error}
-        </p>
-      )}
+      <ErrorMessage message={state.error} />
       <SubmitButton pending={pending}>Create account</SubmitButton>
     </form>
   );

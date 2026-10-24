@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { unsubscribeEmail } from "@/actions/profile";
 import { resolveAction } from "@/lib/action-client";
+import { ErrorMessage } from "@/components/ErrorMessage";
+import { SubmitButton } from "@/components/SubmitButton";
 import type { ActionResult } from "@/lib/types";
 
 export function UnsubscribeForm({ token }: { token: string }) {
@@ -30,21 +32,16 @@ export function UnsubscribeForm({ token }: { token: string }) {
   }
 
   return (
-    <div className="mt-4 space-y-4">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        stop();
+      }}
+      className="mt-4 space-y-4"
+    >
       <p className="text-muted">We&apos;ll stop emailing you about new matches and unread chats.</p>
-      {state && !state.ok && (
-        <p role="alert" className="text-sm text-warn">
-          {state.error}
-        </p>
-      )}
-      <button
-        type="button"
-        disabled={pending}
-        onClick={stop}
-        className="h-11 w-full rounded-lg bg-foreground font-medium text-background disabled:opacity-40"
-      >
-        {pending ? "One sec..." : "Stop these emails"}
-      </button>
-    </div>
+      <ErrorMessage message={state?.ok === false ? state.error : null} />
+      <SubmitButton pending={pending}>Stop these emails</SubmitButton>
+    </form>
   );
 }

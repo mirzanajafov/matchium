@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { answerQuestion } from "@/actions/questions";
 import { resolveAction } from "@/lib/action-client";
+import { ErrorMessage } from "./ErrorMessage";
 import { certaintyHint } from "@/lib/format";
 import type { AnswerValues, DailyQuestion } from "@/lib/types";
 import { Meter } from "./Meter";
@@ -102,11 +103,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
           onChange={set("importance")}
         />
 
-        {error && (
-          <p role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
-            {error}
-          </p>
-        )}
+        <ErrorMessage message={error} className="rounded-lg bg-warn-soft px-3 py-2" />
 
         <button
           type="submit"

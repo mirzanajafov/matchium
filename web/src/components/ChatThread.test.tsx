@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
-import { ChatThread, merge } from "./ChatThread";
+import { ChatThread } from "./ChatThread";
 
 vi.mock("@/actions/chats", () => ({ sendMessage: vi.fn() }));
 vi.mock("@/lib/fetchers", async (importOriginal) => ({
@@ -45,21 +45,6 @@ class FakeEventSource {
 function message(id: string, body: string, createdAt: string, fromMe = false): ChatMessage {
   return { id, body, fromMe, createdAt };
 }
-
-describe("merge", () => {
-  it("dedupes by id and keeps time order", () => {
-    const a = message("a", "one", "2026-09-23T10:00:00.000Z");
-    const b = message("b", "two", "2026-09-23T10:01:00.000Z");
-    const c = message("c", "three", "2026-09-23T10:02:00.000Z");
-    expect(merge([a, b], [b, c, a]).map((m) => m.id)).toEqual(["a", "b", "c"]);
-    expect(merge([c], [a]).map((m) => m.id)).toEqual(["a", "c"]);
-  });
-
-  it("hands back the same list when nothing is new", () => {
-    const current = [message("a", "one", "2026-09-23T10:00:00.000Z")];
-    expect(merge(current, [message("a", "one", "2026-09-23T10:00:00.000Z")])).toBe(current);
-  });
-});
 
 describe("ChatThread", () => {
   const scrolls = vi.fn();

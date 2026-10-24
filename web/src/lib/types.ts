@@ -93,7 +93,7 @@ export interface Inbox {
   emailEnabled?: boolean;
 }
 
-export interface ChatThread {
+export interface Conversation {
   person: { id: string; displayName: string; photo: string | null };
   messages: ChatMessage[];
 }

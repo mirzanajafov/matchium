@@ -6,6 +6,7 @@ import { decide } from "@/actions/matches";
 import { resolveAction } from "@/lib/action-client";
 import { confidenceCaption, dimensionLabel, joinWords, percent } from "@/lib/format";
 import { Avatar } from "./Avatar";
+import { ErrorMessage } from "./ErrorMessage";
 import { PhotoStrip } from "./PhotoStrip";
 import type { Match } from "@/lib/types";
 
@@ -59,11 +60,7 @@ export function MatchCard({ match }: { match: Match }) {
         </li>
       </ul>
 
-      {error && (
-        <p role="alert" className="mt-4 text-sm text-warn">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mt-4" />
 
       <footer className="mt-5">
         {mutual ? (

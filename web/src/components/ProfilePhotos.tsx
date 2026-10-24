@@ -6,7 +6,8 @@ import { deletePhoto, makeMainPhoto, uploadPhoto } from "@/actions/profile";
 import { resolveAction } from "@/lib/action-client";
 import { shrinkForUpload } from "@/lib/shrink";
 import type { ActionResult, FormState, PhotoRef } from "@/lib/types";
-import { photoUrl } from "./Avatar";
+import { photoUrl } from "@/lib/photos";
+import { ErrorMessage } from "./ErrorMessage";
 
 const MAX_PHOTOS = 4;
 
@@ -83,11 +84,7 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
           </li>
         ))}
       </ul>
-      {changeError && (
-        <p role="alert" className="mt-2 text-sm text-warn">
-          {changeError}
-        </p>
-      )}
+      <ErrorMessage message={changeError} className="mt-2" />
       {photos.length < MAX_PHOTOS && (
         <form action={action} className="mt-4">
           <label
@@ -106,11 +103,7 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
           </label>
         </form>
       )}
-      {state.error && (
-        <p role="alert" className="mt-2 text-sm text-warn">
-          {state.error}
-        </p>
-      )}
+      <ErrorMessage message={state.error} className="mt-2" />
     </div>
   );
 }
