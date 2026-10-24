@@ -48,7 +48,7 @@ describe('trust proxy', () => {
     expect(await clientAddress('false', chain)).toMatch(/127\.0\.0\.1$/);
   });
 
-  it.each(['loopbak', 'true', ''])('stops at start on TRUST_PROXY="%s", which names no proxy', async (value) => {
-    await expect(clientAddress(value, chain)).rejects.toThrow(`TRUST_PROXY="${value}" names no proxy`);
+  it.each(['loopbak', 'true', '', '10.0.0.0/33'])('stops at start on TRUST_PROXY="%s"', async (value) => {
+    await expect(clientAddress(value, chain)).rejects.toThrow(`TRUST_PROXY="${value}" isn't false, a hop count`);
   });
 });

@@ -9,7 +9,9 @@ export function configureApp(app: INestApplication): INestApplication {
   try {
     app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
   } catch (error) {
-    throw new Error(`TRUST_PROXY="${String(trustProxy)}" names no proxy`, { cause: error });
+    throw new Error(`TRUST_PROXY="${String(trustProxy)}" isn't false, a hop count or a proxy list Express can read`, {
+      cause: error,
+    });
   }
   app.use(httpMetrics);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
