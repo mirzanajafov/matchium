@@ -1150,8 +1150,9 @@ describe('account security', () => {
     new URL(text.split(/\s+/).find((word) => word.includes(path))!).searchParams.get('token')!;
   const resetLink = async (email: string) => {
     await http().post('/auth/password/forgot').send({ email }).expect(204);
-    const sent = mails.sent.find((m) => m.to === email.toLowerCase() && m.subject === 'Reset your Matchium password')!;
-    return linkToken(sent.text, '/reset-password');
+    const sent = mails.sent.findLast((m) => m.to === email.toLowerCase());
+    expect(sent?.subject).toBe('Reset your Matchium password');
+    return linkToken(sent?.text ?? '', '/reset-password');
   };
 
   it('confirms the email from the link sent at sign-up', async () => {
@@ -1240,6 +1241,7 @@ describe('account security', () => {
     const alice = await register();
     const token = await resetLink(alice.email);
     let reset = Promise.resolve(0);
+    let status = 0;
     try {
       await prisma.$transaction(async (tx) => {
         await tx.user.update({ where: { id: alice.id }, data: { bannedAt: new Date() } });
@@ -1258,8 +1260,9 @@ describe('account security', () => {
         );
       });
     } finally {
-      expect(await reset).toBe(410);
+      status = await reset;
     }
+    expect(status).toBe(410);
   });
 
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {
