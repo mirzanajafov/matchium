@@ -6,7 +6,11 @@ import { httpMetrics } from './observability/http-metrics.js';
 
 export function configureApp(app: INestApplication): INestApplication {
   const trustProxy = app.get(ConfigService).getOrThrow<TrustProxy>('TRUST_PROXY');
-  app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+  try {
+    app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+  } catch (error) {
+    throw new Error(`TRUST_PROXY="${String(trustProxy)}" names no proxy`, { cause: error });
+  }
   app.use(httpMetrics);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.enableShutdownHooks();

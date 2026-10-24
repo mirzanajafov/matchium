@@ -29,8 +29,7 @@ export class Env {
   @Max(10)
   QUESTIONS_PER_DAY: number = 6;
 
-  @IsOptional()
-  @Transform(parseTrustProxy)
+  @Transform(parseTrustProxy, { toClassOnly: true })
   TRUST_PROXY: TrustProxy = 'loopback';
 
   @IsOptional()
