@@ -1148,6 +1148,11 @@ describe('account security', () => {
   const as = (token: string) => ({ Authorization: `Bearer ${token}` });
   const linkToken = (text: string, path: string) =>
     new URL(text.split(/\s+/).find((word) => word.includes(path))!).searchParams.get('token')!;
+  const resetLink = async (email: string) => {
+    await http().post('/auth/password/forgot').send({ email }).expect(204);
+    const sent = mails.sent.find((m) => m.to === email && m.subject === 'Reset your Matchium password')!;
+    return linkToken(sent.text, '/reset-password');
+  };
 
   it('confirms the email from the link sent at sign-up', async () => {
     const alice = await register();
@@ -1226,11 +1231,7 @@ describe('account security', () => {
 
   it('uses a reset link once, even when it is sent twice at the same moment', async () => {
     const alice = await register();
-    await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
-    const token = linkToken(
-      mails.sent.find((m) => m.subject === 'Reset your Matchium password')!.text,
-      '/reset-password',
-    );
+    const token = await resetLink(alice.email);
     const reset = async () =>
       (await http().post('/auth/password/reset').send({ token, password: 'a new password' })).status;
     const statuses = await Promise.all([reset(), reset()]);
@@ -1240,11 +1241,7 @@ describe('account security', () => {
 
   it('refuses a reset link for an account banned while the new password was being hashed', async () => {
     const alice = await register();
-    await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
-    const token = linkToken(
-      mails.sent.find((m) => m.subject === 'Reset your Matchium password')!.text,
-      '/reset-password',
-    );
+    const token = await resetLink(alice.email);
     let reset = Promise.resolve(0);
     await prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: alice.id }, data: { bannedAt: new Date() } });
@@ -1252,7 +1249,15 @@ describe('account security', () => {
         .post('/auth/password/reset')
         .send({ token, password: 'a new password' })
         .then((res) => res.status);
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await vi.waitFor(
+        async () => {
+          const [waiting] = await tx.$queryRaw<{ count: number }[]>`
+            SELECT count(*)::int AS count FROM pg_stat_activity
+            WHERE wait_event_type = 'Lock' AND datname = current_database()`;
+          expect(waiting?.count).toBe(1);
+        },
+        { timeout: 3000 },
+      );
     });
     expect(await reset).toBe(410);
   });
