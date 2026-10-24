@@ -31,15 +31,16 @@ export function UnsubscribeForm({ token }: { token: string }) {
       <button
         type="button"
         disabled={pending}
-        onClick={() =>
+        onClick={() => {
+          setState({ done: false });
           startTransition(async () => {
             try {
               setState(await unsubscribeEmail(token));
             } catch {
               setState({ done: false, error: "That didn't work. Try again in a moment." });
             }
-          })
-        }
+          });
+        }}
         className="h-11 w-full rounded-lg bg-foreground font-medium text-background disabled:opacity-40"
       >
         {pending ? "One sec..." : "Stop these emails"}

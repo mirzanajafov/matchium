@@ -63,11 +63,16 @@ describe("VerifyEmailBanner", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("says so in the banner when the server can't send it", async () => {
+  it("says so in the banner when the server can't send it, and lets you try again", async () => {
     const user = userEvent.setup();
-    vi.mocked(resendVerification).mockRejectedValue(new Error("API answered 502"));
+    vi.mocked(resendVerification).mockRejectedValueOnce(new Error("API answered 502"));
     render(<VerifyEmailBanner />);
     await user.click(screen.getByRole("button", { name: "Send the link again" }));
-    expect(await screen.findByRole("status")).toHaveTextContent("Couldn't send it. Try again later.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't send it. Try again in a moment.");
+
+    vi.mocked(resendVerification).mockResolvedValueOnce({ sent: true });
+    await user.click(screen.getByRole("button", { name: "Send the link again" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Sent. Check your inbox.");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

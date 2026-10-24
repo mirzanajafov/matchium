@@ -27,17 +27,17 @@ export function EmailDigestToggle({ enabled }: { enabled: boolean }) {
         aria-checked={shown}
         aria-label="Match emails"
         disabled={pending}
-        onClick={() =>
+        onClick={() => {
+          setError(null);
           startTransition(async () => {
-            setError(null);
             setShown(!shown);
             try {
               await setEmailDigest(!shown);
             } catch {
               setError("Couldn't save that. Try again.");
             }
-          })
-        }
+          });
+        }}
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
           shown ? "bg-accent" : "bg-line"
         }`}
