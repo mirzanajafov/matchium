@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { decide } from "@/app/actions";
+import { decide } from "@/actions/matches";
 import type { Match } from "@/lib/types";
 import { MatchCard } from "./MatchCard";
 
-vi.mock("@/app/actions", () => ({ decide: vi.fn() }));
+vi.mock("@/actions/matches", () => ({ decide: vi.fn() }));
 
 const match: Match = {
   id: "8c1f7d2e-1111-4a4a-9999-000000000001",
@@ -32,7 +32,7 @@ describe("MatchCard", () => {
   });
 
   it("celebrates when the like is mutual", async () => {
-    vi.mocked(decide).mockResolvedValue({ mutual: true });
+    vi.mocked(decide).mockResolvedValue({ ok: true, value: { mutual: true } });
     render(<MatchCard match={match} />);
     await userEvent.setup().click(screen.getByRole("button", { name: "I'm interested" }));
     expect(decide).toHaveBeenCalledWith(match.id, true);
@@ -40,7 +40,7 @@ describe("MatchCard", () => {
   });
 
   it("remembers a pass", async () => {
-    vi.mocked(decide).mockResolvedValue({ mutual: false });
+    vi.mocked(decide).mockResolvedValue({ ok: true, value: { mutual: false } });
     render(<MatchCard match={match} />);
     await userEvent.setup().click(screen.getByRole("button", { name: "Pass" }));
     expect(await screen.findByText("You passed on this one.")).toBeInTheDocument();

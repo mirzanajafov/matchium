@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { decide } from "@/app/actions";
+import { decide } from "@/actions/matches";
 import { confidenceCaption, dimensionLabel, joinWords, percent } from "@/lib/format";
 import { Avatar } from "./Avatar";
 import { PhotoStrip } from "./PhotoStrip";
@@ -18,13 +18,13 @@ export function MatchCard({ match }: { match: Match }) {
   function choose(like: boolean) {
     setError(null);
     startTransition(async () => {
-      try {
-        const result = await decide(match.id, like);
-        setDecision(like ? "LIKE" : "PASS");
-        setMutual(result.mutual);
-      } catch {
-        setError("Couldn't save that. Try again.");
+      const decided = await decide(match.id, like);
+      if (!decided.ok) {
+        setError(decided.error);
+        return;
       }
+      setDecision(like ? "LIKE" : "PASS");
+      setMutual(decided.value.mutual);
     });
   }
 

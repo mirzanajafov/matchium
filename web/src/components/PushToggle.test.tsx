@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { removePushSubscription, savePushSubscription } from "@/app/actions";
+import { removePushSubscription, savePushSubscription } from "@/actions/push";
 import { PushToggle } from "./PushToggle";
 
-vi.mock("@/app/actions", () => ({ savePushSubscription: vi.fn(), removePushSubscription: vi.fn() }));
+vi.mock("@/actions/push", () => ({ savePushSubscription: vi.fn(), removePushSubscription: vi.fn() }));
 
 const payload = { endpoint: "https://push.example/abc", keys: { p256dh: "key", auth: "secret" } };
 
@@ -45,8 +45,8 @@ function browser({ subscribed = false, permission = "default", grant = "granted"
 
 describe("PushToggle", () => {
   beforeEach(() => {
-    vi.mocked(savePushSubscription).mockReset();
-    vi.mocked(removePushSubscription).mockReset();
+    vi.mocked(savePushSubscription).mockReset().mockResolvedValue({ ok: true, value: undefined });
+    vi.mocked(removePushSubscription).mockReset().mockResolvedValue({ ok: true, value: undefined });
   });
 
   afterEach(() => {

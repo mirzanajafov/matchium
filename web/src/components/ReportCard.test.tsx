@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import type { AdminReport } from "@/lib/types";
 import { ReportCard } from "./ReportCard";
 
-vi.mock("@/app/actions", () => ({ resolveReport: vi.fn() }));
+vi.mock("@/actions/admin", () => ({ resolveReport: vi.fn() }));
 
 function report(overrides: Partial<AdminReport> = {}): AdminReport {
   const person = (id: string, displayName: string) => ({

@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { deleteAccount, type FormState } from "@/app/actions";
+import { deleteAccount } from "@/actions/account";
+import type { FormState } from "@/lib/types";
 import { Field } from "./Field";
 
 export function DeleteAccountForm() {

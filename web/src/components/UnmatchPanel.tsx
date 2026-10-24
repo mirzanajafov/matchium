@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { unmatch } from "@/app/actions";
+import { unmatch } from "@/actions/matches";
 import type { ReportReason } from "@/lib/types";
 
 const REASONS: { value: ReportReason; label: string }[] = [
@@ -33,10 +33,9 @@ export function UnmatchPanel({ matchId, personName }: { matchId: string; personN
   function confirm() {
     setError(null);
     startTransition(async () => {
-      try {
-        await unmatch(matchId, report ? { reason, note: note.trim() || undefined } : undefined);
-      } catch {
-        setError("That didn't work. Try again.");
+      const closed = await unmatch(matchId, report ? { reason, note: note.trim() || undefined } : undefined);
+      if (!closed.ok) {
+        setError(closed.error);
         return;
       }
       router.replace("/chats");

@@ -1,11 +1,11 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { sendMessage } from "@/app/actions";
+import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 import { ChatThread, merge } from "./ChatThread";
 
-vi.mock("@/app/actions", () => ({ sendMessage: vi.fn() }));
+vi.mock("@/actions/chats", () => ({ sendMessage: vi.fn() }));
 vi.mock("@/lib/fetchers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/fetchers")>()),
   fetchMessages: vi.fn(),
@@ -91,7 +91,10 @@ describe("ChatThread", () => {
 
   it("sends a trimmed message and clears the input", async () => {
     const user = userEvent.setup();
-    vi.mocked(sendMessage).mockResolvedValue(message("m1", "Hey Bob", "2026-09-23T10:00:00.000Z", true));
+    vi.mocked(sendMessage).mockResolvedValue({
+      ok: true,
+      value: message("m1", "Hey Bob", "2026-09-23T10:00:00.000Z", true),
+    });
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
 
     await user.type(screen.getByRole("textbox", { name: "Message" }), "  Hey Bob  ");
@@ -104,9 +107,7 @@ describe("ChatThread", () => {
 
   it("keeps the draft when sending fails", async () => {
     const user = userEvent.setup();
-    vi.mocked(sendMessage).mockImplementation(async () => {
-      throw new Error("offline");
-    });
+    vi.mocked(sendMessage).mockResolvedValue({ ok: false, error: "Message didn't go through. Try again." });
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
 
     await user.type(screen.getByRole("textbox", { name: "Message" }), "Hello?");
@@ -208,7 +209,7 @@ describe("ChatThread", () => {
 
   it("says so when messages are coming too fast", async () => {
     const user = userEvent.setup();
-    vi.mocked(sendMessage).mockResolvedValue({ error: "You're sending messages too fast. Wait a moment." });
+    vi.mocked(sendMessage).mockResolvedValue({ ok: false, error: "You're sending messages too fast. Wait a moment." });
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
 
     await user.type(screen.getByRole("textbox", { name: "Message" }), "hello");

@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { type FormState, saveBio } from "@/app/actions";
+import { saveBio } from "@/actions/profile";
+import type { FormState } from "@/lib/types";
 
 const MAX_BIO = 300;
 

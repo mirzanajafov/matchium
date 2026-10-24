@@ -1,3 +1,11 @@
+export type ActionResult<T = unknown> = { ok: true; value: T } | { ok: false; error: string };
+
+export interface FormState {
+  error?: string;
+  done?: boolean;
+  values?: Record<string, string>;
+}
+
 export type Gender = "WOMAN" | "MAN" | "NONBINARY";
 
 export interface Me {

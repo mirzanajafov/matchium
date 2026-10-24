@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { removePushSubscription, savePushSubscription } from "@/app/actions";
+import { removePushSubscription, savePushSubscription } from "@/actions/push";
 import { decodeKey, toPayload } from "@/lib/push";
 
 type Status = "checking" | "unsupported" | "blocked" | "off" | "on" | "working" | "failed";
@@ -38,8 +38,7 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
       .then(async (subscription) => {
         const payload = subscription && toPayload(subscription);
         if (payload) {
-          await savePushSubscription(payload);
-          settle("on");
+          settle((await savePushSubscription(payload)).ok ? "on" : "failed");
         } else {
           settle(Notification.permission === "denied" ? "blocked" : "off");
         }
@@ -64,8 +63,7 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
       });
       const payload = toPayload(subscription);
       if (!payload) throw new Error("Incomplete subscription");
-      await savePushSubscription(payload);
-      setStatus("on");
+      setStatus((await savePushSubscription(payload)).ok ? "on" : "failed");
     } catch {
       setStatus("failed");
     }
@@ -76,7 +74,10 @@ export function PushToggle({ publicKey }: { publicKey: string }) {
     try {
       const subscription = await (await registration()).pushManager.getSubscription();
       if (subscription) {
-        await removePushSubscription(subscription.endpoint);
+        if (!(await removePushSubscription(subscription.endpoint)).ok) {
+          setStatus("failed");
+          return;
+        }
         await subscription.unsubscribe();
       }
       setStatus("off");

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { type FormState, resetPassword } from "@/app/actions";
+import { resetPassword } from "@/actions/account";
+import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
 import { SubmitButton } from "@/components/SubmitButton";
 

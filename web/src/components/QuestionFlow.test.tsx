@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { answerQuestion } from "@/app/actions";
+import { answerQuestion } from "@/actions/questions";
 import { QuestionFlow } from "./QuestionFlow";
 
-vi.mock("@/app/actions", () => ({ answerQuestion: vi.fn() }));
+vi.mock("@/actions/questions", () => ({ answerQuestion: vi.fn() }));
 
 const questions = [
   { id: "family.1", text: "I want to have children someday.", answered: true },
@@ -29,7 +29,7 @@ describe("QuestionFlow", () => {
 
   it("skips answered questions and only submits once all three scales are set", async () => {
     const user = userEvent.setup();
-    vi.mocked(answerQuestion).mockResolvedValue({ remaining: 1, certainty: 0.2 });
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
     render(<QuestionFlow questions={questions} certainty={0.1} />);
 
     expect(screen.getByText("Question 2 of 3")).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe("QuestionFlow", () => {
 
   it("shows the wrap-up once every question is answered", async () => {
     const user = userEvent.setup();
-    vi.mocked(answerQuestion).mockResolvedValue({ remaining: 0, certainty: 0.35 });
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 0, certainty: 0.35 } });
     render(<QuestionFlow questions={questions.slice(0, 2)} certainty={0.1} />);
 
     await answerCurrent(user);
@@ -59,8 +59,9 @@ describe("QuestionFlow", () => {
 
   it("keeps the answer on screen when saving fails", async () => {
     const user = userEvent.setup();
-    vi.mocked(answerQuestion).mockImplementation(async () => {
-      throw new Error("network");
+    vi.mocked(answerQuestion).mockResolvedValue({
+      ok: false,
+      error: "Couldn't save that answer. Try again in a moment.",
     });
     render(<QuestionFlow questions={questions} certainty={0.1} />);
 

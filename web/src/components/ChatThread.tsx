@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { sendMessage } from "@/app/actions";
+import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
 
@@ -78,17 +78,13 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
     if (!body) return;
     setError(null);
     startSending(async () => {
-      try {
-        const result = await sendMessage(matchId, body);
-        if ("error" in result) {
-          setError(result.error);
-          return;
-        }
-        setMessages((current) => merge(current, [result]));
-        setDraft("");
-      } catch {
-        setError("Message didn't go through. Try again.");
+      const sent = await sendMessage(matchId, body);
+      if (!sent.ok) {
+        setError(sent.error);
+        return;
       }
+      setMessages((current) => merge(current, [sent.value]));
+      setDraft("");
     });
   }
 

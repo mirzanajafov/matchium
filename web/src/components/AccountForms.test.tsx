@@ -1,13 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { confirmSignup, requestPasswordReset, resendVerification, resetPassword, signup } from "@/app/actions";
+import { confirmSignup, requestPasswordReset, resendVerification, resetPassword, signup } from "@/actions/account";
 import { ConfirmSignupForm } from "@/app/(auth)/confirm-signup/ConfirmSignupForm";
 import { ForgotPasswordForm } from "@/app/(auth)/forgot-password/ForgotPasswordForm";
 import { ResetPasswordForm } from "@/app/(auth)/reset-password/ResetPasswordForm";
 import { SignupForm } from "@/app/(auth)/signup/SignupForm";
 import { VerifyEmailBanner } from "./VerifyEmailBanner";
 
-vi.mock("@/app/actions", () => ({
+vi.mock("@/actions/account", () => ({
   requestPasswordReset: vi.fn(),
   resetPassword: vi.fn(),
   resendVerification: vi.fn(),
@@ -100,7 +100,7 @@ describe("VerifyEmailBanner", () => {
 
   it("resends the link and says so", async () => {
     const user = userEvent.setup();
-    vi.mocked(resendVerification).mockResolvedValue({ sent: true });
+    vi.mocked(resendVerification).mockResolvedValue({ ok: true, value: undefined });
     render(<VerifyEmailBanner />);
     await user.click(screen.getByRole("button", { name: "Send the link again" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Sent. Check your inbox.");
@@ -109,12 +109,15 @@ describe("VerifyEmailBanner", () => {
 
   it("says so in the banner when the server can't send it, and lets you try again", async () => {
     const user = userEvent.setup();
-    vi.mocked(resendVerification).mockRejectedValueOnce(new Error("API answered 502"));
+    vi.mocked(resendVerification).mockResolvedValueOnce({
+      ok: false,
+      error: "Couldn't send it. Try again in a moment.",
+    });
     render(<VerifyEmailBanner />);
     await user.click(screen.getByRole("button", { name: "Send the link again" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't send it. Try again in a moment.");
 
-    vi.mocked(resendVerification).mockResolvedValueOnce({ sent: true });
+    vi.mocked(resendVerification).mockResolvedValueOnce({ ok: true, value: undefined });
     await user.click(screen.getByRole("button", { name: "Send the link again" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Sent. Check your inbox.");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { unmatch } from "@/app/actions";
+import { unmatch } from "@/actions/matches";
 import { UnmatchPanel } from "./UnmatchPanel";
 
 const router = { replace: vi.fn(), refresh: vi.fn() };
-vi.mock("@/app/actions", () => ({ unmatch: vi.fn() }));
+vi.mock("@/actions/matches", () => ({ unmatch: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const MATCH = "8c1f7d2e-1111-4a4a-9999-000000000001";
@@ -18,7 +18,7 @@ describe("UnmatchPanel", () => {
 
   it("unmatches without a report and leaves the chat", async () => {
     const user = userEvent.setup();
-    vi.mocked(unmatch).mockResolvedValue(undefined);
+    vi.mocked(unmatch).mockResolvedValue({ ok: true, value: undefined });
     render(<UnmatchPanel matchId={MATCH} personName="Bob" />);
 
     await user.click(screen.getByRole("button", { name: "Unmatch or report" }));
@@ -30,7 +30,7 @@ describe("UnmatchPanel", () => {
 
   it("sends a report with the chosen reason and a trimmed note", async () => {
     const user = userEvent.setup();
-    vi.mocked(unmatch).mockResolvedValue(undefined);
+    vi.mocked(unmatch).mockResolvedValue({ ok: true, value: undefined });
     render(<UnmatchPanel matchId={MATCH} personName="Bob" />);
 
     await user.click(screen.getByRole("button", { name: "Unmatch or report" }));
@@ -44,7 +44,7 @@ describe("UnmatchPanel", () => {
 
   it("stays put and says so when it fails", async () => {
     const user = userEvent.setup();
-    vi.mocked(unmatch).mockRejectedValue(new Error("boom"));
+    vi.mocked(unmatch).mockResolvedValue({ ok: false, error: "That didn't work. Try again." });
     render(<UnmatchPanel matchId={MATCH} personName="Bob" />);
 
     await user.click(screen.getByRole("button", { name: "Unmatch or report" }));

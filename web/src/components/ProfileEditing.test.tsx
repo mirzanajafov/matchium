@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { deletePhoto, makeMainPhoto, saveBio, uploadPhoto } from "@/app/actions";
+import { deletePhoto, makeMainPhoto, saveBio, uploadPhoto } from "@/actions/profile";
 import { BioForm } from "./BioForm";
 import { ProfilePhotos } from "./ProfilePhotos";
 
-vi.mock("@/app/actions", () => ({
+vi.mock("@/actions/profile", () => ({
   deletePhoto: vi.fn(),
   makeMainPhoto: vi.fn(),
   saveBio: vi.fn(),
@@ -26,7 +26,7 @@ const photo = (n: number) => ({
 describe("ProfilePhotos", () => {
   it("removes a photo and hides the uploader once all four slots are used", async () => {
     const user = userEvent.setup();
-    vi.mocked(deletePhoto).mockResolvedValue(undefined);
+    vi.mocked(deletePhoto).mockResolvedValue({ ok: true, value: undefined });
     const { rerender } = render(<ProfilePhotos photos={[photo(1), photo(2)]} />);
     expect(screen.getByLabelText("Add photo")).toBeInTheDocument();
 
@@ -39,7 +39,7 @@ describe("ProfilePhotos", () => {
 
   it("marks the main photo and promotes another one", async () => {
     const user = userEvent.setup();
-    vi.mocked(makeMainPhoto).mockResolvedValue(undefined);
+    vi.mocked(makeMainPhoto).mockResolvedValue({ ok: true, value: undefined });
     render(<ProfilePhotos photos={[photo(1), photo(2), photo(3)]} />);
     expect(screen.getByText("Main")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Make photo 1 your main photo" })).not.toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { resolveReport } from "@/app/actions";
+import { resolveReport } from "@/actions/admin";
 import type { AdminReport, ReportReason } from "@/lib/types";
 
 const REASONS: Record<ReportReason, string> = {
