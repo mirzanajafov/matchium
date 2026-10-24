@@ -13,4 +13,12 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, QUESTIONS_PER_DAY: '50' })).toThrow(/QUESTIONS_PER_DAY/);
     expect(() => validateEnv({ ...base, VAPID_SUBJECT: 'someone@example.com' })).toThrow(/VAPID_SUBJECT/);
   });
+
+  it('reads TRUST_PROXY as off, a number of hops or the list Express parses', () => {
+    const trustProxy = (value: string) => validateEnv({ ...base, TRUST_PROXY: value }).TRUST_PROXY;
+    expect(validateEnv(base).TRUST_PROXY).toBe('loopback');
+    expect(trustProxy('false')).toBe(false);
+    expect(trustProxy(' 2 ')).toBe(2);
+    expect(trustProxy('loopback, uniquelocal')).toBe('loopback, uniquelocal');
+  });
 });

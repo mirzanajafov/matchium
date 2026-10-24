@@ -1,6 +1,14 @@
 import 'reflect-metadata';
-import { plainToInstance } from 'class-transformer';
+import { Transform, plainToInstance } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Matches, Max, Min, MinLength, validateSync } from 'class-validator';
+
+export type TrustProxy = false | number | string;
+
+function parseTrustProxy({ value }: { value: string }): TrustProxy {
+  const setting = value.trim();
+  if (setting === 'false') return false;
+  return /^\d+$/.test(setting) ? Number(setting) : setting;
+}
 
 export class Env {
   @IsString()
@@ -21,9 +29,8 @@ export class Env {
   @Max(10)
   QUESTIONS_PER_DAY: number = 6;
 
-  @IsOptional()
-  @IsString()
-  TRUST_PROXY: string = 'loopback';
+  @Transform(parseTrustProxy, { toClassOnly: true })
+  TRUST_PROXY: TrustProxy = 'loopback';
 
   @IsOptional()
   @IsString()
