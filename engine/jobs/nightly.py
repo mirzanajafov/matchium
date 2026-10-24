@@ -122,9 +122,7 @@ def plan(pool: Pool, per_user: int) -> list[PlannedMatch]:
         a, b = sorted((int(u), int(v)), key=lambda i: pool.ids[i])
         why = explain(pool.beliefs, a, b)
         planned.append(
-            PlannedMatch(
-                pool.ids[a], pool.ids[b], float(mutual[a, b]), float(conf[a, b]), why["aligned"], why["friction"]
-            )
+            PlannedMatch(pool.ids[a], pool.ids[b], float(mutual[a, b]), float(conf[a, b]), why.aligned, why.friction)
         )
     return planned
 

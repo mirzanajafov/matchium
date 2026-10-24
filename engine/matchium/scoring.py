@@ -1,6 +1,5 @@
 import warnings
 from dataclasses import dataclass
-from typing import TypedDict
 
 import numpy as np
 
@@ -16,10 +15,10 @@ class DirectedScores:
     std: np.ndarray
 
 
-class Explanation(TypedDict):
+@dataclass(frozen=True)
+class Explanation:
     aligned: list[str]
     friction: str
-    per_dimension: dict[str, float]
 
 
 def directed_scores(beliefs: Beliefs) -> DirectedScores:
@@ -89,8 +88,4 @@ def explain(beliefs: Beliefs, u: int, v: int, top: int = 2) -> Explanation:
     distance = cost / importance
     important = np.flatnonzero(importance >= np.median(importance))
     aligned = important[np.argsort(distance[important])][:top]
-    return {
-        "aligned": [DIMENSIONS[k] for k in aligned],
-        "friction": DIMENSIONS[int(np.argmax(cost))],
-        "per_dimension": {DIMENSIONS[k]: round(float(cost[k]), 3) for k in range(len(DIMENSIONS))},
-    }
+    return Explanation([DIMENSIONS[k] for k in aligned], DIMENSIONS[int(np.argmax(cost))])

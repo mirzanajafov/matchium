@@ -190,6 +190,8 @@ def main() -> None:
     parser.add_argument("--long-days", type=int, default=28)
     parser.add_argument("--stated-gap", type=float, default=0.5)
     config = Config(**vars(parser.parse_args()))
+    if min(config.days, config.long_days) < 2:
+        parser.error("--days and --long-days need at least 2 days to chart")
 
     rng = np.random.default_rng(config.seed)
     bank = load_bank()

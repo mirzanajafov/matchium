@@ -154,8 +154,8 @@ def test_explain_names_real_dimensions() -> None:
     rng = np.random.default_rng(6)
     b = random_beliefs(rng, n=3)
     why = explain(b, 0, 1)
-    assert set(why["aligned"]) <= set(DIMENSIONS)
-    assert why["friction"] in DIMENSIONS
+    assert set(why.aligned) <= set(DIMENSIONS)
+    assert why.friction in DIMENSIONS
 
 
 def test_new_users_have_zero_confidence() -> None:

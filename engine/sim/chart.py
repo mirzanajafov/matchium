@@ -117,8 +117,7 @@ def decision_chart(results: Results) -> str:
 
 def render(results: Results, directory: Path) -> None:
     (directory / "questions.svg").write_text(question_chart(results))
-    if "decisions" in results:
-        (directory / "decisions.svg").write_text(decision_chart(results))
+    (directory / "decisions.svg").write_text(decision_chart(results))
 
 
 def main() -> None:
