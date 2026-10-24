@@ -93,7 +93,12 @@ export class ChatsService {
   async messages(userId: string, matchId: string, after?: string) {
     const match = await this.openChat(userId, matchId);
     const person = match.userAId === userId ? match.userB : match.userA;
-    const rows = after ? await this.messagesSince(matchId, new Date(after)) : await this.latestMessages(matchId);
+    const rows = await this.prisma.message.findMany({
+      where: { matchId, ...(after ? { createdAt: { gte: new Date(after) } } : {}) },
+      orderBy: after ? [{ createdAt: 'asc' }, { id: 'asc' }] : [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: PAGE_SIZE,
+    });
+    if (!after) rows.reverse();
     await this.markRead(matchId, userId);
     return {
       person: { id: person.id, displayName: person.displayName, photo: person.photos[0]?.id ?? null },
@@ -139,23 +144,6 @@ export class ChatsService {
       openStreams.inc();
       return stream.pipe(finalize(() => openStreams.dec()));
     });
-  }
-
-  private messagesSince(matchId: string, since: Date) {
-    return this.prisma.message.findMany({
-      where: { matchId, createdAt: { gte: since } },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      take: PAGE_SIZE,
-    });
-  }
-
-  private async latestMessages(matchId: string) {
-    const newestFirst = await this.prisma.message.findMany({
-      where: { matchId },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: PAGE_SIZE,
-    });
-    return newestFirst.reverse();
   }
 
   private mutualMatches(userId: string) {

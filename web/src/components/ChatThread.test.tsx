@@ -67,6 +67,7 @@ describe("ChatThread", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
   });
 
   it("invites you to start when there are no messages", () => {

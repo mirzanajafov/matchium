@@ -13,10 +13,10 @@ interface ChatThreadProps {
 }
 
 export function merge(current: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
-  const byId = new Map(current.map((m) => [m.id, m]));
-  for (const message of incoming) byId.set(message.id, message);
-  if (byId.size === current.length) return current;
-  return [...byId.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  const known = new Set(current.map((m) => m.id));
+  const unseen = incoming.filter((m) => !known.has(m.id));
+  if (unseen.length === 0) return current;
+  return [...current, ...unseen].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
 }
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
