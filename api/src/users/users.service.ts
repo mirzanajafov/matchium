@@ -10,10 +10,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async profile(id: string) {
+  async profile(userId: string) {
     const [user, decisionsLearned] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({ where: { id }, include: { belief: true, photos: photoSelect } }),
-      this.prisma.matchDecision.count({ where: { userId: id, learnedAt: { not: null } } }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { belief: true, photos: photoSelect } }),
+      this.prisma.matchDecision.count({ where: { userId, learnedAt: { not: null } } }),
     ]);
     return {
       id: user.id,
@@ -35,13 +35,13 @@ export class UsersService {
     };
   }
 
-  async setBio(id: string, bio: string) {
-    const user = await this.prisma.user.update({ where: { id }, data: { bio: bio || null } });
+  async setBio(userId: string, bio: string) {
+    const user = await this.prisma.user.update({ where: { id: userId }, data: { bio: bio || null } });
     return { bio: user.bio ?? '' };
   }
 
-  async setEmailDigest(id: string, emailDigest: boolean) {
-    const user = await this.prisma.user.update({ where: { id }, data: { emailDigest } });
+  async setEmailDigest(userId: string, emailDigest: boolean) {
+    const user = await this.prisma.user.update({ where: { id: userId }, data: { emailDigest } });
     return { emailDigest: user.emailDigest };
   }
 }

@@ -28,12 +28,12 @@ export class UsersController {
   }
 
   @Patch('profile')
-  profile(@CurrentUser() { id }: AuthUser, @Body() dto: ProfileDto) {
+  setBio(@CurrentUser() { id }: AuthUser, @Body() dto: ProfileDto) {
     return this.users.setBio(id, dto.bio);
   }
 
   @Patch('preferences')
-  preferences(@CurrentUser() { id }: AuthUser, @Body() dto: PreferencesDto) {
+  setEmailDigest(@CurrentUser() { id }: AuthUser, @Body() dto: PreferencesDto) {
     return this.users.setEmailDigest(id, dto.emailDigest);
   }
 
