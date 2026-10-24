@@ -1162,7 +1162,10 @@ describe('shutdown', () => {
     put(key: string, body: Buffer): Promise<void> {
       this.holding = true;
       return new Promise((resolve) => {
-        this.release = () => resolve(super.put(key, body));
+        this.release = () => {
+          this.release = () => undefined;
+          resolve(super.put(key, body));
+        };
       });
     }
   }
@@ -1189,15 +1192,10 @@ describe('shutdown', () => {
     await prisma.user.updateMany({ data: { emailVerifiedAt: new Date() } });
     mails.server = 'slow';
     const restarting = await startApp(mails, photos);
-    let closing: Promise<void> | undefined;
-    try {
-      closing = restarting.close();
-      await closing;
-      const digests = mails.delivered.filter((mail) => mail.headers?.['List-Unsubscribe']);
-      expect(digests.map((mail) => mail.to).toSorted()).toEqual([alice.email, bob.email].toSorted());
-    } finally {
-      await (closing ?? restarting.close());
-    }
+    await restarting.close();
+
+    const digests = mails.delivered.filter((mail) => mail.headers?.['List-Unsubscribe']);
+    expect(digests.map((mail) => mail.to).toSorted()).toEqual([alice.email, bob.email].toSorted());
   });
 
   it('ends open chat streams so the shutdown can finish', async () => {

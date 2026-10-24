@@ -54,6 +54,7 @@ services:
       dockerfile: api/Dockerfile
     container_name: matchium-api
     profiles: ["app"]
+    stop_grace_period: 30s
     environment:
       DATABASE_URL: postgresql://matchium:matchium@postgres:5432/matchium
       JWT_SECRET: ${JWT_SECRET:-local-docker-secret}
