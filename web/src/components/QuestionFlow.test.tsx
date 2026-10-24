@@ -72,7 +72,7 @@ describe("QuestionFlow", () => {
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Finish for today" }));
 
-    expect(await screen.findByRole("heading", { name: "That's it for today" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "That's it for today" })).toHaveFocus();
     expect(screen.getByRole("link", { name: "See today's matches" })).toHaveAttribute("href", "/matches");
   });
 
@@ -116,6 +116,18 @@ describe("QuestionFlow", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(await screen.findByRole("heading", { name: questions[2].text })).toHaveFocus();
+  });
+
+  it("puts focus back on the question when the answer can't be saved", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: false, error: "Couldn't save that answer." });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that answer.");
+    expect(screen.getByRole("heading", { name: questions[1].text })).toHaveFocus();
   });
 
   it("never shows a failed save with the button still saving", async () => {

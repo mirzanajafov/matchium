@@ -65,6 +65,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
         setOpen((rest) => rest.slice(1));
         setDraft(EMPTY);
       },
+      () => heading.current?.focus(),
     );
   }
 

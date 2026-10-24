@@ -124,6 +124,22 @@ describe("ChatThread", () => {
     expect(input).toHaveValue("there");
   });
 
+  it("puts a failed message back in front of what was typed while it was sending", async () => {
+    const user = userEvent.setup();
+    const send = pendingAction<ChatMessage>();
+    vi.mocked(sendMessage).mockReturnValue(send.promise);
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    const input = screen.getByRole("textbox", { name: "Message" });
+
+    await user.type(input, "Are you free Saturday?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.type(input, "also");
+    await act(async () => send.settle({ ok: false, error: "This chat is closed." }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("This chat is closed.");
+    expect(input).toHaveValue("Are you free Saturday? also");
+  });
+
   it("frees Send in the same moment it says the message failed", async () => {
     const user = userEvent.setup();
     vi.mocked(sendMessage).mockResolvedValue({ ok: false, error: "This chat is closed." });

@@ -75,7 +75,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
     run(
       () => sendMessage(matchId, body),
       (sent) => setMessages((current) => mergeMessages(current, [sent])),
-      () => setDraft((typed) => typed || body),
+      () => setDraft((typed) => (typed.trim() ? `${body} ${typed.trimStart()}` : body)),
     );
   }
 
