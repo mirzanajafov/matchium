@@ -1,12 +1,11 @@
 import { http, mails, prisma, useTestApp } from './support/app.js';
-import { as, createMatch, man, registerAdmin, signup, woman } from './support/builders.js';
+import { as, createMatch, man, matchedPair, registerAdmin, signup, woman } from './support/builders.js';
 
 useTestApp();
 
 describe('account data', () => {
   async function active() {
-    const alice = await woman('Alice');
-    const bob = await man('Bob');
+    const { alice, bob, match } = await matchedPair();
     const today = await http().get('/questions/today').set(as(alice.token)).expect(200);
     const first = today.body.questions[0];
     await http()
@@ -14,7 +13,6 @@ describe('account data', () => {
       .set(as(alice.token))
       .send({ self: 4, partner: 2, importance: 5 })
       .expect(201);
-    const match = await createMatch(alice, bob);
     for (const who of [alice, bob]) {
       await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
     }
