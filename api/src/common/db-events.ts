@@ -4,6 +4,8 @@ import pg from 'pg';
 import { Observable, Subject, endWith, filter, ignoreElements, map } from 'rxjs';
 import type { Env } from '../config/env.js';
 import { isoDay } from './clock.js';
+import { errorMessage } from './errors.js';
+import { isRecord } from './json.js';
 import type { Prisma } from '../generated/prisma/client.js';
 
 export interface ChatMessageEvent {
@@ -45,10 +47,6 @@ function parseJson(text: string): unknown {
   } catch {
     return undefined;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function isIsoDay(value: string): boolean {
@@ -161,8 +159,8 @@ export class DbEvents implements OnModuleInit, OnModuleDestroy {
           this.log.log('Listener reconnected');
           this.connected.next();
         })
-        .catch((error: Error) => {
-          this.log.warn(`Listener reconnect failed: ${error.message}`);
+        .catch((error: unknown) => {
+          this.log.warn(`Listener reconnect failed: ${errorMessage(error)}`);
           this.retryLater();
         });
     }, RECONNECT_MS);

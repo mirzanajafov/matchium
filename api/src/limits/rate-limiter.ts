@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Clock } from '../common/clock.js';
+import { errorMessage } from '../common/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const CLEANUP_EVERY_MS = 60 * 60 * 1000;
@@ -49,7 +50,7 @@ export class RateLimiter implements OnModuleInit, OnModuleDestroy {
     try {
       await this.prisma.rateLimit.deleteMany({ where: { windowStart: { lt: cutoff } } });
     } catch (error) {
-      this.log.warn(`Rate limit cleanup failed: ${(error as Error).message}`);
+      this.log.warn(`Rate limit cleanup failed: ${errorMessage(error)}`);
     }
   }
 }

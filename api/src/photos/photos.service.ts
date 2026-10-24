@@ -9,6 +9,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { AuthUser } from '../auth/current-user.decorator.js';
 import { Clock, utcDay } from '../common/clock.js';
+import { errorMessage } from '../common/errors.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PhotoStore } from './photo-store.js';
@@ -96,15 +97,18 @@ export class PhotosService {
     return this.store.get(photo.key);
   }
 
-  async keys(userId: string): Promise<string[]> {
-    const photos = await this.prisma.photo.findMany({ where: { userId }, select: { key: true } });
+  async lockKeys(tx: Prisma.TransactionClient, userId: string): Promise<string[]> {
+    await this.lockOwner(tx, userId);
+    const photos = await tx.photo.findMany({ where: { userId }, select: { key: true } });
     return photos.map((p) => p.key);
   }
 
   async discard(keys: string[]) {
     await this.store
       .delete(keys)
-      .catch((error: unknown) => this.log.warn(`Could not delete stored photos ${keys.join(', ')}: ${String(error)}`));
+      .catch((error: unknown) =>
+        this.log.warn(`Could not delete stored photos ${keys.join(', ')}: ${errorMessage(error)}`),
+      );
   }
 
   private async canSee(viewer: AuthUser, ownerId: string): Promise<boolean> {

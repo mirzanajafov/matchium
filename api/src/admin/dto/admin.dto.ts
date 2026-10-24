@@ -4,7 +4,7 @@ import { ReportOutcome } from '../../generated/prisma/enums.js';
 export class ReportsQueryDto {
   @IsOptional()
   @IsIn(['open', 'reviewed'])
-  status?: 'open' | 'reviewed';
+  status: 'open' | 'reviewed' = 'open';
 }
 
 export class ResolveReportDto {

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { errorMessage } from '../common/errors.js';
 import { pushDeliveries } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { type PushMessage, PushSender } from './push-sender.js';
@@ -50,6 +51,6 @@ export class PushService {
   }
 
   notifyInBackground(userId: string, message: PushMessage) {
-    this.notify(userId, message).catch((error: Error) => this.log.warn(`Push failed: ${error.message}`));
+    this.notify(userId, message).catch((error: unknown) => this.log.warn(`Push failed: ${errorMessage(error)}`));
   }
 }

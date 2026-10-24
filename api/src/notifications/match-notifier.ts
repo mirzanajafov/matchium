@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { Subscription, concatMap, from, map, merge } from 'rxjs';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
 import { DbEvents } from '../common/db-events.js';
+import { errorMessage } from '../common/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import { DigestService } from './digest.service.js';
@@ -29,7 +30,7 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
     )
       .pipe(
         concatMap((day) => {
-          this.delivering = this.deliver(day).catch((error: Error) => this.fail(day, error));
+          this.delivering = this.deliver(day).catch((error: unknown) => this.fail(day, error));
           return this.delivering;
         }),
       )
@@ -54,8 +55,8 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
 
     await Promise.all(
       claimed.map(({ userId, count }) =>
-        this.notify(userId, count).catch((error: Error) =>
-          this.log.warn(`Could not tell ${userId} about the ${day} matches: ${error.message}`),
+        this.notify(userId, count).catch((error: unknown) =>
+          this.log.warn(`Could not tell ${userId} about the ${day} matches: ${errorMessage(error)}`),
         ),
       ),
     );
@@ -72,8 +73,8 @@ export class MatchNotifier implements OnModuleInit, OnModuleDestroy {
     if (pushed === 0) await this.digest.send(userId, count);
   }
 
-  private fail(day: string, error: Error): number {
-    this.log.warn(`Could not send match notifications for ${day}: ${error.message}`);
+  private fail(day: string, error: unknown): number {
+    this.log.warn(`Could not send match notifications for ${day}: ${errorMessage(error)}`);
     return 0;
   }
 }

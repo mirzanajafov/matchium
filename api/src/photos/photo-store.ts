@@ -3,11 +3,13 @@ import {
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  NotFound,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { errorMessage } from '../common/errors.js';
 import type { Env } from '../config/env.js';
 
 export abstract class PhotoStore {
@@ -45,12 +47,11 @@ export class S3PhotoStore extends PhotoStore implements OnModuleInit {
     if (!this.client) return;
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
-    } catch {
-      try {
-        await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
-      } catch (error) {
-        this.log.warn(`Could not prepare bucket ${this.bucket}: ${(error as Error).message}`);
-      }
+    } catch (error) {
+      if (!(error instanceof NotFound))
+        throw new Error(`Photo storage refused bucket ${this.bucket}: ${errorMessage(error)}`);
+      await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+      this.log.log(`Created bucket ${this.bucket}`);
     }
   }
 
@@ -60,7 +61,8 @@ export class S3PhotoStore extends PhotoStore implements OnModuleInit {
 
   async get(key: string): Promise<Buffer> {
     const result = await this.s3().send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
-    return Buffer.from(await result.Body!.transformToByteArray());
+    if (!result.Body) throw new Error(`Photo ${key} came back empty`);
+    return Buffer.from(await result.Body.transformToByteArray());
   }
 
   async delete(keys: string[]) {

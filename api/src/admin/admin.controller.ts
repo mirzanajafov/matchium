@@ -14,7 +14,7 @@ export class AdminController {
 
   @Get('reports')
   reports(@Query() query: ReportsQueryDto) {
-    return this.admin.reports(query.status ?? 'open');
+    return this.admin.reports(query.status);
   }
 
   @Post('reports/:id/resolve')

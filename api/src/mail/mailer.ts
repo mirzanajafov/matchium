@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Transporter } from 'nodemailer';
+import { errorMessage } from '../common/errors.js';
 import type { Env } from '../config/env.js';
 import { emailsSent } from '../observability/metrics.js';
 
@@ -25,7 +26,7 @@ export abstract class Mailer {
       emailsSent.inc({ kind, result: 'sent' });
     } catch (error) {
       emailsSent.inc({ kind, result: 'failed' });
-      this.log.warn(`Sending the ${kind} email failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.log.warn(`Sending the ${kind} email failed: ${errorMessage(error)}`);
     }
   }
 }

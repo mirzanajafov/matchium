@@ -355,6 +355,11 @@ describe('daily questions', () => {
       .set(auth)
       .send({ self: 3, partner: 3, importance: 3 })
       .expect(404);
+    await http()
+      .post('/questions/DROP%20TABLE/answer')
+      .set(auth)
+      .send({ self: 3, partner: 3, importance: 3 })
+      .expect(400);
 
     const me = await http().get('/me').set(auth).expect(200);
     expect(me.body.answerCount).toBe(1);
@@ -786,11 +791,9 @@ describe('push notifications', () => {
       await http().post('/push/subscriptions').set(as(alice.token)).send(subscription(7)).expect(204);
       await http().post('/push/subscriptions').set(as(bob.token)).send(subscription(8)).expect(204);
 
-      const [aliceLike, bobLike] = await Promise.all(
-        [alice, bob].map((person) =>
-          http().post(`/matches/${match.id}/decision`).set(as(person.token)).send({ like: true }).expect(200),
-        ),
-      );
+      const like = (person: { token: string }) =>
+        http().post(`/matches/${match.id}/decision`).set(as(person.token)).send({ like: true }).expect(200);
+      const [aliceLike, bobLike] = await Promise.all([like(alice), like(bob)]);
       expect([aliceLike.body.mutual, bobLike.body.mutual].filter(Boolean)).toHaveLength(1);
       const firstToLike = aliceLike.body.mutual ? subscription(8) : subscription(7);
       await vi.waitFor(() => expect(sentTo(firstToLike.endpoint)).toHaveLength(1));
@@ -1768,6 +1771,38 @@ describe('photos and bio', () => {
 
     const bob = await register();
     await http().post(`/me/photos/${ids[1]}/main`).set(as(bob.token)).expect(404);
+  });
+
+  it('cleans up the photo of an upload that lands while the account is being deleted', async () => {
+    const alice = await register();
+    await upload(alice.token);
+    let land: () => void = () => undefined;
+    const landing = new Promise<void>((resolve) => {
+      land = resolve;
+    });
+    const inFlight = prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${alice.id}::uuid FOR NO KEY UPDATE`;
+      await tx.photo.create({ data: { userId: alice.id, key: 'late.webp', width: 10, height: 10, position: 1 } });
+      photos.objects.set('late.webp', Buffer.from('late'));
+      await landing;
+    });
+
+    const deleting = http()
+      .delete('/me')
+      .set(as(alice.token))
+      .send({ password: 'correct horse battery' })
+      .then((response) => response.status);
+    await vi.waitFor(async () => {
+      const [waiting] = await prisma.$queryRaw<{ count: number }[]>`
+        SELECT count(*)::int AS count FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock' AND datname = current_database()`;
+      expect(waiting?.count).toBeGreaterThan(0);
+    });
+    land();
+    await inFlight;
+
+    expect(await deleting).toBe(204);
+    expect([...photos.objects.keys()]).toEqual([]);
   });
 
   it('deletes photos, rejects long bios and cleans storage when the account goes', async () => {

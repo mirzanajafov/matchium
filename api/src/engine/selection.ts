@@ -1,4 +1,4 @@
-import { BeliefState, EngineQuestion, observationVar, posteriorVar, weights } from './belief.js';
+import { BeliefState, EngineQuestion, entry, observationVar, posteriorVar, weights } from './belief.js';
 
 function varianceDrop(variance: number, obsVar: number): number {
   return variance - posteriorVar(variance, obsVar);
@@ -20,24 +20,27 @@ export function pickQuestions(
 
   for (let step = 0; step < count; step++) {
     let best = -Infinity;
-    let chosen = -1;
-    bank.forEach((q, i) => {
-      if (!available[i]) return;
-      const k = q.dimension;
+    let chosen: { index: number; question: EngineQuestion } | undefined;
+    for (const [index, question] of bank.entries()) {
+      if (!available[index]) continue;
+      const k = question.dimension;
+      const obsVar = entry(obsVars, index);
       const value =
-        w[k] * varianceDrop(varPref[k], obsVars[i]) + populationWeights[k] * varianceDrop(varSelf[k], obsVars[i]);
+        entry(w, k) * varianceDrop(entry(varPref, k), obsVar) +
+        entry(populationWeights, k) * varianceDrop(entry(varSelf, k), obsVar);
       if (value > best) {
         best = value;
-        chosen = i;
+        chosen = { index, question };
       }
-    });
-    if (chosen < 0) break;
+    }
+    if (!chosen) break;
 
-    const k = bank[chosen].dimension;
-    picks.push(bank[chosen].id);
-    available[chosen] = false;
-    varPref[k] = posteriorVar(varPref[k], obsVars[chosen]);
-    varSelf[k] = posteriorVar(varSelf[k], obsVars[chosen]);
+    const k = chosen.question.dimension;
+    const obsVar = entry(obsVars, chosen.index);
+    picks.push(chosen.question.id);
+    available[chosen.index] = false;
+    varPref[k] = posteriorVar(entry(varPref, k), obsVar);
+    varSelf[k] = posteriorVar(entry(varSelf, k), obsVar);
   }
   return picks;
 }

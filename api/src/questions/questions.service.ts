@@ -1,10 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { beliefState } from '../common/belief-row.js';
 import { Clock, isoDay, utcDay } from '../common/clock.js';
 import { toThousandths } from '../common/rounding.js';
 import type { Env } from '../config/env.js';
-import { BeliefState, DIMENSION_COUNT, certainty, observe, priorBelief } from '../engine/belief.js';
+import { BeliefState, DIMENSION_COUNT, certainty, observe, priorBelief, toBeliefState } from '../engine/belief.js';
 import { pickQuestions } from '../engine/selection.js';
 import { DailyQuestionSet } from '../generated/prisma/client.js';
 import { isUniqueViolation } from '../prisma/errors.js';
@@ -38,7 +37,10 @@ export class QuestionsService {
     return {
       day: isoDay(day),
       remaining: set.questionIds.length - answered.size,
-      questions: set.questionIds.map((id) => ({ id, text: byId.get(id)!.text, answered: answered.has(id) })),
+      questions: set.questionIds.flatMap((id) => {
+        const question = byId.get(id);
+        return question ? [{ id, text: question.text, answered: answered.has(id) }] : [];
+      }),
     };
   }
 
@@ -58,7 +60,7 @@ export class QuestionsService {
       if (existing) throw new ConflictException('Question already answered');
 
       const values = { self: dto.self, partner: dto.partner, importance: dto.importance };
-      const state = observe(row ? beliefState(row) : priorBelief(), question, values);
+      const state = observe(row ? toBeliefState(row) : priorBelief(), question, values);
       await tx.answer.create({ data: { userId, questionId, ...values } });
       await tx.belief.upsert({
         where: { userId },
@@ -89,7 +91,7 @@ export class QuestionsService {
       this.populationWeights(),
     ]);
     const questionIds = pickQuestions(
-      belief ? beliefState(belief) : priorBelief(),
+      belief ? toBeliefState(belief) : priorBelief(),
       bank,
       new Set(answers.map((a) => a.questionId)),
       this.perDay,

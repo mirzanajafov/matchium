@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { EngineQuestion } from './belief.js';
+import type { EngineQuestion } from '../../src/engine/belief.js';
 
 export interface ContractQuestion extends EngineQuestion {
   text: string;

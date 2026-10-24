@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { revokeSessions } from '../auth/sessions.js';
 import { Clock, isoDay } from '../common/clock.js';
 import { type ChatClosedEvent, publish } from '../common/db-events.js';
+import { isRecord } from '../common/json.js';
 import { involving } from '../matches/participants.js';
 import type { ReportOutcome } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -31,6 +32,23 @@ export interface Evidence {
   from: 'reporter' | 'reported';
   body: string;
   sentAt: string;
+}
+
+export interface AccountView {
+  id: string | null;
+  displayName: string;
+  email: string;
+  joinedAt: string | null;
+  deleted: boolean;
+  banned: boolean;
+  reportsAgainst: number;
+  photos: string[];
+}
+
+function isEvidence(value: unknown): value is Evidence {
+  if (!isRecord(value)) return false;
+  const { from, body, sentAt } = value;
+  return (from === 'reporter' || from === 'reported') && typeof body === 'string' && typeof sentAt === 'string';
 }
 
 @Injectable()
@@ -68,7 +86,7 @@ export class AdminService {
         banned: row.reported ? row.reported.bannedAt !== null : row.outcome === 'BANNED',
         reportsAgainst: against.get(row.reportedEmail) ?? 1,
       },
-      messages: row.evidence as unknown as Evidence[],
+      messages: Array.isArray(row.evidence) ? row.evidence.flatMap((item) => (isEvidence(item) ? [item] : [])) : [],
     }));
   }
 
@@ -110,12 +128,12 @@ export class AdminService {
     return { outcome, closedMatches: closedMatches.length };
   }
 
-  private account(p: Account) {
+  private account(p: Account): AccountView {
     return {
-      id: p.id as string | null,
+      id: p.id,
       displayName: p.displayName,
       email: p.email,
-      joinedAt: p.createdAt.toISOString() as string | null,
+      joinedAt: p.createdAt.toISOString(),
       deleted: false,
       banned: p.bannedAt !== null,
       reportsAgainst: 0,
@@ -123,7 +141,7 @@ export class AdminService {
     };
   }
 
-  private gone(displayName: string, email: string) {
+  private gone(displayName: string, email: string): AccountView {
     return {
       id: null,
       displayName,
@@ -132,7 +150,7 @@ export class AdminService {
       deleted: true,
       banned: false,
       reportsAgainst: 0,
-      photos: [] as string[],
+      photos: [],
     };
   }
 }

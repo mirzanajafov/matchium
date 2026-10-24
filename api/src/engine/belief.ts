@@ -37,6 +37,23 @@ export interface AnswerValues {
   importance: number;
 }
 
+export function entry(values: readonly number[], index: number): number {
+  const value = values[index];
+  if (value === undefined) throw new RangeError(`No entry ${index} in a list of ${values.length}`);
+  return value;
+}
+
+export function toBeliefState(row: BeliefState): BeliefState {
+  return {
+    muSelf: row.muSelf,
+    varSelf: row.varSelf,
+    muPref: row.muPref,
+    varPref: row.varPref,
+    logWSum: row.logWSum,
+    logWCount: row.logWCount,
+  };
+}
+
 export function priorBelief(): BeliefState {
   const filled = (value: number) => Array<number>(DIMENSION_COUNT).fill(value);
   return {
@@ -58,7 +75,7 @@ export function posteriorVar(variance: number, obsVar: number): number {
 }
 
 export function weights(state: BeliefState): number[] {
-  return state.logWSum.map((sum, k) => Math.pow(2, sum / state.logWCount[k]));
+  return state.logWSum.map((sum, k) => Math.pow(2, sum / entry(state.logWCount, k)));
 }
 
 function kalman(mu: number, variance: number, z: number, obsVar: number): [number, number] {
@@ -80,24 +97,24 @@ export function observe(state: BeliefState, question: EngineQuestion, answer: An
   };
 
   [next.muSelf[k], next.varSelf[k]] = kalman(
-    state.muSelf[k],
-    state.varSelf[k],
-    sign * LIKERT_CENTERS[answer.self - 1],
+    entry(state.muSelf, k),
+    entry(state.varSelf, k),
+    sign * entry(LIKERT_CENTERS, answer.self - 1),
     obsVar,
   );
   [next.muPref[k], next.varPref[k]] = kalman(
-    state.muPref[k],
-    state.varPref[k],
-    sign * LIKERT_CENTERS[answer.partner - 1],
+    entry(state.muPref, k),
+    entry(state.varPref, k),
+    sign * entry(LIKERT_CENTERS, answer.partner - 1),
     obsVar,
   );
-  next.logWSum[k] += (answer.importance - 3) / IMPORTANCE_SLOPE;
-  next.logWCount[k] += 1;
+  next.logWSum[k] = entry(state.logWSum, k) + (answer.importance - 3) / IMPORTANCE_SLOPE;
+  next.logWCount[k] = entry(state.logWCount, k) + 1;
   return next;
 }
 
 export function certainty(state: BeliefState): number {
   const priorStd = Math.sqrt(PRIOR_VAR);
-  const remaining = state.varSelf.reduce((acc, v, k) => acc + Math.sqrt(v) + Math.sqrt(state.varPref[k]), 0);
+  const remaining = state.varSelf.reduce((acc, v, k) => acc + Math.sqrt(v) + Math.sqrt(entry(state.varPref, k)), 0);
   return 1 - remaining / (2 * DIMENSION_COUNT * priorStd);
 }

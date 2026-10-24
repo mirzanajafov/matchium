@@ -2,12 +2,17 @@ import { createServer } from 'node:http';
 import { testConfig } from '../../test/support/config.js';
 import { S3PhotoStore } from './photo-store.js';
 
-async function withStorage(reply: string, use: (store: S3PhotoStore, received: () => string) => Promise<void>) {
+async function withStorage(
+  reply: string,
+  use: (store: S3PhotoStore, received: () => string) => Promise<void>,
+  status: (method: string) => number = () => 200,
+) {
   let received = '';
   const server = createServer((request, response) => {
-    received = `${request.method ?? ''} ${request.url ?? ''} `;
+    const method = request.method ?? '';
+    received = `${method} ${request.url ?? ''} `;
     request.on('data', (chunk: Buffer) => (received += chunk.toString()));
-    request.on('end', () => response.writeHead(200, { 'content-type': 'application/xml' }).end(reply));
+    request.on('end', () => response.writeHead(status(method), { 'content-type': 'application/xml' }).end(reply));
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
@@ -22,6 +27,29 @@ async function withStorage(reply: string, use: (store: S3PhotoStore, received: (
 }
 
 describe('S3PhotoStore', () => {
+  it('creates the bucket when storage says it is missing', async () => {
+    const missing = (method: string) => (method === 'HEAD' ? 404 : 200);
+    await withStorage(
+      '',
+      async (store, received) => {
+        await store.onModuleInit();
+        expect(received()).toMatch(/^PUT \/matchium-photos\/? /);
+      },
+      missing,
+    );
+  });
+
+  it('refuses to start when storage turns the bucket check down, instead of carrying on without photos', async () => {
+    const forbidden = (method: string) => (method === 'HEAD' ? 403 : 200);
+    await withStorage(
+      '',
+      async (store) => {
+        await expect(store.onModuleInit()).rejects.toThrow('Photo storage refused bucket matchium-photos');
+      },
+      forbidden,
+    );
+  });
+
   it('asks storage to delete every key', async () => {
     await withStorage('<DeleteResult></DeleteResult>', async (store, received) => {
       await store.delete(['u/a.webp', 'u/b.webp']);
