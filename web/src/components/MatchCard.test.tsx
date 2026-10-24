@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { decide } from "@/actions/matches";
 import type { Match } from "@/lib/types";
+import { recordWhile } from "@/test/frames";
 import { MatchCard } from "./MatchCard";
 
 vi.mock("@/actions/matches", () => ({ decide: vi.fn() }));
@@ -45,6 +46,21 @@ describe("MatchCard", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Pass" }));
     expect(await screen.findByText("You passed on this one.")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("frees the buttons in the same moment it says the decision failed", async () => {
+    vi.mocked(decide).mockResolvedValue({ ok: false, error: "That didn't work. Try again." });
+    render(<MatchCard match={match} />);
+    const pass = screen.getByRole("button", { name: "Pass" });
+    const locked = recordWhile(
+      () => screen.queryByRole("alert") !== null,
+      () => pass.hasAttribute("disabled"),
+    );
+
+    await userEvent.setup().click(pass);
+    await screen.findByRole("alert");
+
+    expect(locked).toEqual(new Set([false]));
   });
 
   it("shows an earlier decision without buttons", () => {

@@ -51,7 +51,9 @@ describe("EmailDigestToggle", () => {
     expect(setEmailDigest).toHaveBeenCalledTimes(2);
     expect(setEmailDigest).toHaveBeenLastCalledWith(false);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(toggle).toBeDisabled();
     await act(async () => answer({ ok: true, value: undefined }));
+    expect(toggle).toBeEnabled();
   });
 
   it("turns the switch back in the same moment it says the save failed", async () => {
@@ -60,15 +62,14 @@ describe("EmailDigestToggle", () => {
     render(<EmailDigestToggle enabled />);
     const toggle = screen.getByRole("switch", { name: "Match emails" });
     const states = recordWhile(
-      () => document.querySelector("[role=alert]") !== null,
+      () => screen.queryByRole("alert") !== null,
       () => toggle.getAttribute("aria-checked"),
     );
 
     await user.click(toggle);
     await screen.findByRole("alert");
     await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "true"));
-    states.stop();
 
-    expect(states.seen).toEqual(new Set(["true"]));
+    expect(states).toEqual(new Set(["true"]));
   });
 });

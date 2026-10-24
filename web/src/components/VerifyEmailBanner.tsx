@@ -13,8 +13,10 @@ export function VerifyEmailBanner() {
     setError(null);
     startTransition(async () => {
       const resent = await resolveAction(resendVerification());
-      if (resent.ok) setAnswer(resent.value);
-      else setError(resent.error);
+      startTransition(() => {
+        if (resent.ok) setAnswer(resent.value);
+        else setError(resent.error);
+      });
     });
   }
 

@@ -31,12 +31,14 @@ export function UnmatchPanel({ matchId, personName }: { matchId: string; personN
       const closed = await resolveAction(
         unmatch(matchId, report ? { reason, note: note.trim() || undefined } : undefined),
       );
-      if (!closed.ok) {
-        setError(closed.error);
-        return;
-      }
-      router.replace("/chats");
-      router.refresh();
+      startTransition(() => {
+        if (!closed.ok) {
+          setError(closed.error);
+          return;
+        }
+        router.replace("/chats");
+        router.refresh();
+      });
     });
   }
 

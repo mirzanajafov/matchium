@@ -51,16 +51,15 @@ describe("QuestionFlow", () => {
     vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
     render(<QuestionFlow questions={questions} certainty={0.1} />);
     const buttons = recordWhile(
-      () => document.querySelector("h2")?.textContent === questions[2].text,
-      () => document.querySelector("button")?.textContent ?? null,
+      () => screen.queryByRole("heading", { name: questions[2].text }) !== null,
+      () => screen.getByRole("button").textContent,
     );
 
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("heading", { name: questions[2].text });
-    buttons.stop();
 
-    expect(buttons.seen).toEqual(new Set(["Finish for today"]));
+    expect(buttons).toEqual(new Set(["Finish for today"]));
   });
 
   it("shows the wrap-up once every question is answered", async () => {
@@ -98,15 +97,14 @@ describe("QuestionFlow", () => {
     });
     render(<QuestionFlow questions={questions} certainty={0.1} />);
     const buttons = recordWhile(
-      () => document.querySelector("[role=alert]") !== null,
-      () => document.querySelector("button")?.textContent ?? null,
+      () => screen.queryByRole("alert") !== null,
+      () => screen.getByRole("button").textContent,
     );
 
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByRole("alert");
-    buttons.stop();
 
-    expect(buttons.seen).toEqual(new Set(["Next"]));
+    expect(buttons).toEqual(new Set(["Next"]));
   });
 });

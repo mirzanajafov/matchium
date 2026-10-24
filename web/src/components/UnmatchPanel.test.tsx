@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { unmatch } from "@/actions/matches";
+import { recordWhile } from "@/test/frames";
 import { UnmatchPanel } from "./UnmatchPanel";
 
 const router = { replace: vi.fn(), refresh: vi.fn() };
@@ -55,5 +56,22 @@ describe("UnmatchPanel", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("That didn't work");
     expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("frees the buttons in the same moment it says the unmatch failed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(unmatch).mockResolvedValue({ ok: false, error: "That didn't work. Try again." });
+    render(<UnmatchPanel matchId={MATCH} personName="Bob" />);
+    await user.click(screen.getByRole("button", { name: "Unmatch or report" }));
+    const confirm = screen.getByRole("button", { name: "Unmatch" });
+    const locked = recordWhile(
+      () => screen.queryByRole("alert") !== null,
+      () => confirm.hasAttribute("disabled"),
+    );
+
+    await user.click(confirm);
+    await screen.findByRole("alert");
+
+    expect(locked).toEqual(new Set([false]));
   });
 });

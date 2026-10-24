@@ -21,12 +21,14 @@ export function MatchCard({ match }: { match: Match }) {
     setError(null);
     startTransition(async () => {
       const decided = await resolveAction(decide(match.id, like));
-      if (!decided.ok) {
-        setError(decided.error);
-        return;
-      }
-      setDecision(like ? "LIKE" : "PASS");
-      setMutual(decided.value.mutual);
+      startTransition(() => {
+        if (!decided.ok) {
+          setError(decided.error);
+          return;
+        }
+        setDecision(like ? "LIKE" : "PASS");
+        setMutual(decided.value.mutual);
+      });
     });
   }
 
