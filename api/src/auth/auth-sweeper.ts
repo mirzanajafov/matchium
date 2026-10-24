@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Clock } from '../common/clock.js';
+import { errorMessage } from '../common/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SIGNUP_LIFETIME_DAYS } from './purpose-tokens.js';
 import { SESSION_LIFETIME_DAYS } from './sessions.js';
@@ -55,7 +56,7 @@ export class AuthSweeper implements OnModuleInit, OnModuleDestroy {
     try {
       return (await deleting).count;
     } catch (error) {
-      this.log.warn(`Sweeping ${what} failed: ${(error as Error).message}`);
+      this.log.warn(`Sweeping ${what} failed: ${errorMessage(error)}`);
       return 0;
     }
   }

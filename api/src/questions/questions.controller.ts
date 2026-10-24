@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { type AuthUser, CurrentUser } from '../auth/current-user.decorator.js';
-import { AnswerDto } from './dto/answer.dto.js';
+import { AnswerDto, QuestionParams } from './dto/answer.dto.js';
 import { QuestionsService } from './questions.service.js';
 
 @ApiTags('questions')
@@ -16,7 +16,7 @@ export class QuestionsController {
   }
 
   @Post(':id/answer')
-  answer(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: AnswerDto) {
+  answer(@CurrentUser() user: AuthUser, @Param() { id }: QuestionParams, @Body() dto: AnswerDto) {
     return this.questions.answer(user.id, id, dto);
   }
 }

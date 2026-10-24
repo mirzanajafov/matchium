@@ -1,5 +1,5 @@
 import { BeliefState, DIMENSIONS, certainty, observe, priorBelief } from './belief.js';
-import { QuestionContract, readContract } from './contract.js';
+import { type QuestionContract, readContract } from '../../test/support/contract.js';
 import { pickQuestions } from './selection.js';
 
 interface Step {
@@ -58,7 +58,9 @@ describe('certainty', () => {
   it('starts at zero and grows with answers', () => {
     const start = priorBelief();
     expect(certainty(start)).toBe(0);
-    const next = observe(start, questions[0], { self: 4, partner: 4, importance: 5 });
+    const [question] = questions;
+    if (!question) throw new Error('The contract has no questions');
+    const next = observe(start, question, { self: 4, partner: 4, importance: 5 });
     expect(certainty(next)).toBeGreaterThan(0);
   });
 });

@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { beliefState } from '../common/belief-row.js';
 import { isoDay } from '../common/clock.js';
 import { toThousandths } from '../common/rounding.js';
 import { certainty } from '../engine/belief.js';
@@ -30,7 +29,7 @@ export class UsersService {
       emailDigest: user.emailDigest,
       emailVerified: user.emailVerifiedAt !== null,
       answerCount: user.belief?.answerCount ?? 0,
-      certainty: user.belief ? toThousandths(certainty(beliefState(user.belief))) : 0,
+      certainty: user.belief ? toThousandths(certainty(user.belief)) : 0,
       decisionsLearned,
       preferenceShifts: preferenceShifts(user.belief?.muGap ?? []),
     };

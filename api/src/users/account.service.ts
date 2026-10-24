@@ -1,9 +1,8 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { beliefState } from '../common/belief-row.js';
 import { Clock, isoDay } from '../common/clock.js';
 import { toThousandths } from '../common/rounding.js';
-import { DIMENSIONS } from '../engine/belief.js';
+import { type BeliefState, DIMENSIONS, entry, weights } from '../engine/belief.js';
 import { decisionOf, isMutual } from '../matches/participants.js';
 import { PhotosService } from '../photos/photos.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -74,20 +73,23 @@ export class AccountService {
   async delete(userId: string, password: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { passwordHash: true } });
     if (!(await argon2.verify(user.passwordHash, password))) throw new ForbiddenException('Wrong password');
-    const keys = await this.photos.keys(userId);
-    await this.prisma.user.delete({ where: { id: userId } });
+    const keys = await this.prisma.$transaction(async (tx) => {
+      const owned = await this.photos.lockKeys(tx, userId);
+      await tx.user.delete({ where: { id: userId } });
+      return owned;
+    });
     await this.photos.discard(keys);
   }
 
-  private model(row: Parameters<typeof beliefState>[0] & { muGap: number[] }) {
-    const state = beliefState(row);
+  private model(state: BeliefState & { muGap: number[] }) {
+    const importance = weights(state);
     return Object.fromEntries(
       DIMENSIONS.map((dimension, k) => [
         dimension,
         {
-          you: toThousandths(state.muSelf[k] ?? 0),
-          youWant: toThousandths((state.muPref[k] ?? 0) + (row.muGap[k] ?? 0)),
-          importance: toThousandths(2 ** ((state.logWSum[k] ?? 0) / (state.logWCount[k] ?? 1))),
+          you: toThousandths(entry(state.muSelf, k)),
+          youWant: toThousandths(entry(state.muPref, k) + (state.muGap[k] ?? 0)),
+          importance: toThousandths(entry(importance, k)),
         },
       ]),
     );

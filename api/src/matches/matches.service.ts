@@ -110,7 +110,7 @@ export class MatchesService {
             reporterId: userId,
             reportedId: otherId,
             reason: report.reason,
-            note: report.note,
+            note: report.note ?? null,
             reportedName: reported.displayName,
             reportedEmail: reported.email,
             evidence,

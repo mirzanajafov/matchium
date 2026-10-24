@@ -1,4 +1,9 @@
-import { IsInt, Max, Min } from 'class-validator';
+import { IsInt, Matches, Max, Min } from 'class-validator';
+
+export class QuestionParams {
+  @Matches(/^[a-z_]+\.\d+$/)
+  id: string;
+}
 
 export class AnswerDto {
   @IsInt()
