@@ -18,12 +18,11 @@ import { Mailer } from '../mail/mailer.js';
 import { emailsSent } from '../observability/metrics.js';
 import { isUniqueViolation } from '../prisma/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { RESET_PURPOSE, VERIFY_PURPOSE, passwordStamp } from './account-tokens.js';
+import { INVALID_LINK, RESET_PURPOSE, VERIFY_PURPOSE, passwordStamp } from './account-tokens.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 
 const MINIMUM_AGE = 18;
-const INVALID_LINK = 'This link is not valid';
 
 export interface TokenResponse {
   accessToken: string;

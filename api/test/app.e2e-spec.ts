@@ -1135,6 +1135,7 @@ describe('email digest', () => {
     const token = new URL(toAlice.headers!['List-Unsubscribe']!.slice(1, -1)).searchParams.get('token')!;
 
     await http().get('/me').set(as(token)).expect(401);
+    await http().post('/email/unsubscribe').expect(400);
     await http().post('/email/unsubscribe').query({ token: 'nonsense' }).expect(410);
     await http().post('/email/unsubscribe').query({ token: alice.token }).expect(410);
     await http().post('/email/unsubscribe').query({ token }).expect(200);
@@ -1163,6 +1164,16 @@ describe('account security', () => {
     await http().post('/auth/verify-email').send({ token }).expect(200);
     expect((await http().get('/me').set(as(alice.token)).expect(200)).body.emailVerified).toBe(true);
     await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(409);
+  });
+
+  it('refuses a confirmation link for an address the account no longer has', async () => {
+    const alice = await register();
+    const sent = mails.sent.find((m) => m.to === alice.email)!;
+    await prisma.user.update({ where: { id: alice.id }, data: { email: 'moved@example.com' } });
+    await http()
+      .post('/auth/verify-email')
+      .send({ token: linkToken(sent.text, '/verify-email') })
+      .expect(410);
   });
 
   it('resends the confirmation a few times, then waits', async () => {
@@ -1197,6 +1208,7 @@ describe('account security', () => {
     const token = linkToken(sent.text, '/reset-password');
 
     await http().post('/auth/password/reset').send({ token: alice.token, password: 'a new password' }).expect(410);
+    await http().post('/auth/password/reset').send({ token: 'abc123', password: 'a new password' }).expect(410);
     await http().post('/auth/password/reset').send({ token, password: 'short' }).expect(400);
     await http()
       .post('/auth/password/reset')
