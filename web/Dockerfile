@@ -2,7 +2,9 @@ FROM node:24-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
-COPY . .
+COPY next.config.ts postcss.config.mjs tsconfig.json vitest.setup.ts ./
+COPY public ./public
+COPY src ./src
 RUN npm run build
 
 FROM node:24-slim

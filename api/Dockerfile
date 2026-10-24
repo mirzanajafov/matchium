@@ -4,7 +4,8 @@ COPY api/package.json api/package-lock.json ./
 COPY api/prisma ./prisma
 COPY api/prisma.config.ts ./
 RUN npm ci --no-audit --no-fund
-COPY api/ ./
+COPY api/nest-cli.json api/tsconfig.json api/tsconfig.build.json ./
+COPY api/src ./src
 RUN npx prisma generate && npm run build
 
 FROM node:24-slim
