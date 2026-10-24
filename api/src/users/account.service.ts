@@ -81,7 +81,7 @@ export class AccountService {
     if (!(await argon2.verify(user.passwordHash, password))) throw new ForbiddenException('Wrong password');
     const keys = await this.photos.keys(userId);
     await this.prisma.user.delete({ where: { id: userId } });
-    await this.photos.discard(keys).catch(() => undefined);
+    await this.photos.discard(keys);
   }
 
   private model(row: Parameters<typeof beliefState>[0] & { muGap: number[] }) {

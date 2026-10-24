@@ -107,7 +107,13 @@ export class ChatsService {
 
   async send(userId: string, matchId: string, body: string) {
     const match = await this.openChat(userId, matchId);
-    const row = await this.prisma.message.create({ data: { matchId, senderId: userId, body } });
+    const [row] = await this.prisma.$queryRaw<(MessageRow & { matchId: string })[]>`
+      INSERT INTO "Message" (id, "matchId", "senderId", body)
+      SELECT gen_random_uuid(), id, ${userId}::uuid, ${body} FROM "Match"
+      WHERE id = ${matchId}::uuid AND "closedAt" IS NULL
+      FOR SHARE
+      RETURNING id, "matchId", "senderId", body, "createdAt"`;
+    if (!row) throw new NotFoundException('Chat not found');
     await this.markRead(matchId, userId);
     const event: ChatEvent = { ...row, createdAt: row.createdAt.toISOString() };
     await this.prisma.$executeRaw`SELECT pg_notify(${CHAT_CHANNEL}, ${JSON.stringify(event)})`;

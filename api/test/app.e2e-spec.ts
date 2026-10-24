@@ -47,6 +47,7 @@ let photos: FakePhotoStore;
 class FakePhotoStore extends PhotoStore {
   readonly enabled = true;
   objects = new Map<string, Buffer>();
+  refuseDeletes = false;
 
   put(key: string, body: Buffer): Promise<void> {
     this.objects.set(key, body);
@@ -59,6 +60,7 @@ class FakePhotoStore extends PhotoStore {
   }
 
   delete(keys: string[]): Promise<void> {
+    if (this.refuseDeletes) return Promise.reject(new Error('Access denied'));
     for (const key of keys) this.objects.delete(key);
     return Promise.resolve();
   }
@@ -125,6 +127,7 @@ beforeEach(async () => {
   mails.sent = [];
   mails.server = 'up';
   photos.objects.clear();
+  photos.refuseDeletes = false;
   pushes.gone.clear();
 });
 
@@ -713,6 +716,31 @@ describe('unmatch and report', () => {
     expect(stored.closedById).toBe(alice.id);
   });
 
+  it('stores no message after the chat closed, even when the two cross', { repeats: 4 }, async () => {
+    const { alice, bob, match } = await chatting();
+    const messages = () => prisma.message.count({ where: { matchId: match.id } });
+    const send = async (n: number) =>
+      (
+        await http()
+          .post(`/chats/${match.id}/messages`)
+          .set(as(bob.token))
+          .send({ body: `still there? ${n}` })
+      ).status;
+
+    const before = [1, 2, 3, 4, 5].map(send);
+    const storedAtClose = http()
+      .post(`/matches/${match.id}/unmatch`)
+      .set(as(alice.token))
+      .send({})
+      .expect(200)
+      .then(messages);
+    const after = [6, 7, 8, 9, 10].map(send);
+
+    const statuses = await Promise.all([...before, ...after]);
+    expect(statuses.every((status) => status === 201 || status === 404)).toBe(true);
+    expect(await messages()).toBe(await storedAtClose);
+  });
+
   it('files a report against the other person', async () => {
     const { alice, bob, match } = await chatting();
     await http()
@@ -1224,6 +1252,26 @@ describe('photos and bio', () => {
     await http().post('/me/photos').set(as(alice.token)).expect(400);
     for (let i = 0; i < 4; i += 1) expect((await upload(alice.token)).status).toBe(201);
     expect((await upload(alice.token)).status).toBe(409);
+  });
+
+  it('keeps the cap and one photo per place when uploads arrive together', async () => {
+    const alice = await register();
+    const statuses = await Promise.all(Array.from({ length: 6 }, async () => (await upload(alice.token)).status));
+    expect(statuses.filter((status) => status === 201)).toHaveLength(4);
+    expect(statuses.filter((status) => status === 409)).toHaveLength(2);
+    const stored = await prisma.photo.findMany({ where: { userId: alice.id }, orderBy: { position: 'asc' } });
+    expect(stored.map((photo) => photo.position)).toEqual([0, 1, 2, 3]);
+    expect(photos.objects.size).toBe(4);
+  });
+
+  it('keeps the 409 and the 204 when storage refuses to delete', async () => {
+    const alice = await register();
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i += 1) ids.push((await upload(alice.token)).body.id);
+    photos.refuseDeletes = true;
+    expect((await upload(alice.token)).status).toBe(409);
+    await http().delete(`/me/photos/${ids[0]}`).set(as(alice.token)).expect(204);
+    expect(await prisma.photo.count({ where: { userId: alice.id } })).toBe(3);
   });
 
   it('shows photos only to people you are matched with', async () => {
