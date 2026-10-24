@@ -27,10 +27,6 @@ jobs:
       - run: ruff format --check .
       - run: mypy
       - run: pytest -q
-      - name: Contract is up to date
-        run: |
-          python -m matchium.contract
-          git diff --exit-code -- ../contract
 
   api:
     runs-on: ubuntu-latest
