@@ -1,5 +1,5 @@
 import { ApiError, api, uploadToApi } from "@/lib/api";
-import { getPushEndpoint, getToken, setSession } from "@/lib/session";
+import { clearSession, getPushEndpoint, getToken, setSession } from "@/lib/session";
 import {
   confirmSignup,
   login,
@@ -39,6 +39,7 @@ describe("server action errors", () => {
     vi.mocked(setSession).mockReset();
     vi.mocked(getToken).mockReset();
     vi.mocked(getPushEndpoint).mockReset();
+    vi.mocked(clearSession).mockReset();
   });
 
   it("shows the photo limit, not the sign-up message, when the profile is full", async () => {
@@ -84,6 +85,13 @@ describe("server action errors", () => {
     });
     await confirmSignup("link", {}, form({ password: "long enough" }));
     expect(steps).toEqual(["/auth/confirm-signup", "/auth/logout old-token", "session new-token"]);
+  });
+
+  it("keeps the push cookie when nobody was signed in before the login", async () => {
+    vi.mocked(api).mockResolvedValue({ accessToken: "new-token" });
+    await login({}, form({ email: "a@example.com", password: "long enough" }));
+    expect(clearSession).not.toHaveBeenCalled();
+    expect(setSession).toHaveBeenCalledWith("new-token");
   });
 
   it("tells a sign-up link opened with another password, or a dead one, what happened", async () => {

@@ -37,7 +37,7 @@ async function submitAccountForm(
     return { error: refusals[error.status] ?? sentence(error), values };
   }
   if ("checkEmail" in answer) return { done: true, values };
-  await endSession();
+  if (await getToken()) await endSession();
   await setSession(answer.accessToken);
   redirect("/today");
 }
