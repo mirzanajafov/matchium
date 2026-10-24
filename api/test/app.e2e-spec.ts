@@ -67,11 +67,12 @@ class FakePhotoStore extends PhotoStore {
 class FakeMailer extends Mailer {
   readonly enabled = true;
   sent: Mail[] = [];
-  stalled = false;
+  server: 'up' | 'stalled' | 'down' = 'up';
 
   send(mail: Mail): Promise<void> {
     this.sent.push(mail);
-    return this.stalled ? new Promise(() => undefined) : Promise.resolve();
+    if (this.server === 'stalled') return new Promise(() => undefined);
+    return this.server === 'down' ? Promise.reject(new Error('Connection refused')) : Promise.resolve();
   }
 }
 let counter = 0;
@@ -122,7 +123,7 @@ beforeEach(async () => {
   clock.current = new Date('2026-09-23T09:00:00Z');
   pushes.sent = [];
   mails.sent = [];
-  mails.stalled = false;
+  mails.server = 'up';
   photos.objects.clear();
   pushes.gone.clear();
 });
@@ -1158,11 +1159,25 @@ describe('account security', () => {
     expect((await http().get('/me').set(as(fresh.body.accessToken)).expect(200)).body.emailVerified).toBe(true);
   });
 
-  it('answers a reset request without waiting for the mail server', async () => {
+  it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {
+    mails.server = 'stalled';
     const alice = await register();
-    mails.stalled = true;
+    await http().post('/auth/verify-email/resend').set(as(alice.token)).expect(204);
     await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
-    expect(mails.sent.map((m) => m.subject)).toContain('Reset your Matchium password');
+    await vi.waitFor(() =>
+      expect(mails.sent.map((m) => m.subject)).toEqual([
+        'Confirm your email for Matchium',
+        'Confirm your email for Matchium',
+        'Reset your Matchium password',
+      ]),
+    );
+  });
+
+  it('still answers when the mail server refuses the email', async () => {
+    mails.server = 'down';
+    const alice = await register();
+    await http().post('/auth/password/forgot').send({ email: alice.email }).expect(204);
+    await vi.waitFor(() => expect(mails.sent).toHaveLength(2));
   });
 
   it('limits reset requests per address', async () => {
