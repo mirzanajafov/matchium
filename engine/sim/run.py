@@ -180,7 +180,7 @@ def to_markdown(results: Results) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> Config:
     parser = argparse.ArgumentParser(description="Run the Matchium matching simulation.")
     parser.add_argument("--users", type=int, default=1500)
     parser.add_argument("--days", type=int, default=7)
@@ -189,10 +189,14 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--long-days", type=int, default=28)
     parser.add_argument("--stated-gap", type=float, default=0.5)
-    config = Config(**vars(parser.parse_args()))
+    config = Config(**vars(parser.parse_args(argv)))
     if min(config.days, config.long_days) < 2:
         parser.error("--days and --long-days need at least 2 days to chart")
+    return config
 
+
+def main() -> None:
+    config = parse_args()
     rng = np.random.default_rng(config.seed)
     bank = load_bank()
     pop = generate(config.users, len(DIMENSIONS), rng)
