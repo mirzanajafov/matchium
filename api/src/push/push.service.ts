@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { errorMessage } from '../common/errors.js';
 import { pushDeliveries } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -6,8 +6,9 @@ import { type PushMessage, PushSender } from './push-sender.js';
 import type { SubscriptionDto } from './dto/subscription.dto.js';
 
 @Injectable()
-export class PushService {
+export class PushService implements OnApplicationShutdown {
   private readonly log = new Logger(PushService.name);
+  private readonly inFlight = new Set<Promise<unknown>>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -51,6 +52,13 @@ export class PushService {
   }
 
   notifyInBackground(userId: string, message: PushMessage) {
-    this.notify(userId, message).catch((error: unknown) => this.log.warn(`Push failed: ${errorMessage(error)}`));
+    const push = this.notify(userId, message)
+      .catch((error: unknown) => this.log.warn(`Push failed: ${errorMessage(error)}`))
+      .finally(() => this.inFlight.delete(push));
+    this.inFlight.add(push);
+  }
+
+  async onApplicationShutdown() {
+    await Promise.allSettled(this.inFlight);
   }
 }

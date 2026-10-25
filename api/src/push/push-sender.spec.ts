@@ -17,7 +17,7 @@ describe('WebPushSender', () => {
     await expect(disabled.send(target, message)).rejects.toThrow(/not configured/);
   });
 
-  it('signs with the configured keys and reports expired subscriptions', async () => {
+  it('signs with the configured keys, sets a request timeout and reports expired subscriptions', async () => {
     const send = vi.spyOn(webpush, 'sendNotification');
     const configured = new WebPushSender(
       testConfig({ VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey }),
@@ -29,7 +29,10 @@ describe('WebPushSender', () => {
     expect(send).toHaveBeenCalledWith(
       { endpoint: target.endpoint, keys: { p256dh: 'p', auth: 'a' } },
       JSON.stringify(message),
-      expect.objectContaining({ vapidDetails: expect.objectContaining({ publicKey: keys.publicKey }) }),
+      expect.objectContaining({
+        timeout: 10_000,
+        vapidDetails: expect.objectContaining({ publicKey: keys.publicKey }),
+      }),
     );
 
     send.mockRejectedValueOnce(new webpush.WebPushError('Gone', 410, {}, '', target.endpoint));
