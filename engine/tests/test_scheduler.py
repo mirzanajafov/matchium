@@ -1,7 +1,11 @@
 import datetime as dt
+import signal
+import sys
+from collections.abc import Iterator
 
 import pytest
 
+from jobs import scheduler
 from jobs.scheduler import next_run, parse_args, run_with_retry, serve
 
 UTC = dt.UTC
@@ -99,3 +103,22 @@ def test_serve_catches_up_on_start_then_runs_daily() -> None:
     assert days == [dt.date(2026, 9, 23), dt.date(2026, 9, 24), dt.date(2026, 9, 25)]
     assert fake.sleeps[0] == 17 * 3600
     assert fake.sleeps[1] == 24 * 3600
+
+
+@pytest.fixture
+def restored_stop_signal() -> Iterator[None]:
+    previous = signal.getsignal(signal.SIGTERM)
+    yield
+    signal.signal(signal.SIGTERM, previous)
+
+
+@pytest.mark.usefixtures("restored_stop_signal")
+def test_a_stop_signal_ends_the_scheduler_at_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["scheduler", "--database-url", "x"])
+    monkeypatch.setattr(scheduler, "serve", lambda *_: None)
+    scheduler.main()
+    on_stop = signal.getsignal(signal.SIGTERM)
+    assert callable(on_stop)
+    with pytest.raises(SystemExit) as stopped:
+        on_stop(signal.SIGTERM, None)
+    assert stopped.value.code == 0
