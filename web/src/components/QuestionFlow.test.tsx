@@ -8,10 +8,10 @@ import { QuestionFlow } from "./QuestionFlow";
 
 vi.mock("@/actions/questions", () => ({ answerQuestion: vi.fn() }));
 
-const answered = { id: "family.1", text: "I want to have children someday.", answered: true };
+const family = { id: "family.1", text: "I want to have children someday.", answered: true };
 const planning = { id: "planning.1", text: "I like having my week planned in advance.", answered: false };
 const activity = { id: "activity.1", text: "I work out at least three times a week.", answered: false };
-const questions = [answered, planning, activity];
+const questions = [family, planning, activity];
 
 async function answerCurrent(user: ReturnType<typeof userEvent.setup>) {
   for (const group of [
@@ -40,7 +40,7 @@ describe("QuestionFlow", () => {
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
 
-    expect(answerQuestion).toHaveBeenCalledWith("planning.1", { self: 4, partner: 4, importance: 4 });
+    expect(answerQuestion).toHaveBeenCalledWith(planning.id, { self: 4, partner: 4, importance: 4 });
     expect(await screen.findByRole("heading", { name: activity.text })).toBeInTheDocument();
     expect(screen.getByRole("meter", { name: "How well we know you" })).toHaveAttribute("aria-valuenow", "20");
     expect(screen.getByRole("button", { name: "Finish for today" })).toBeDisabled();

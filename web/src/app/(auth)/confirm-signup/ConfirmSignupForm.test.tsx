@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { confirmSignup } from "@/actions/account";
 import { ConfirmSignupForm } from "./ConfirmSignupForm";
+import { nth } from "@/test/nth";
 
 vi.mock("@/actions/account", () => ({ confirmSignup: vi.fn() }));
 
@@ -14,7 +15,7 @@ describe("ConfirmSignupForm", () => {
     await user.click(screen.getByRole("button", { name: "Finish signing up" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("isn't the password you chose");
-    const [token, , formData] = vi.mocked(confirmSignup).mock.calls[0]!;
+    const [token, , formData] = nth(vi.mocked(confirmSignup).mock.calls, 0);
     expect(token).toBe("tok");
     expect(formData.get("password")).toBe("not it");
   });

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { deletePhoto, makeMainPhoto, saveBio, uploadPhoto } from "@/actions/profile";
 import { recordWhile } from "@/test/frames";
+import { nth } from "@/test/nth";
 import { BioForm } from "./BioForm";
 import { ProfilePhotos } from "./ProfilePhotos";
 
@@ -86,7 +87,7 @@ describe("ProfilePhotos", () => {
     const file = new File(["pixels"], "me.png", { type: "image/png" });
     await user.upload(screen.getByLabelText("Add photo"), file);
     await vi.waitFor(() => expect(uploadPhoto).toHaveBeenCalled());
-    expect(vi.mocked(uploadPhoto).mock.calls[0]![1].get("photo")).toBeInstanceOf(File);
+    expect(nth(vi.mocked(uploadPhoto).mock.calls, 0)[1].get("photo")).toBeInstanceOf(File);
   });
 
   it("shows why an upload was refused", async () => {
@@ -114,6 +115,6 @@ describe("BioForm", () => {
     await user.click(save);
 
     expect(await screen.findByText("Saved.")).toBeInTheDocument();
-    expect(vi.mocked(saveBio).mock.calls[0]![1].get("bio")).toBe("Hi there");
+    expect(nth(vi.mocked(saveBio).mock.calls, 0)[1].get("bio")).toBe("Hi there");
   });
 });

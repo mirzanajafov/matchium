@@ -19,7 +19,7 @@ type Draft = { [K in keyof AnswerValues]: number | null };
 
 const EMPTY: Draft = { self: null, partner: null, importance: null };
 
-function filledIn({ self, partner, importance }: Draft): AnswerValues | null {
+function completeAnswer({ self, partner, importance }: Draft): AnswerValues | null {
   return self !== null && partner !== null && importance !== null ? { self, partner, importance } : null;
 }
 
@@ -57,7 +57,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
     );
   }
 
-  const answer = filledIn(draft);
+  const answer = completeAnswer(draft);
   const set = (key: keyof AnswerValues) => (value: number) => setDraft((d) => ({ ...d, [key]: value }));
 
   function submit(questionId: string, values: AnswerValues) {

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { deleteAccount } from "@/actions/account";
 import { DeleteAccountForm } from "./DeleteAccountForm";
+import { nth } from "@/test/nth";
 
 vi.mock("@/actions/account", () => ({ deleteAccount: vi.fn() }));
 
@@ -21,7 +22,7 @@ describe("DeleteAccountForm", () => {
     await user.click(screen.getByRole("button", { name: "Delete everything" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("That password doesn't match.");
-    const formData = vi.mocked(deleteAccount).mock.calls[0]![1];
+    const formData = nth(vi.mocked(deleteAccount).mock.calls, 0)[1];
     expect(formData.get("password")).toBe("guess");
   });
 
