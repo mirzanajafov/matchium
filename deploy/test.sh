@@ -35,14 +35,26 @@ printf '#!/bin/sh\n' > "$work/bin/sleep"
 cat > "$work/bin/docker" << 'EOF'
 #!/bin/sh
 echo "$*" >> "$WORK/calls"
+release=$(cat release)
+postgres_broken() {
+  [ "$BREAK" = postgres ] && [ "$(cat "$WORK/postgres")" = new ]
+}
 case "$*" in
   *" run "*" migrate")
-    if [ "$(cat release)" = new ] && [ "$BREAK" = migrate ]; then
+    case "$*" in
+      *" --no-deps "*) ;;
+      *) echo "$release" > "$WORK/postgres" ;;
+    esac
+    if [ "$release" = new ] && [ "$BREAK" = migrate ]; then
       echo failed > "$WORK/migrations"
     fi
-    [ "$(cat "$WORK/migrations")" = clean ] ;;
-  *" up -d "*) [ "$(cat release)" = old ] || [ "$BREAK" != up ] ;;
-  inspect*) if [ "$(cat release)" = new ] && [ "$BREAK" = health ]; then echo unhealthy; else echo healthy; fi ;;
+    ! postgres_broken && [ "$(cat "$WORK/migrations")" = clean ] ;;
+  *" up -d "*)
+    echo "$release" > "$WORK/postgres"
+    ! postgres_broken && { [ "$release" = old ] || [ "$BREAK" != up ]; } ;;
+  *" exec "*) [ "$release" = old ] || [ "$BREAK" != web ] ;;
+  inspect*)
+    if postgres_broken || { [ "$release" = new ] && [ "$BREAK" = health ]; }; then echo unhealthy; else echo healthy; fi ;;
 esac
 EOF
 chmod +x "$work/bin/sleep" "$work/bin/docker"
@@ -51,6 +63,7 @@ deploy() {
   git reset --quiet --hard "$old"
   : > "$work/calls"
   echo clean > "$work/migrations"
+  echo old > "$work/postgres"
   status=0
   output=$(WORK=$work BREAK=$1 PATH="$work/bin:$PATH" bash deploy/deploy.sh 2>&1) || status=$?
   ups=$(grep -c " up -d " "$work/calls" || true)
@@ -81,6 +94,13 @@ rolled_back "a failed up"
 deploy health
 rolled_back "a release that never turns healthy"
 [ "$ups" = 2 ] || fail "a release that never turns healthy ran up $ups times instead of twice"
+
+deploy web
+rolled_back "a release whose web app can't reach its API"
+[ "$ups" = 2 ] || fail "a release whose web app can't reach its API ran up $ups times instead of twice"
+
+deploy postgres
+rolled_back "a release that breaks Postgres"
 
 deploy migrate
 rolled_back "a failed migration"
