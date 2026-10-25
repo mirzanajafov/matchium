@@ -17,12 +17,16 @@ export const pushes = new FakePushSender();
 export const mails = new FakeMailer();
 export const photos = new FakePhotoStore();
 
-export async function startApp({ mailer = mails, store = photos }: { mailer?: Mailer; store?: PhotoStore } = {}) {
+export async function startApp({
+  mailer = mails,
+  store = photos,
+  sender = pushes,
+}: { mailer?: Mailer; store?: PhotoStore; sender?: PushSender } = {}) {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(PushSender)
-    .useValue(pushes)
+    .useValue(sender)
     .overrideProvider(Mailer)
     .useValue(mailer)
     .overrideProvider(PhotoStore)

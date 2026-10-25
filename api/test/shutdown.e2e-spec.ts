@@ -1,9 +1,10 @@
 import sharp from 'sharp';
 import request from 'supertest';
 import type { Mail } from '../src/mail/mailer.js';
+import type { Delivery, PushMessage, PushTarget } from '../src/push/push-sender.js';
 import { http, prisma, startApp, useTestApp } from './support/app.js';
 import { as, matchedPair, register } from './support/builders.js';
-import { FakeMailer, FakePhotoStore } from './support/fakes.js';
+import { FakeMailer, FakePhotoStore, FakePushSender } from './support/fakes.js';
 
 useTestApp();
 
@@ -32,6 +33,21 @@ describe('shutdown', { timeout: 15_000 }, () => {
         this.release = () => {
           this.release = () => undefined;
           resolve(super.put(key, body));
+        };
+      });
+    }
+  }
+
+  class HeldPushSender extends FakePushSender {
+    holding = false;
+    release: () => void = () => undefined;
+
+    send(target: PushTarget, message: PushMessage): Promise<Delivery> {
+      this.holding = true;
+      return new Promise((resolve) => {
+        this.release = () => {
+          this.release = () => undefined;
+          resolve(super.send(target, message));
         };
       });
     }
@@ -98,6 +114,40 @@ describe('shutdown', { timeout: 15_000 }, () => {
       expect(await upload).toBe(201);
     } finally {
       store.release();
+      await (closing ?? restarting.close());
+    }
+  });
+
+  it('finishes a push a chat message started before the database closes', async () => {
+    const { alice, bob, match } = await matchedPair();
+    for (const who of [alice, bob]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    const endpoint = 'https://push.example.com/send/alice';
+    await http()
+      .post('/push/subscriptions')
+      .set(as(alice.token))
+      .send({ endpoint, keys: { p256dh: 'p256dh', auth: 'auth' } })
+      .expect(204);
+    await prisma.match.update({ where: { id: match.id }, data: { notifiedAt: new Date() } });
+    const sender = new HeldPushSender();
+    sender.gone.add(endpoint);
+    const restarting = await startApp({ sender });
+    let closing: Promise<void> | undefined;
+    try {
+      await request(restarting.getHttpServer())
+        .post(`/chats/${match.id}/messages`)
+        .set(as(bob.token))
+        .send({ body: 'Still there?' })
+        .expect(201);
+      await vi.waitFor(() => expect(sender.holding).toBe(true));
+      closing = restarting.close();
+      await vi.waitFor(() => expect(restarting.getHttpServer().listening).toBe(false));
+      sender.release();
+      await closing;
+      expect(await prisma.pushSubscription.count({ where: { endpoint } })).toBe(0);
+    } finally {
+      sender.release();
       await (closing ?? restarting.close());
     }
   });

@@ -19,6 +19,7 @@ export interface PushMessage {
 export type Delivery = 'sent' | 'gone';
 
 const TTL_SECONDS = 12 * 60 * 60;
+const TIMEOUT_MS = 10_000;
 
 export abstract class PushSender {
   abstract readonly publicKey: string | null;
@@ -45,7 +46,7 @@ export class WebPushSender extends PushSender {
       await webpush.sendNotification(
         { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },
         JSON.stringify(message),
-        { TTL: TTL_SECONDS, vapidDetails: this.details },
+        { TTL: TTL_SECONDS, timeout: TIMEOUT_MS, vapidDetails: this.details },
       );
       return 'sent';
     } catch (error) {
