@@ -2,6 +2,8 @@ import argparse
 import datetime as dt
 import logging
 import os
+import signal
+import sys
 import time
 from collections.abc import Callable
 
@@ -70,6 +72,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     serve(lambda day: run_day(args.database_url, day, args.per_user, args.min_answers), args.at)
 
