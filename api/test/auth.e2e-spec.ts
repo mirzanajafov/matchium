@@ -1,5 +1,7 @@
+import * as argon2 from 'argon2';
 import { AuthSweeper } from '../src/auth/auth-sweeper.js';
-import { app, clock, http, mails, prisma, useTestApp } from './support/app.js';
+import { revokeSessions } from '../src/auth/sessions.js';
+import { app, clock, http, mails, prisma, useTestApp, waitUntilBlocking } from './support/app.js';
 import { as, finishSignup, linkToken, register, registerWithoutEmail, signup } from './support/builders.js';
 
 useTestApp();
@@ -284,20 +286,34 @@ describe('account security', () => {
           .post('/auth/password/reset')
           .send({ token, password: 'a new password' })
           .then((res) => res.status);
-        await vi.waitFor(
-          async () => {
-            const [blocked] = await tx.$queryRaw<{ count: number }[]>`
-              SELECT count(*)::int AS count FROM (SELECT DISTINCT pid FROM pg_locks WHERE NOT granted) waiting
-              WHERE pg_blocking_pids(pid) @> ARRAY[pg_backend_pid()]`;
-            expect(blocked?.count).toBe(1);
-          },
-          { timeout: 3000 },
-        );
+        await waitUntilBlocking(tx);
       });
     } finally {
       status = await reset;
     }
     expect(status).toBe(410);
+  });
+
+  it('gives no session to a login that checked the old password while a reset was committing', async () => {
+    const alice = await register();
+    const passwordHash = await argon2.hash('a new password');
+    let login = Promise.resolve(0);
+    let status = 0;
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: alice.id }, data: { passwordHash } });
+        await revokeSessions(tx, alice.id, clock.now());
+        login = http()
+          .post('/auth/login')
+          .send({ email: alice.email, password: 'correct horse battery' })
+          .then((res) => res.status);
+        await waitUntilBlocking(tx);
+      });
+    } finally {
+      status = await login;
+    }
+    expect(status).toBe(401);
+    expect(await prisma.session.count({ where: { userId: alice.id, revokedAt: null } })).toBe(0);
   });
 
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {

@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { appOptions, configureApp } from '../../src/app.setup.js';
 import { Clock } from '../../src/common/clock.js';
+import type { Prisma } from '../../src/generated/prisma/client.js';
 import { Mailer } from '../../src/mail/mailer.js';
 import { PhotoStore } from '../../src/photos/photo-store.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
@@ -35,6 +36,18 @@ export async function startApp({ mailer = mails, store = photos }: { mailer?: Ma
 
 export function http() {
   return request(app.getHttpServer());
+}
+
+export function waitUntilBlocking(tx: Prisma.TransactionClient) {
+  return vi.waitFor(
+    async () => {
+      const [blocked] = await tx.$queryRaw<{ count: number }[]>`
+        SELECT count(*)::int AS count FROM (SELECT DISTINCT pid FROM pg_locks WHERE NOT granted) waiting
+        WHERE pg_blocking_pids(pid) @> ARRAY[pg_backend_pid()]`;
+      expect(blocked?.count).toBe(1);
+    },
+    { timeout: 3000 },
+  );
 }
 
 function truncate() {

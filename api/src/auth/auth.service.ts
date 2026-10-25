@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/c
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { Clock } from '../common/clock.js';
+import type { User } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { revokeSessions } from './sessions.js';
@@ -25,7 +26,7 @@ export class AuthService {
     const valid = await argon2.verify(user?.passwordHash ?? (await this.decoyHash), dto.password);
     if (!user || !valid) throw new UnauthorizedException('Invalid email or password');
     if (user.bannedAt) throw new ForbiddenException('This account has been suspended');
-    return this.startSession(user.id);
+    return this.startSession(user);
   }
 
   async logout(sessionId: string) {
@@ -39,8 +40,14 @@ export class AuthService {
     await revokeSessions(this.prisma, userId, this.clock.now());
   }
 
-  async startSession(userId: string): Promise<TokenResponse> {
-    const session = await this.prisma.session.create({ data: { userId, createdAt: this.clock.now() } });
-    return { accessToken: this.jwt.sign({ sub: userId, sid: session.id }) };
+  async startSession(user: Pick<User, 'id' | 'passwordHash'>): Promise<TokenResponse> {
+    const [session] = await this.prisma.$queryRaw<{ id: string }[]>`
+      INSERT INTO "Session" (id, "userId", "createdAt")
+      SELECT gen_random_uuid(), id, ${this.clock.now()} FROM "User"
+      WHERE id = ${user.id}::uuid AND "passwordHash" = ${user.passwordHash}
+      FOR SHARE
+      RETURNING id`;
+    if (!session) throw new UnauthorizedException('Invalid email or password');
+    return { accessToken: this.jwt.sign({ sub: user.id, sid: session.id }) };
   }
 }
