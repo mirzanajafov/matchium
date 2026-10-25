@@ -14,6 +14,7 @@ export default defineConfig([
     linterOptions: { noInlineConfig: true },
     languageOptions: { parserOptions: { projectService: true } },
     rules: {
+      curly: ["error", "multi-line"],
       "@typescript-eslint/no-base-to-string": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
       "@typescript-eslint/no-extraneous-class": "off",
