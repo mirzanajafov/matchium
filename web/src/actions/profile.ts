@@ -2,10 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { api, authedApi } from "@/lib/api";
+import { MAX_UPLOAD_BYTES, UPLOAD_TOO_BIG } from "@/lib/photos";
 import type { ActionResult, FormState } from "@/lib/types";
 import { attempt } from "./attempt";
-
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 export async function saveBio(_: FormState, formData: FormData): Promise<FormState> {
   const bio = String(formData.get("bio") ?? "");
@@ -22,7 +21,7 @@ export async function saveBio(_: FormState, formData: FormData): Promise<FormSta
 export async function uploadPhoto(_: FormState, formData: FormData): Promise<FormState> {
   const photo = formData.get("photo");
   if (!(photo instanceof File) || photo.size === 0) return { error: "Pick a photo first." };
-  if (photo.size > MAX_UPLOAD_BYTES) return { error: "That photo is over 8 MB." };
+  if (photo.size > MAX_UPLOAD_BYTES) return { error: UPLOAD_TOO_BIG };
   const form = new FormData();
   form.set("photo", photo);
   const uploaded = await attempt(

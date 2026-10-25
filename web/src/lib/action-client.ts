@@ -3,7 +3,6 @@ import { useState, useTransition } from "react";
 import type { ActionResult, FormState } from "./types";
 
 function failureMessage(error: unknown): string {
-  unstable_rethrow(error);
   if (unstable_isUnrecognizedActionError(error)) return "Matchium was just updated. Reload the page and try again.";
   return "Couldn't reach Matchium. Check your connection and try again.";
 }
@@ -12,6 +11,7 @@ export async function resolveAction<T>(pending: Promise<ActionResult<T>>): Promi
   try {
     return await pending;
   } catch (error) {
+    unstable_rethrow(error);
     return { ok: false, error: failureMessage(error) };
   }
 }
@@ -30,6 +30,7 @@ export function resolveForm(action: (state: FormState, form: FormData) => Promis
     try {
       return await action(state, form);
     } catch (error) {
+      unstable_rethrow(error);
       return { error: failureMessage(error), values: typedValues(form) };
     }
   };
