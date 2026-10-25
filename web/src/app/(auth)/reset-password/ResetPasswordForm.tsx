@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { resetPassword } from "@/actions/account";
+import { resolveForm } from "@/lib/action-client";
 import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export function ResetPasswordForm({ token }: { token: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(resetPassword.bind(null, token), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    resolveForm(resetPassword.bind(null, token)),
+    {},
+  );
 
   if (state.done) {
     return (

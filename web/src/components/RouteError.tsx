@@ -1,18 +1,14 @@
-"use client";
-
-import type { ReactNode } from "react";
-
 interface RouteErrorProps {
   title: string;
-  children: ReactNode;
+  message: string;
   retry: () => void;
 }
 
-export function RouteError({ title, children, retry }: RouteErrorProps) {
+export function RouteError({ title, message, retry }: RouteErrorProps) {
   return (
     <section role="alert" className="rounded-2xl border border-line bg-surface p-6">
       <h1 className="text-lg font-semibold">{title}</h1>
-      <p className="mt-2 text-sm text-muted">{children}</p>
+      <p className="mt-2 text-sm text-muted">{message}</p>
       <button
         type="button"
         onClick={() => retry()}

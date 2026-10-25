@@ -2,13 +2,14 @@
 
 import { useActionState } from "react";
 import { requestPasswordReset } from "@/actions/account";
+import { resolveForm } from "@/lib/action-client";
 import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export function ForgotPasswordForm() {
-  const [state, action, pending] = useActionState<FormState, FormData>(requestPasswordReset, {});
+  const [state, action, pending] = useActionState<FormState, FormData>(resolveForm(requestPasswordReset), {});
 
   if (state.done) {
     return (
