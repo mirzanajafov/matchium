@@ -19,6 +19,10 @@ vi.mock("@/lib/shrink", () => ({
   }),
 }));
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 const photo = (n: number) => ({
   id: `${n}${n}${n}${n}${n}${n}${n}${n}-1111-4111-8111-111111111111`,
   width: 1080,
@@ -97,6 +101,29 @@ describe("ProfilePhotos", () => {
     await user.upload(screen.getByLabelText("Add photo"), new File(["x"], "x.png", { type: "image/png" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("isn't a photo we can read");
   });
+
+  it("turns away a photo over 8 MB before sending it", async () => {
+    const user = userEvent.setup();
+    render(<ProfilePhotos photos={[]} />);
+    const big = new File([new Uint8Array(8 * 1024 * 1024 + 1)], "big.jpg", { type: "image/jpeg" });
+    await user.upload(screen.getByLabelText("Add photo"), big);
+
+    expect(await screen.findByText("That photo is over 8 MB.")).toBeInTheDocument();
+    expect(uploadPhoto).not.toHaveBeenCalled();
+  });
+
+  it("clears the size message when the next photo fits", async () => {
+    const user = userEvent.setup();
+    vi.mocked(uploadPhoto).mockResolvedValueOnce({ done: true });
+    render(<ProfilePhotos photos={[]} />);
+    const input = screen.getByLabelText("Add photo");
+    await user.upload(input, new File([new Uint8Array(8 * 1024 * 1024 + 1)], "big.jpg", { type: "image/jpeg" }));
+    await screen.findByText("That photo is over 8 MB.");
+
+    await user.upload(input, new File(["small"], "small.jpg", { type: "image/jpeg" }));
+    await vi.waitFor(() => expect(uploadPhoto).toHaveBeenCalledOnce());
+    expect(screen.queryByText("That photo is over 8 MB.")).not.toBeInTheDocument();
+  });
 });
 
 describe("BioForm", () => {
@@ -116,5 +143,20 @@ describe("BioForm", () => {
 
     expect(await screen.findByText("Saved.")).toBeInTheDocument();
     expect(nth(vi.mocked(saveBio).mock.calls, 0)[1].get("bio")).toBe("Hi there");
+  });
+
+  it("lets a save that never reached Matchium be tried again", async () => {
+    const user = userEvent.setup();
+    vi.mocked(saveBio).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<BioForm bio="Likes long walks." />);
+    await user.clear(screen.getByLabelText("About you"));
+    await user.type(screen.getByLabelText("About you"), "Likes short walks.");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByText("Couldn't reach Matchium. Check your connection and try again."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("About you")).toHaveValue("Likes short walks.");
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 });
