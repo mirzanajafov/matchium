@@ -244,14 +244,42 @@ describe("ChatThread", () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
     const next = FakeEventSource.instances[1];
-    expect(next?.url).toBe(`/api/chats/${MATCH}/stream`);
+    expect(next.url).toBe(`/api/chats/${MATCH}/stream`);
     await act(async () => {
-      next?.emit("message", JSON.stringify(message("m3", "Live again", "2026-09-23T10:01:00.000Z")));
+      next.emit("message", JSON.stringify(message("m3", "Live again", "2026-09-23T10:01:00.000Z")));
     });
     expect(screen.getByText("Live again")).toBeInTheDocument();
 
     unmount();
-    expect(next?.closed).toBe(true);
+    expect(next.closed).toBe(true);
+  });
+
+  it("keeps trying every five seconds for as long as the stream fails", async () => {
+    vi.useFakeTimers();
+    render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
+
+    for (const attempt of [0, 1, 2]) {
+      const failed = FakeEventSource.instances[attempt];
+      failed.readyState = FakeEventSource.CLOSED;
+      await act(async () => {
+        failed.emit("error");
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+    }
+    expect(FakeEventSource.instances).toHaveLength(4);
+    expect(fetchMessages).toHaveBeenCalledTimes(3);
+  });
+
+  it("leaves a stream that is still reconnecting on its own alone", async () => {
+    vi.useFakeTimers();
+    render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
+
+    await act(async () => {
+      FakeEventSource.instances[0].emit("error");
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(fetchMessages).not.toHaveBeenCalled();
   });
 
   it("stops trying to reconnect once you leave the chat", async () => {
@@ -283,7 +311,7 @@ describe("ChatThread", () => {
       source.readyState = FakeEventSource.CLOSED;
       source.emit("error");
       await vi.advanceTimersByTimeAsync(5_000);
-      FakeEventSource.instances[1]?.emit("open");
+      FakeEventSource.instances[1].emit("open");
     });
     expect(fetchMessages).toHaveBeenCalledTimes(4);
     expect(scrolls).not.toHaveBeenCalled();
