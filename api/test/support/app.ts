@@ -37,6 +37,18 @@ export function http() {
   return request(app.getHttpServer());
 }
 
+export function waitForLockWaits(count: number) {
+  return vi.waitFor(
+    async () => {
+      const [waiting] = await prisma.$queryRaw<{ count: number }[]>`
+        SELECT count(*)::int AS count FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock' AND datname = current_database()`;
+      expect(waiting?.count).toBe(count);
+    },
+    { timeout: 3000 },
+  );
+}
+
 function truncate() {
   return prisma.$executeRawUnsafe('TRUNCATE "User", "RateLimit", "PendingSignup" CASCADE');
 }

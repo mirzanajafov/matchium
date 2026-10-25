@@ -85,7 +85,7 @@ export class SignupService {
       await this.prisma.pendingSignup.deleteMany({ where: { email } });
       throw new ConflictException(EMAIL_TAKEN);
     }
-    return this.auth.startSession(user.id);
+    return this.auth.startSession(user);
   }
 
   private async request(signup: Signup): Promise<CheckEmailResponse> {
@@ -123,7 +123,7 @@ export class SignupService {
       if (isUniqueViolation(error)) throw new ConflictException(EMAIL_TAKEN);
       throw error;
     }
-    return this.auth.startSession(user.id);
+    return this.auth.startSession(user);
   }
 
   private createUser(db: Prisma.TransactionClient, signup: Signup, emailVerifiedAt: Date | null) {

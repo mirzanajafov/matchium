@@ -1,5 +1,6 @@
+import type { Response, Test } from 'supertest';
 import { AuthSweeper } from '../src/auth/auth-sweeper.js';
-import { app, clock, http, mails, prisma, useTestApp } from './support/app.js';
+import { app, clock, http, mails, prisma, useTestApp, waitForLockWaits } from './support/app.js';
 import { as, finishSignup, linkToken, register, registerWithoutEmail, signup } from './support/builders.js';
 
 useTestApp();
@@ -284,20 +285,48 @@ describe('account security', () => {
           .post('/auth/password/reset')
           .send({ token, password: 'a new password' })
           .then((res) => res.status);
-        await vi.waitFor(
-          async () => {
-            const [blocked] = await tx.$queryRaw<{ count: number }[]>`
-              SELECT count(*)::int AS count FROM (SELECT DISTINCT pid FROM pg_locks WHERE NOT granted) waiting
-              WHERE pg_blocking_pids(pid) @> ARRAY[pg_backend_pid()]`;
-            expect(blocked?.count).toBe(1);
-          },
-          { timeout: 3000 },
-        );
+        await waitForLockWaits(1);
       });
     } finally {
       status = await reset;
     }
     expect(status).toBe(410);
+  });
+
+  describe('a login racing a password reset', () => {
+    async function queueBehindUserLock(userId: string, requests: Test[]) {
+      const responses: Promise<Response>[] = [];
+      try {
+        await prisma.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId}::uuid FOR UPDATE`;
+          for (const request of requests) {
+            responses.push(Promise.resolve(request));
+            await waitForLockWaits(responses.length);
+          }
+        });
+      } finally {
+        await Promise.allSettled(responses);
+      }
+      return Promise.all(responses);
+    }
+
+    const login = (email: string) => http().post('/auth/login').send({ email, password: 'correct horse battery' });
+    const reset = (token: string) => http().post('/auth/password/reset').send({ token, password: 'a new password' });
+
+    it('refuses a login that checked the old password while the reset was committing', async () => {
+      const alice = await register();
+      const token = await resetLink(alice.email);
+      const responses = await queueBehindUserLock(alice.id, [reset(token), login(alice.email)]);
+      expect(responses.map((res) => res.status)).toEqual([204, 401]);
+    });
+
+    it('signs out a login that got in just before the reset', async () => {
+      const alice = await register();
+      const token = await resetLink(alice.email);
+      const [signedIn, resetDone] = await queueBehindUserLock(alice.id, [login(alice.email), reset(token)]);
+      expect([signedIn?.status, resetDone?.status]).toEqual([200, 204]);
+      await http().get('/me').set(as(signedIn?.body.accessToken)).expect(401);
+    });
   });
 
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {

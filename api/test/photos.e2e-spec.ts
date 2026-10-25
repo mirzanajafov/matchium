@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { clock, http, photos, prisma, useTestApp } from './support/app.js';
+import { clock, http, photos, prisma, useTestApp, waitForLockWaits } from './support/app.js';
 import { as, createMatch, man, register, registerAdmin, woman } from './support/builders.js';
 
 useTestApp();
@@ -154,12 +154,7 @@ describe('photos and bio', () => {
       .set(as(alice.token))
       .send({ password: 'correct horse battery' })
       .then((response) => response.status);
-    await vi.waitFor(async () => {
-      const [waiting] = await prisma.$queryRaw<{ count: number }[]>`
-        SELECT count(*)::int AS count FROM pg_stat_activity
-        WHERE wait_event_type = 'Lock' AND datname = current_database()`;
-      expect(waiting?.count).toBeGreaterThan(0);
-    });
+    await waitForLockWaits(1);
     land();
     await inFlight;
 
