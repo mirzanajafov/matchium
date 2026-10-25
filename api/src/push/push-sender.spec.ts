@@ -17,7 +17,7 @@ describe('WebPushSender', () => {
     await expect(disabled.send(target, message)).rejects.toThrow(/not configured/);
   });
 
-  it('signs with the configured keys, gives up on a silent push service and reports expired subscriptions', async () => {
+  it('signs with the configured keys, sets a request timeout and reports expired subscriptions', async () => {
     const send = vi.spyOn(webpush, 'sendNotification');
     const configured = new WebPushSender(
       testConfig({ VAPID_PUBLIC_KEY: keys.publicKey, VAPID_PRIVATE_KEY: keys.privateKey }),

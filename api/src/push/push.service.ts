@@ -59,6 +59,6 @@ export class PushService implements OnApplicationShutdown {
   }
 
   async onApplicationShutdown() {
-    await Promise.all(this.inFlight);
+    while (this.inFlight.size > 0) await Promise.allSettled(this.inFlight);
   }
 }
