@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import { startTransition } from "react";
 import userEvent from "@testing-library/user-event";
 import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
@@ -138,6 +139,29 @@ describe("ChatThread", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("This chat is closed.");
     expect(input).toHaveValue("Are you free Saturday? also");
+  });
+
+  it("keeps a failed message when typing goes on before the failure shows", async () => {
+    const user = userEvent.setup();
+    const send = pendingAction<ChatMessage>();
+    const elsewhere = pendingAction();
+    vi.mocked(sendMessage).mockReturnValue(send.promise);
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    const input = screen.getByRole("textbox", { name: "Message" });
+
+    await user.type(input, "Are you free Saturday?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.type(input, "also");
+    act(() => {
+      startTransition(async () => {
+        await elsewhere.promise;
+      });
+    });
+    await act(async () => send.settle({ ok: false, error: "This chat is closed." }));
+    await user.type(input, " Sunday");
+    await act(async () => elsewhere.settle({ ok: true, value: undefined }));
+
+    expect(input).toHaveValue("Are you free Saturday? also Sunday");
   });
 
   it("frees Send in the same moment it says the message failed", async () => {
