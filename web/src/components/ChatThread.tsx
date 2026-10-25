@@ -9,7 +9,7 @@ import { mergeMessages } from "@/lib/messages";
 import type { ChatMessage } from "@/lib/types";
 import { ErrorMessage } from "./ErrorMessage";
 
-const FALLBACK_POLL_MS = 10_000;
+const RECONNECT_MS = 5_000;
 
 interface ChatThreadProps {
   matchId: string;
@@ -35,7 +35,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
 
   useEffect(() => {
     let active = true;
-    let fallback: ReturnType<typeof setInterval> | undefined;
+    let reconnect: ReturnType<typeof setTimeout> | undefined;
     const catchUp = () =>
       fetchMessages(matchId, latest.current)
         .then((fresh) => {
@@ -45,26 +45,32 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
           if (active && error instanceof SessionExpiredError) router.replace("/session/expired");
         });
 
-    const source = new EventSource(`/api/chats/${encodeURIComponent(matchId)}/stream`);
-    source.addEventListener("open", catchUp);
-    source.addEventListener("message", (event: MessageEvent<string>) => {
-      const message = JSON.parse(event.data) as ChatMessage;
-      if (active) setMessages((current) => mergeMessages(current, [message]));
-    });
-    source.addEventListener("closed", () => {
-      source.close();
-      if (active) setClosed(true);
-    });
-    source.addEventListener("error", () => {
-      if (source.readyState === EventSource.CLOSED && !fallback) {
-        fallback = setInterval(catchUp, FALLBACK_POLL_MS);
-      }
-    });
+    function connect() {
+      const stream = new EventSource(`/api/chats/${encodeURIComponent(matchId)}/stream`);
+      stream.addEventListener("open", catchUp);
+      stream.addEventListener("message", (event: MessageEvent<string>) => {
+        const message = JSON.parse(event.data) as ChatMessage;
+        if (active) setMessages((current) => mergeMessages(current, [message]));
+      });
+      stream.addEventListener("closed", () => {
+        stream.close();
+        if (active) setClosed(true);
+      });
+      stream.addEventListener("error", () => {
+        if (stream.readyState !== EventSource.CLOSED) return;
+        void catchUp();
+        reconnect = setTimeout(() => {
+          source = connect();
+        }, RECONNECT_MS);
+      });
+      return stream;
+    }
 
+    let source = connect();
     return () => {
       active = false;
       source.close();
-      clearInterval(fallback);
+      clearTimeout(reconnect);
     };
   }, [matchId, router]);
 

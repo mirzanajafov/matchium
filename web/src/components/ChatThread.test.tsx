@@ -226,22 +226,80 @@ describe("ChatThread", () => {
     expect(router.replace).toHaveBeenCalledWith("/session/expired");
   });
 
-  it("falls back to polling if the stream is closed for good", async () => {
+  it("catches up and opens a new stream when the old one is closed for good", async () => {
     vi.useFakeTimers();
     const first = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
-    vi.mocked(fetchMessages).mockResolvedValue([message("m2", "Polled", "2026-09-23T10:00:05.000Z")]);
-    render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
-    const source = FakeEventSource.instances[0];
-    source.readyState = FakeEventSource.CLOSED;
+    vi.mocked(fetchMessages).mockResolvedValue([message("m2", "Sent meanwhile", "2026-09-23T10:00:05.000Z")]);
+    const { unmount } = render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
+    const failed = FakeEventSource.instances[0];
+    failed.readyState = FakeEventSource.CLOSED;
 
     await act(async () => {
-      source.emit("error");
-      await vi.advanceTimersByTimeAsync(10_000);
+      failed.emit("error");
     });
-    expect(screen.getByText("Polled")).toBeInTheDocument();
+    expect(screen.getByText("Sent meanwhile")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_999);
+    });
+    expect(FakeEventSource.instances).toHaveLength(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    const next = FakeEventSource.instances[1];
+    expect(next.url).toBe(`/api/chats/${MATCH}/stream`);
+    await act(async () => {
+      next.emit("message", JSON.stringify(message("m3", "Live again", "2026-09-23T10:01:00.000Z")));
+    });
+    expect(screen.getByText("Live again")).toBeInTheDocument();
+
+    unmount();
+    expect(next.closed).toBe(true);
   });
 
-  it("stays where you scrolled when a reconnect or a poll brings nothing new", async () => {
+  it("keeps trying every five seconds for as long as the stream fails", async () => {
+    vi.useFakeTimers();
+    render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
+
+    for (const attempt of [0, 1, 2]) {
+      const failed = FakeEventSource.instances[attempt];
+      failed.readyState = FakeEventSource.CLOSED;
+      await act(async () => {
+        failed.emit("error");
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+    }
+    expect(FakeEventSource.instances).toHaveLength(4);
+    expect(fetchMessages).toHaveBeenCalledTimes(3);
+  });
+
+  it("leaves a stream that is still reconnecting on its own alone", async () => {
+    vi.useFakeTimers();
+    render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
+
+    await act(async () => {
+      FakeEventSource.instances[0].emit("error");
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(FakeEventSource.instances).toHaveLength(1);
+    expect(fetchMessages).not.toHaveBeenCalled();
+  });
+
+  it("stops trying to reconnect once you leave the chat", async () => {
+    vi.useFakeTimers();
+    const { unmount } = render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
+    const failed = FakeEventSource.instances[0];
+    failed.readyState = FakeEventSource.CLOSED;
+    await act(async () => {
+      failed.emit("error");
+    });
+
+    unmount();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
+  it("stays where you scrolled when a reconnect brings nothing new", async () => {
     vi.useFakeTimers();
     const last = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
     vi.mocked(fetchMessages).mockResolvedValue([last]);
@@ -255,9 +313,10 @@ describe("ChatThread", () => {
       source.emit("open");
       source.readyState = FakeEventSource.CLOSED;
       source.emit("error");
-      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(5_000);
+      FakeEventSource.instances[1].emit("open");
     });
-    expect(fetchMessages).toHaveBeenCalledTimes(3);
+    expect(fetchMessages).toHaveBeenCalledTimes(4);
     expect(scrolls).not.toHaveBeenCalled();
   });
 
