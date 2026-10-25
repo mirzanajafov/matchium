@@ -32,6 +32,12 @@ class FakeEventSource {
     FakeEventSource.instances.push(this);
   }
 
+  static opened(index: number): FakeEventSource {
+    const source = FakeEventSource.instances[index];
+    if (!source) throw new Error(`Stream ${index + 1} was never opened`);
+    return source;
+  }
+
   addEventListener(type: string, listener: (event: MessageEvent<string>) => void) {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
   }
@@ -186,7 +192,7 @@ describe("ChatThread", () => {
   it("shows messages pushed over the stream and closes it on unmount", async () => {
     const first = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
     const { unmount } = render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
-    const source = FakeEventSource.instances[0];
+    const source = FakeEventSource.opened(0);
     expect(source.url).toBe(`/api/chats/${MATCH}/stream`);
 
     await act(async () => {
@@ -211,7 +217,7 @@ describe("ChatThread", () => {
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
 
     await act(async () => {
-      FakeEventSource.instances[0].emit("open");
+      FakeEventSource.opened(0).emit("open");
     });
     expect(fetchMessages).toHaveBeenCalledWith(MATCH, first.createdAt);
     expect(screen.getByText("Sent while you were offline")).toBeInTheDocument();
@@ -221,7 +227,7 @@ describe("ChatThread", () => {
     vi.mocked(fetchMessages).mockRejectedValue(new SessionExpiredError("401"));
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
     await act(async () => {
-      FakeEventSource.instances[0].emit("open");
+      FakeEventSource.opened(0).emit("open");
     });
     expect(router.replace).toHaveBeenCalledWith("/session/expired");
   });
@@ -231,7 +237,7 @@ describe("ChatThread", () => {
     const first = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
     vi.mocked(fetchMessages).mockResolvedValue([message("m2", "Sent meanwhile", "2026-09-23T10:00:05.000Z")]);
     const { unmount } = render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[first]} />);
-    const failed = FakeEventSource.instances[0];
+    const failed = FakeEventSource.opened(0);
     failed.readyState = FakeEventSource.CLOSED;
 
     await act(async () => {
@@ -246,7 +252,7 @@ describe("ChatThread", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
     });
-    const next = FakeEventSource.instances[1];
+    const next = FakeEventSource.opened(1);
     expect(next.url).toBe(`/api/chats/${MATCH}/stream`);
     await act(async () => {
       next.emit("message", JSON.stringify(message("m3", "Live again", "2026-09-23T10:01:00.000Z")));
@@ -262,7 +268,7 @@ describe("ChatThread", () => {
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
 
     for (const attempt of [0, 1, 2]) {
-      const failed = FakeEventSource.instances[attempt];
+      const failed = FakeEventSource.opened(attempt);
       failed.readyState = FakeEventSource.CLOSED;
       await act(async () => {
         failed.emit("error");
@@ -278,7 +284,7 @@ describe("ChatThread", () => {
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
 
     await act(async () => {
-      FakeEventSource.instances[0].emit("error");
+      FakeEventSource.opened(0).emit("error");
       await vi.advanceTimersByTimeAsync(5_000);
     });
     expect(FakeEventSource.instances).toHaveLength(1);
@@ -288,7 +294,7 @@ describe("ChatThread", () => {
   it("stops trying to reconnect once you leave the chat", async () => {
     vi.useFakeTimers();
     const { unmount } = render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[]} />);
-    const failed = FakeEventSource.instances[0];
+    const failed = FakeEventSource.opened(0);
     failed.readyState = FakeEventSource.CLOSED;
     await act(async () => {
       failed.emit("error");
@@ -304,7 +310,7 @@ describe("ChatThread", () => {
     const last = message("m1", "Hi", "2026-09-23T10:00:00.000Z", true);
     vi.mocked(fetchMessages).mockResolvedValue([last]);
     render(<ChatThread matchId={MATCH} personName="Alice" initialMessages={[last]} />);
-    const source = FakeEventSource.instances[0];
+    const source = FakeEventSource.opened(0);
     scrolls.mockClear();
 
     await act(async () => {
@@ -314,7 +320,7 @@ describe("ChatThread", () => {
       source.readyState = FakeEventSource.CLOSED;
       source.emit("error");
       await vi.advanceTimersByTimeAsync(5_000);
-      FakeEventSource.instances[1].emit("open");
+      FakeEventSource.opened(1).emit("open");
     });
     expect(fetchMessages).toHaveBeenCalledTimes(4);
     expect(scrolls).not.toHaveBeenCalled();
@@ -322,7 +328,7 @@ describe("ChatThread", () => {
 
   it("locks the conversation when the other person unmatches", async () => {
     render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
-    const source = FakeEventSource.instances[0]!;
+    const source = FakeEventSource.opened(0);
     expect(screen.getByRole("textbox", { name: "Message" })).toBeInTheDocument();
 
     await act(async () => source.emit("closed"));
