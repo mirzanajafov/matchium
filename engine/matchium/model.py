@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import NDArray
 
 from .questions import Question
 
@@ -16,22 +17,22 @@ def observation_var(question: Question) -> float:
     return question.noise**2 + QUANTIZATION_VAR
 
 
-def posterior_var(var: np.ndarray, obs_var: float | np.ndarray) -> np.ndarray:
+def posterior_var(var: NDArray[np.float64], obs_var: float | NDArray[np.float64]) -> NDArray[np.float64]:
     return var * obs_var / (var + obs_var)
 
 
 class Beliefs:
-    def __init__(self, n_users: int, n_dims: int, n_questions: int):
+    def __init__(self, n_users: int, n_dims: int, n_questions: int) -> None:
         self.mu_self = np.zeros((n_users, n_dims))
-        self.var_self = np.full((n_users, n_dims), PRIOR_VAR)
+        self.var_self = np.full((n_users, n_dims), PRIOR_VAR, dtype=np.float64)
         self.mu_pref = np.zeros((n_users, n_dims))
-        self.var_pref = np.full((n_users, n_dims), PRIOR_VAR)
+        self.var_pref = np.full((n_users, n_dims), PRIOR_VAR, dtype=np.float64)
         self.log_w_sum = np.zeros((n_users, n_dims))
-        self.log_w_count = np.full((n_users, n_dims), IMPORTANCE_PRIOR_COUNT)
+        self.log_w_count = np.full((n_users, n_dims), IMPORTANCE_PRIOR_COUNT, dtype=np.float64)
         self.mu_gap = np.zeros((n_users, n_dims))
-        self.var_gap = np.full((n_users, n_dims), GAP_PRIOR_VAR)
-        self.mu_bar = np.full(n_users, BAR_PRIOR_MEAN)
-        self.var_bar = np.full(n_users, BAR_PRIOR_VAR)
+        self.var_gap = np.full((n_users, n_dims), GAP_PRIOR_VAR, dtype=np.float64)
+        self.mu_bar = np.full(n_users, BAR_PRIOR_MEAN, dtype=np.float64)
+        self.var_bar = np.full(n_users, BAR_PRIOR_VAR, dtype=np.float64)
         self.answered = np.zeros((n_users, n_questions), dtype=bool)
 
     @property

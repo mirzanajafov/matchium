@@ -15,6 +15,12 @@ class DirectedScores:
     std: np.ndarray
 
 
+@dataclass(frozen=True)
+class Explanation:
+    aligned: list[str]
+    friction: str
+
+
 def directed_scores(beliefs: Beliefs) -> DirectedScores:
     w = beliefs.weights
     mp, vp = beliefs.pref_mean, beliefs.pref_var
@@ -73,7 +79,7 @@ def confidence(directed: DirectedScores, weights: np.ndarray, eligible: np.ndarr
     return np.where(eligible, (removed + removed.T) / 2, 0.0)
 
 
-def explain(beliefs: Beliefs, u: int, v: int, top: int = 2) -> dict:
+def explain(beliefs: Beliefs, u: int, v: int, top: int = 2) -> Explanation:
     w = beliefs.weights
     cost_uv = w[u] * (beliefs.pref_mean[u] - beliefs.mu_self[v]) ** 2
     cost_vu = w[v] * (beliefs.pref_mean[v] - beliefs.mu_self[u]) ** 2
@@ -82,8 +88,4 @@ def explain(beliefs: Beliefs, u: int, v: int, top: int = 2) -> dict:
     distance = cost / importance
     important = np.flatnonzero(importance >= np.median(importance))
     aligned = important[np.argsort(distance[important])][:top]
-    return {
-        "aligned": [DIMENSIONS[k] for k in aligned],
-        "friction": DIMENSIONS[int(np.argmax(cost))],
-        "per_dimension": {DIMENSIONS[k]: round(float(cost[k]), 3) for k in range(len(DIMENSIONS))},
-    }
+    return Explanation([DIMENSIONS[k] for k in aligned], DIMENSIONS[int(np.argmax(cost))])

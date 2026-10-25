@@ -13,7 +13,7 @@ class Stop(Exception):
 
 
 class FakeTime:
-    def __init__(self, start: dt.datetime, stop_after: int):
+    def __init__(self, start: dt.datetime, stop_after: int) -> None:
         self.now = start
         self.sleeps: list[float] = []
         self.stop_after = stop_after
@@ -54,16 +54,17 @@ def test_a_broken_environment_value_is_a_usage_error(
     assert "argument --at" in capsys.readouterr().err
 
 
-def test_next_run_is_today_before_the_hour_and_tomorrow_after():
+def test_next_run_is_today_before_the_hour_and_tomorrow_after() -> None:
     assert next_run(dt.datetime(2026, 9, 23, 1, 30, tzinfo=UTC), AT) == dt.datetime(2026, 9, 23, 3, 0, tzinfo=UTC)
     assert next_run(dt.datetime(2026, 9, 23, 3, 0, tzinfo=UTC), AT) == dt.datetime(2026, 9, 24, 3, 0, tzinfo=UTC)
     assert next_run(dt.datetime(2026, 9, 23, 22, 0, tzinfo=UTC), AT) == dt.datetime(2026, 9, 24, 3, 0, tzinfo=UTC)
 
 
-def test_retries_then_gives_up():
-    calls, sleeps = [], []
+def test_retries_then_gives_up() -> None:
+    calls: list[dt.date] = []
+    sleeps: list[float] = []
 
-    def flaky(day):
+    def flaky(day: dt.date) -> int:
         calls.append(day)
         raise RuntimeError("db down")
 
@@ -72,24 +73,28 @@ def test_retries_then_gives_up():
     assert sleeps == [5, 5]
 
 
-def test_recovers_after_a_failure():
-    outcomes = iter([RuntimeError("blip"), 12])
+def test_recovers_after_a_failure() -> None:
+    outcomes: list[RuntimeError | int] = [RuntimeError("blip"), 12]
 
-    def job(day):
-        result = next(outcomes)
+    def job(_: dt.date) -> int:
+        result = outcomes.pop(0)
         if isinstance(result, Exception):
             raise result
         return result
 
-    assert run_with_retry(job, dt.date(2026, 9, 23), lambda s: None, retry_delay=1, attempts=3) is True
+    assert run_with_retry(job, dt.date(2026, 9, 23), lambda _: None, retry_delay=1, attempts=3) is True
 
 
-def test_serve_catches_up_on_start_then_runs_daily():
+def test_serve_catches_up_on_start_then_runs_daily() -> None:
     fake = FakeTime(dt.datetime(2026, 9, 23, 10, 0, tzinfo=UTC), stop_after=2)
-    days = []
+    days: list[dt.date] = []
+
+    def job(day: dt.date) -> int:
+        days.append(day)
+        return 1
 
     with pytest.raises(Stop):
-        serve(lambda day: days.append(day) or 1, AT, clock=fake.clock, sleep=fake.sleep)
+        serve(job, AT, clock=fake.clock, sleep=fake.sleep)
 
     assert days == [dt.date(2026, 9, 23), dt.date(2026, 9, 24), dt.date(2026, 9, 25)]
     assert fake.sleeps[0] == 17 * 3600

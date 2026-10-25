@@ -30,18 +30,9 @@ ignore = [
     "D",
     "CPY",
     "COM812",
-    "ANN001",
-    "ANN201",
-    "ANN202",
-    "ANN204",
-    "ARG001",
-    "ARG005",
     "B008",
-    "B905",
-    "C420",
     "E501",
     "EM101",
-    "F541",
     "FBT001",
     "FBT002",
     "FBT003",
@@ -54,7 +45,6 @@ ignore = [
     "PT018",
     "RUF022",
     "RUF046",
-    "RUF059",
     "S105",
     "S310",
     "S318",
@@ -70,20 +60,3 @@ ignore = [
 [tool.mypy]
 strict = true
 files = ["matchium", "sim", "jobs", "tests"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-disallow_untyped_calls = false
-disallow_any_generics = false
-warn_return_any = false
-
-[[tool.mypy.overrides]]
-module = ["sim.run", "tests.test_nightly"]
-disable_error_code = ["var-annotated"]
-
-[[tool.mypy.overrides]]
-module = ["tests.test_engine"]
-disable_error_code = ["assignment", "attr-defined"]
-
-[[tool.mypy.overrides]]
-module = ["tests.test_scheduler"]
-disable_error_code = ["var-annotated", "func-returns-value"]
