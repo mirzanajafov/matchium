@@ -172,10 +172,11 @@ describe('chat stream', () => {
     await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'Still there?' }).expect(201);
     await stream.next(/Still there\?/);
 
-    await prisma.match.update({ where: { id: match.id }, data: { closedAt: new Date() } });
-    await prisma.$executeRaw`
-      SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+    await prisma.match.update({ where: { id: match.id }, data: { closedAt: new Date(), notifiedAt: new Date() } });
+    const listeners = await prisma.$queryRaw<{ killed: boolean }[]>`
+      SELECT pg_terminate_backend(pid) AS killed FROM pg_stat_activity
       WHERE datname = current_database() AND query LIKE 'LISTEN %'`;
+    expect(listeners).toEqual([{ killed: true }]);
     await stream.next(/event: closed/);
   });
 });
