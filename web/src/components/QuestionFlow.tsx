@@ -19,6 +19,10 @@ type Draft = { [K in keyof AnswerValues]: number | null };
 
 const EMPTY: Draft = { self: null, partner: null, importance: null };
 
+function completeAnswer({ self, partner, importance }: Draft): AnswerValues | null {
+  return self !== null && partner !== null && importance !== null ? { self, partner, importance } : null;
+}
+
 export function QuestionFlow({ questions, certainty: initialCertainty }: QuestionFlowProps) {
   const [open, setOpen] = useState(() => questions.filter((q) => !q.answered));
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -53,13 +57,12 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
     );
   }
 
-  const complete = draft.self !== null && draft.partner !== null && draft.importance !== null;
+  const answer = completeAnswer(draft);
   const set = (key: keyof AnswerValues) => (value: number) => setDraft((d) => ({ ...d, [key]: value }));
 
-  function submit() {
-    if (!complete) return;
+  function submit(questionId: string, values: AnswerValues) {
     run(
-      () => answerQuestion(current.id, draft as AnswerValues),
+      () => answerQuestion(questionId, values),
       (answered) => {
         setCertainty(answered.certainty);
         setOpen((rest) => rest.slice(1));
@@ -82,7 +85,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
         className="mt-6 space-y-6"
         onSubmit={(event) => {
           event.preventDefault();
-          submit();
+          if (answer) submit(current.id, answer);
         }}
       >
         <Scale
@@ -117,7 +120,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
 
         <button
           type="submit"
-          disabled={!complete || pending}
+          disabled={!answer || pending}
           className="h-11 w-full rounded-lg bg-foreground font-medium text-background transition-opacity disabled:opacity-40"
         >
           {pending ? "Saving..." : open.length === 1 ? "Finish for today" : "Next"}

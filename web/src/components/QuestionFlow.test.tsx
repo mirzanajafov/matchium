@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { answerQuestion } from "@/actions/questions";
 import type { AnswerResult } from "@/lib/types";
@@ -8,11 +8,10 @@ import { QuestionFlow } from "./QuestionFlow";
 
 vi.mock("@/actions/questions", () => ({ answerQuestion: vi.fn() }));
 
-const questions = [
-  { id: "family.1", text: "I want to have children someday.", answered: true },
-  { id: "planning.1", text: "I like having my week planned in advance.", answered: false },
-  { id: "activity.1", text: "I work out at least three times a week.", answered: false },
-];
+const family = { id: "family.1", text: "I want to have children someday.", answered: true };
+const planning = { id: "planning.1", text: "I like having my week planned in advance.", answered: false };
+const activity = { id: "activity.1", text: "I work out at least three times a week.", answered: false };
+const questions = [family, planning, activity];
 
 async function answerCurrent(user: ReturnType<typeof userEvent.setup>) {
   for (const group of [
@@ -20,8 +19,7 @@ async function answerCurrent(user: ReturnType<typeof userEvent.setup>) {
     "How would you want your partner to answer?",
     "How much does this matter to you?",
   ]) {
-    const radios = screen.getByRole("radiogroup", { name: group }).querySelectorAll("input");
-    await user.click(radios[3]);
+    await user.click(within(screen.getByRole("radiogroup", { name: group })).getByRole("radio", { name: "4" }));
   }
 }
 
@@ -36,14 +34,14 @@ describe("QuestionFlow", () => {
     render(<QuestionFlow questions={questions} certainty={0.1} />);
 
     expect(screen.getByText("Question 2 of 3")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: questions[1].text })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: planning.text })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
 
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
 
-    expect(answerQuestion).toHaveBeenCalledWith("planning.1", { self: 4, partner: 4, importance: 4 });
-    expect(await screen.findByRole("heading", { name: questions[2].text })).toBeInTheDocument();
+    expect(answerQuestion).toHaveBeenCalledWith(planning.id, { self: 4, partner: 4, importance: 4 });
+    expect(await screen.findByRole("heading", { name: activity.text })).toBeInTheDocument();
     expect(screen.getByRole("meter", { name: "How well we know you" })).toHaveAttribute("aria-valuenow", "20");
     expect(screen.getByRole("button", { name: "Finish for today" })).toBeDisabled();
   });
@@ -53,13 +51,13 @@ describe("QuestionFlow", () => {
     vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
     render(<QuestionFlow questions={questions} certainty={0.1} />);
     const buttons = recordWhile(
-      () => screen.queryByRole("heading", { name: questions[2].text }) !== null,
+      () => screen.queryByRole("heading", { name: activity.text }) !== null,
       () => screen.getByRole("button").textContent,
     );
 
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
-    await screen.findByRole("heading", { name: questions[2].text });
+    await screen.findByRole("heading", { name: activity.text });
 
     expect(buttons).toEqual(new Set(["Finish for today"]));
   });
@@ -67,7 +65,7 @@ describe("QuestionFlow", () => {
   it("shows the wrap-up once every question is answered", async () => {
     const user = userEvent.setup();
     vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 0, certainty: 0.35 } });
-    render(<QuestionFlow questions={questions.slice(0, 2)} certainty={0.1} />);
+    render(<QuestionFlow questions={[family, planning]} certainty={0.1} />);
 
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Finish for today" }));
@@ -88,7 +86,7 @@ describe("QuestionFlow", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that answer");
-    expect(screen.getByRole("heading", { name: questions[1].text })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: planning.text })).toBeInTheDocument();
   });
 
   it("locks the answer while it saves", async () => {
@@ -103,19 +101,19 @@ describe("QuestionFlow", () => {
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
     for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
     await act(async () => save.settle({ ok: true, value: { remaining: 1, certainty: 0.2 } }));
-    expect(screen.getAllByRole("radio")[0]).toBeEnabled();
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeEnabled();
   });
 
   it("moves focus to the next question once the answer is saved", async () => {
     const user = userEvent.setup();
     vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
     render(<QuestionFlow questions={questions} certainty={0.1} />);
-    expect(screen.getByRole("heading", { name: questions[1].text })).not.toHaveFocus();
+    expect(screen.getByRole("heading", { name: planning.text })).not.toHaveFocus();
 
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
 
-    expect(await screen.findByRole("heading", { name: questions[2].text })).toHaveFocus();
+    expect(await screen.findByRole("heading", { name: activity.text })).toHaveFocus();
   });
 
   it("puts focus back on the question when the answer can't be saved", async () => {
@@ -127,7 +125,7 @@ describe("QuestionFlow", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that answer.");
-    expect(screen.getByRole("heading", { name: questions[1].text })).toHaveFocus();
+    expect(screen.getByRole("heading", { name: planning.text })).toHaveFocus();
   });
 
   it("never shows a failed save with the button still saving", async () => {

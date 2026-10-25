@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { resetPassword } from "@/actions/account";
+import { nth } from "@/test/nth";
 import { ResetPasswordForm } from "./ResetPasswordForm";
 
 vi.mock("@/actions/account", () => ({ resetPassword: vi.fn() }));
@@ -18,7 +19,7 @@ describe("ResetPasswordForm", () => {
     await user.click(screen.getByRole("button", { name: "Save new password" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("every device was signed out");
-    const [token, , formData] = vi.mocked(resetPassword).mock.calls[0]!;
+    const [token, , formData] = nth(vi.mocked(resetPassword).mock.calls, 0);
     expect(token).toBe("tok");
     expect(formData.get("password")).toBe("a new password");
     expect(screen.getByRole("link", { name: "Log in with the new one" })).toHaveAttribute("href", "/login");

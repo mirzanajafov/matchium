@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { nth } from "@/test/nth";
 import { api, authedFetch, clientFromForwarded, relayJson } from "./api";
 import { getToken } from "./session";
 
@@ -36,7 +37,7 @@ describe("requests to the API", () => {
   });
 
   function sent(): RequestInit | undefined {
-    return fetch.mock.calls[0]?.[1];
+    return nth(fetch.mock.calls, 0)[1];
   }
 
   it("sends an object as JSON", async () => {
