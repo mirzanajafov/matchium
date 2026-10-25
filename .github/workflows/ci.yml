@@ -97,6 +97,13 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker compose --profile app build
+
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 10
