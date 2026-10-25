@@ -31,52 +31,60 @@ git push --quiet origin main
 new=$(git rev-parse HEAD)
 
 mkdir "$work/bin"
+printf '#!/bin/sh\n' > "$work/bin/sleep"
 cat > "$work/bin/docker" << 'EOF'
 #!/bin/sh
 echo "$*" >> "$WORK/calls"
 case "$*" in
-  *" run --rm --no-deps migrate")
+  *" run "*" migrate")
     if [ "$(cat release)" = new ] && [ "$BREAK" = migrate ]; then
       echo failed > "$WORK/migrations"
     fi
     [ "$(cat "$WORK/migrations")" = clean ] ;;
   *" up -d "*) [ "$(cat release)" = old ] || [ "$BREAK" != up ] ;;
-  inspect*) echo healthy ;;
+  inspect*) if [ "$(cat release)" = new ] && [ "$BREAK" = health ]; then echo unhealthy; else echo healthy; fi ;;
 esac
 EOF
-chmod +x "$work/bin/docker"
+chmod +x "$work/bin/sleep" "$work/bin/docker"
 
 deploy() {
   git reset --quiet --hard "$old"
   : > "$work/calls"
   echo clean > "$work/migrations"
-  if output=$(WORK=$work BREAK=$1 PATH="$work/bin:$PATH" bash deploy/deploy.sh 2>&1); then status=0; else status=$?; fi
+  status=0
+  output=$(WORK=$work BREAK=$1 PATH="$work/bin:$PATH" bash deploy/deploy.sh 2>&1) || status=$?
   ups=$(grep -c " up -d " "$work/calls" || true)
 }
 
 expect() {
   case $output in
-    *"$1"*) ;;
-    *) fail "$2: no \"$1\" in: $output" ;;
+    *"$2"*) ;;
+    *) fail "$1: no \"$2\" in: $output" ;;
   esac
+}
+
+rolled_back() {
+  [ "$status" = 1 ] || fail "$1 exited $status"
+  [ "$(git rev-parse HEAD)" = "$old" ] || fail "$1 did not go back to the old commit"
+  expect "$1" "Rolled back."
 }
 
 deploy nothing
 [ "$status" = 0 ] || fail "a clean deploy exited $status"
 [ "$(git rev-parse HEAD)" = "$new" ] || fail "a clean deploy is not on the new commit"
-expect "Live:" "a clean deploy"
+expect "a clean deploy" "Live:"
 
 deploy up
-[ "$status" = 1 ] || fail "a failed up exited $status"
-[ "$(git rev-parse HEAD)" = "$old" ] || fail "a failed up did not go back to the old commit"
+rolled_back "a failed up"
 [ "$ups" = 2 ] || fail "a failed up ran up $ups times instead of twice"
-expect "Rolled back." "a failed up"
+
+deploy health
+rolled_back "a release that never turns healthy"
+[ "$ups" = 2 ] || fail "a release that never turns healthy ran up $ups times instead of twice"
 
 deploy migrate
-[ "$status" = 1 ] || fail "a failed migration exited $status"
-[ "$(git rev-parse HEAD)" = "$old" ] || fail "a failed migration did not go back to the old commit"
+rolled_back "a failed migration"
 [ "$ups" = 0 ] || fail "a failed migration still replaced containers"
-expect "The previous release failed too." "a failed migration"
-expect "Rolled back." "a failed migration"
+expect "a failed migration" "The previous release failed too."
 
-echo "deploy: all checks passed"
+echo "deploy tests passed"

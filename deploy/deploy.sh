@@ -23,7 +23,7 @@ healthy() {
 }
 
 release() {
-  "${compose[@]}" build && "${compose[@]}" run --rm --no-deps migrate && "${compose[@]}" up -d --remove-orphans
+  "${compose[@]}" build && "${compose[@]}" run --rm migrate && "${compose[@]}" up -d --remove-orphans
 }
 
 previous=$(git rev-parse HEAD)
