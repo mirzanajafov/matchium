@@ -52,7 +52,8 @@ case "$*" in
   *" up -d "*)
     echo "$release" > "$WORK/postgres"
     ! postgres_broken && { [ "$release" = old ] || [ "$BREAK" != up ]; } ;;
-  *" exec "*) [ "$release" = old ] || [ "$BREAK" != web ] ;;
+  inspect*matchium-web)
+    if postgres_broken || { [ "$release" = new ] && { [ "$BREAK" = health ] || [ "$BREAK" = web ]; }; }; then echo unhealthy; else echo healthy; fi ;;
   inspect*)
     if postgres_broken || { [ "$release" = new ] && [ "$BREAK" = health ]; }; then echo unhealthy; else echo healthy; fi ;;
 esac

@@ -13,8 +13,8 @@ healthy() {
   say "Waiting for the API and web app"
   for _ in $(seq 1 60); do
     api=$(docker inspect -f '{{.State.Health.Status}}' matchium-api 2>/dev/null || true)
-    if [ "$api" = healthy ] && "${compose[@]}" exec -T web node -e \
-      "Promise.all([fetch('http://localhost:3101/'), fetch(process.env.API_URL + '/health')]).then((rs) => process.exit(rs.every((r) => r.ok) ? 0 : 1)).catch(() => process.exit(1))" 2>/dev/null; then
+    web=$(docker inspect -f '{{.State.Health.Status}}' matchium-web 2>/dev/null || true)
+    if [ "$api" = healthy ] && [ "$web" = healthy ]; then
       return 0
     fi
     sleep 3
