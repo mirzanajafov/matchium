@@ -162,4 +162,20 @@ describe('chat stream', () => {
     const inbox = await http().get('/inbox').set(as(alice.token)).expect(200);
     expect(inbox.body.unreadChats).toBe(0);
   });
+
+  it('ends a stream whose close was missed while the database listener reconnected', async () => {
+    const { alice, bob, match } = await matchedPair();
+    for (const who of [alice, bob]) {
+      await http().post(`/matches/${match.id}/decision`).set(as(who.token)).send({ like: true }).expect(200);
+    }
+    const stream = await openStream(match.id, alice.token);
+    await http().post(`/chats/${match.id}/messages`).set(as(bob.token)).send({ body: 'Still there?' }).expect(201);
+    await stream.next(/Still there\?/);
+
+    await prisma.match.update({ where: { id: match.id }, data: { closedAt: new Date() } });
+    await prisma.$executeRaw`
+      SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+      WHERE datname = current_database() AND query LIKE 'LISTEN %'`;
+    await stream.next(/event: closed/);
+  });
 });

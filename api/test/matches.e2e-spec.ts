@@ -1,6 +1,6 @@
-import { firstValueFrom, lastValueFrom, toArray } from 'rxjs';
+import { filter, firstValueFrom, lastValueFrom, toArray } from 'rxjs';
 import { ChatsService } from '../src/chats/chats.service.js';
-import { DbEvents } from '../src/common/db-events.js';
+import { DbEvents, isClosed } from '../src/common/db-events.js';
 import { app, clock, http, prisma, useTestApp } from './support/app.js';
 import { as, createMatch, man, matchedPair, openChatStream, register, woman } from './support/builders.js';
 
@@ -168,10 +168,15 @@ describe('unmatch and report', () => {
     expect(body).toContain('event: closed');
   });
 
-  it('ends a chat stream when the match closes between the check and the first event', async () => {
+  it('ends a chat stream when the match closes before the stream starts listening', async () => {
     const { bob, match } = await chatting();
     const stream = await app.get(ChatsService).stream(bob.id, match.id);
-    const announced = firstValueFrom(app.get(DbEvents).on('chat_messages'));
+    const announced = firstValueFrom(
+      app
+        .get(DbEvents)
+        .on('chat_messages')
+        .pipe(filter((event) => event.matchId === match.id && isClosed(event))),
+    );
     await http().post(`/matches/${match.id}/unmatch`).set(as(bob.token)).send({}).expect(200);
     await announced;
 
