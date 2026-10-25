@@ -112,8 +112,12 @@ export class ChatsService {
         return { type: 'message', data: this.toMessage({ ...event, createdAt: new Date(event.createdAt) }, userId) };
       }),
     );
+    const closedMeanwhile = defer(() => this.chatClosed(matchId)).pipe(
+      filter(Boolean),
+      map((): MessageEvent => ({ type: 'closed', data: '' })),
+    );
     const heartbeat = interval(HEARTBEAT_MS).pipe(map((): MessageEvent => ({ type: 'ping', data: '' })));
-    const stream = merge(messages, heartbeat).pipe(
+    const stream = merge(messages, closedMeanwhile, heartbeat).pipe(
       takeUntil(this.events.stopped),
       takeWhile((event) => event.type !== 'closed', true),
     );
@@ -159,6 +163,11 @@ export class ChatsService {
     }
     if (!isMutual(match)) throw new ForbiddenException('You can chat once you both said yes');
     return match;
+  }
+
+  private async chatClosed(matchId: string): Promise<boolean> {
+    const match = await this.prisma.match.findUnique({ where: { id: matchId }, select: { closedAt: true } });
+    return !match || match.closedAt !== null;
   }
 
   private toMessage(row: MessageRow, userId: string) {
