@@ -65,7 +65,7 @@ describe("QuestionFlow", () => {
   it("shows the wrap-up once every question is answered", async () => {
     const user = userEvent.setup();
     vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 0, certainty: 0.35 } });
-    render(<QuestionFlow questions={questions.slice(0, 2)} certainty={0.1} />);
+    render(<QuestionFlow questions={[family, planning]} certainty={0.1} />);
 
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Finish for today" }));
@@ -101,7 +101,7 @@ describe("QuestionFlow", () => {
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
     for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
     await act(async () => save.settle({ ok: true, value: { remaining: 1, certainty: 0.2 } }));
-    expect(screen.getAllByRole("radio")[0]).toBeEnabled();
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeEnabled();
   });
 
   it("moves focus to the next question once the answer is saved", async () => {

@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { resetPassword } from "@/actions/account";
-import { ResetPasswordForm } from "./ResetPasswordForm";
 import { nth } from "@/test/nth";
+import { ResetPasswordForm } from "./ResetPasswordForm";
 
 vi.mock("@/actions/account", () => ({ resetPassword: vi.fn() }));
 

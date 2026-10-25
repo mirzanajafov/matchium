@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { deleteAccount } from "@/actions/account";
-import { DeleteAccountForm } from "./DeleteAccountForm";
 import { nth } from "@/test/nth";
+import { DeleteAccountForm } from "./DeleteAccountForm";
 
 vi.mock("@/actions/account", () => ({ deleteAccount: vi.fn() }));
 

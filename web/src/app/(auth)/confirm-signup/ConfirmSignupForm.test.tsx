@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { confirmSignup } from "@/actions/account";
-import { ConfirmSignupForm } from "./ConfirmSignupForm";
 import { nth } from "@/test/nth";
+import { ConfirmSignupForm } from "./ConfirmSignupForm";
 
 vi.mock("@/actions/account", () => ({ confirmSignup: vi.fn() }));
 
