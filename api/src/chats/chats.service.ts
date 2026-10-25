@@ -1,12 +1,12 @@
 import { ForbiddenException, Injectable, MessageEvent, NotFoundException } from '@nestjs/common';
-import { Observable, concatMap, defer, filter, finalize, interval, map, merge, takeUntil, takeWhile } from 'rxjs';
+import { Observable, concatMap, defer, filter, finalize, interval, map, merge, of, takeUntil, takeWhile } from 'rxjs';
 import { Clock, ageOn, isoDay } from '../common/clock.js';
 import { photoSelect } from '../photos/photos.service.js';
 import { openStreams } from '../observability/metrics.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PushService } from '../push/push.service.js';
 import { counterpart, involving, isMutual, isParticipant } from '../matches/participants.js';
-import { type ChatMessageEvent, DbEvents, isClosed, publish } from '../common/db-events.js';
+import { type ChatClosedEvent, type ChatMessageEvent, DbEvents, isClosed, publish } from '../common/db-events.js';
 
 const publicProfile = {
   select: { id: true, displayName: true, birthDate: true, city: true, photos: { ...photoSelect, take: 1 } },
@@ -104,8 +104,15 @@ export class ChatsService {
 
   async stream(userId: string, matchId: string): Promise<Observable<MessageEvent>> {
     await this.openChat(userId, matchId);
-    const messages = this.events.on('chat_messages').pipe(
-      filter((event) => event.matchId === matchId),
+    const missedClose = merge(of(undefined), this.events.reconnected).pipe(
+      concatMap(() => this.chatClosed(matchId)),
+      filter(Boolean),
+      map((): ChatClosedEvent => ({ matchId, closed: true })),
+    );
+    const messages = merge(
+      this.events.on('chat_messages').pipe(filter((event) => event.matchId === matchId)),
+      missedClose,
+    ).pipe(
       concatMap(async (event): Promise<MessageEvent> => {
         if (isClosed(event)) return { type: 'closed', data: '' };
         if (event.senderId !== userId) await this.markRead(matchId, userId);
@@ -159,6 +166,11 @@ export class ChatsService {
     }
     if (!isMutual(match)) throw new ForbiddenException('You can chat once you both said yes');
     return match;
+  }
+
+  private async chatClosed(matchId: string): Promise<boolean> {
+    const match = await this.prisma.match.findUnique({ where: { id: matchId }, select: { closedAt: true } });
+    return !match || match.closedAt !== null;
   }
 
   private toMessage(row: MessageRow, userId: string) {
