@@ -22,11 +22,12 @@ export function useServerAction() {
     setError(null);
     startTransition(async () => {
       const result = await resolveAction(call());
-      if (!result.ok) onFailure?.();
-      startTransition(() => {
-        if (result.ok) onSuccess?.(result.value);
-        else setError(result.error);
-      });
+      if (result.ok) {
+        startTransition(() => onSuccess?.(result.value));
+      } else {
+        onFailure?.();
+        startTransition(() => setError(result.error));
+      }
     });
   }
 

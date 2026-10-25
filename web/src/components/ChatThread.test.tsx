@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
-import { startTransition } from "react";
 import userEvent from "@testing-library/user-event";
+import { startTransition } from "react";
 import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
@@ -158,6 +158,8 @@ describe("ChatThread", () => {
       });
     });
     await act(async () => send.settle({ ok: false, error: "This chat is closed." }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(input).toHaveValue("Are you free Saturday? also");
     await user.type(input, " Sunday");
     await act(async () => elsewhere.settle({ ok: true, value: undefined }));
 
