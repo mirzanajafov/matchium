@@ -88,7 +88,7 @@ docker compose --profile app up -d --build   # web on http://localhost:3101, API
 
 That starts Postgres, a one-off container that applies the migrations and seeds the question bank, then the API, the web app and the nightly scheduler. The API image itself only runs the app, so a restart doesn't touch the schema. Push stays off unless you pass `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`.
 
-One catch: MinIO took its images off Docker Hub, so the MinIO image is pinned by digest and only starts where it's already cached. Compose pulls every image before it starts anything, so on a fresh machine nothing starts at all. Until I move photos to another S3 server, which is next on my list, the stack runs without photos: `S3_ENDPOINT= docker compose --profile app up -d --build migrate api web matcher` here, and for development `docker compose up -d postgres mailpit` in place of the `docker compose up -d` below, with `S3_ENDPOINT` left empty in `api/.env` as it is in `.env.example`.
+One catch: MinIO took its images off Docker Hub, so the MinIO image is pinned by digest and only starts where it's already cached. Compose pulls every image before it starts anything, so on a fresh machine nothing starts at all. Until I move photos to another S3 server, which is next on my list, leave MinIO out and run without photos. For the whole stack that's `S3_ENDPOINT= docker compose --profile app up -d --build mailpit migrate api web matcher`. For development, start `docker compose up -d postgres mailpit` in place of the `docker compose up -d` below, and keep `S3_ENDPOINT` empty in `api/.env`, as it is in `.env.example`.
 
 For development you need Docker, Node 24 and Python 3.11+.
 
