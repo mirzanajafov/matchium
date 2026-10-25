@@ -31,7 +31,7 @@ describe("SignupForm", () => {
 
   it("keeps everything but the password on screen when the request never reaches Matchium", async () => {
     const user = userEvent.setup();
-    vi.mocked(signup).mockRejectedValue(new TypeError("Failed to fetch"));
+    vi.mocked(signup).mockRejectedValueOnce(new TypeError("Failed to fetch"));
     render(<SignupForm />);
     await signUp(user);
 

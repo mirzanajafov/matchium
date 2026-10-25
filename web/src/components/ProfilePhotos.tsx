@@ -21,12 +21,12 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
   async function pick(input: HTMLInputElement) {
     const file = input.files?.[0];
     if (!file) return;
+    setTooBig(false);
     setPreparing(true);
     const small = await shrinkForUpload(file);
     setPreparing(false);
-    const oversized = small.size > MAX_UPLOAD_BYTES;
-    setTooBig(oversized);
-    if (oversized) {
+    if (small.size > MAX_UPLOAD_BYTES) {
+      setTooBig(true);
       input.value = "";
       return;
     }
