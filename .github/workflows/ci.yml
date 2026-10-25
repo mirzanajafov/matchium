@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           cache: pip
           cache-dependency-path: engine/pyproject.toml
       - run: pip install -e ".[dev,lint]"
@@ -53,7 +53,7 @@ jobs:
           cache-dependency-path: api/package-lock.json
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           cache: pip
           cache-dependency-path: engine/pyproject.toml
       - working-directory: api
@@ -103,6 +103,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: deploy/backup/test.sh
+
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - run: deploy/test.sh
 
   env-files:
     runs-on: ubuntu-latest

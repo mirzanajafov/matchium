@@ -18,6 +18,10 @@ services:
     environment:
       DATABASE_URL: postgresql://matchium:${POSTGRES_PASSWORD}@postgres:5432/matchium
 
+  migrate:
+    environment:
+      DATABASE_URL: postgresql://matchium:${POSTGRES_PASSWORD}@postgres:5432/matchium
+
   api:
     ports: !reset []
     environment:
