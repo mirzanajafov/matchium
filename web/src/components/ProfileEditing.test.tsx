@@ -19,10 +19,6 @@ vi.mock("@/lib/shrink", () => ({
   }),
 }));
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
 const photo = (n: number) => ({
   id: `${n}${n}${n}${n}${n}${n}${n}${n}-1111-4111-8111-111111111111`,
   width: 1080,
@@ -30,6 +26,12 @@ const photo = (n: number) => ({
 });
 
 describe("ProfilePhotos", () => {
+  beforeEach(() => {
+    vi.mocked(uploadPhoto).mockReset();
+    vi.mocked(deletePhoto).mockReset();
+    vi.mocked(makeMainPhoto).mockReset();
+  });
+
   it("removes a photo and hides the uploader once all four slots are used", async () => {
     const user = userEvent.setup();
     vi.mocked(deletePhoto).mockResolvedValue({ ok: true, value: undefined });
@@ -85,7 +87,6 @@ describe("ProfilePhotos", () => {
 
   it("still sends the file after the async resize step", async () => {
     const user = userEvent.setup();
-    vi.mocked(uploadPhoto).mockReset();
     vi.mocked(uploadPhoto).mockResolvedValue({ done: true });
     render(<ProfilePhotos photos={[]} />);
     const file = new File(["pixels"], "me.png", { type: "image/png" });
@@ -127,6 +128,10 @@ describe("ProfilePhotos", () => {
 });
 
 describe("BioForm", () => {
+  beforeEach(() => {
+    vi.mocked(saveBio).mockReset();
+  });
+
   it("counts down and saves only when something changed", async () => {
     const user = userEvent.setup();
     vi.mocked(saveBio).mockImplementation(async (_, form) => ({
