@@ -2,14 +2,16 @@
 
 import { useActionState, useState } from "react";
 import { saveBio } from "@/actions/profile";
+import { resolveForm } from "@/lib/action-client";
 import type { FormState } from "@/lib/types";
 
 const MAX_BIO = 300;
 
 export function BioForm({ bio }: { bio: string }) {
-  const [state, action, saving] = useActionState<FormState, FormData>(saveBio, {});
+  const [state, action, saving] = useActionState<FormState, FormData>(resolveForm(saveBio), {});
   const [text, setText] = useState(bio);
-  const dirty = text.trim() !== (state.values?.bio ?? bio).trim();
+  const saved = state.done ? (state.values?.bio ?? bio) : bio;
+  const dirty = text.trim() !== saved.trim();
 
   return (
     <form action={action}>

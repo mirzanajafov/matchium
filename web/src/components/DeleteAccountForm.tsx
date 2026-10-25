@@ -2,13 +2,14 @@
 
 import { useActionState, useState } from "react";
 import { deleteAccount } from "@/actions/account";
+import { resolveForm } from "@/lib/action-client";
 import type { FormState } from "@/lib/types";
 import { ErrorMessage } from "./ErrorMessage";
 import { Field } from "./Field";
 
 export function DeleteAccountForm() {
   const [open, setOpen] = useState(false);
-  const [state, action, pending] = useActionState<FormState, FormData>(deleteAccount, {});
+  const [state, action, pending] = useActionState<FormState, FormData>(resolveForm(deleteAccount), {});
 
   if (!open) {
     return (

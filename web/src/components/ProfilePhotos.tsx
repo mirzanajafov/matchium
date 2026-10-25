@@ -3,8 +3,8 @@
 import Image from "next/image";
 import { useActionState, useState } from "react";
 import { deletePhoto, makeMainPhoto, uploadPhoto } from "@/actions/profile";
-import { useServerAction } from "@/lib/action-client";
-import { photoUrl } from "@/lib/photos";
+import { resolveForm, useServerAction } from "@/lib/action-client";
+import { MAX_UPLOAD_BYTES, UPLOAD_TOO_BIG, photoUrl } from "@/lib/photos";
 import { shrinkForUpload } from "@/lib/shrink";
 import type { FormState, PhotoRef } from "@/lib/types";
 import { ErrorMessage } from "./ErrorMessage";
@@ -12,22 +12,29 @@ import { ErrorMessage } from "./ErrorMessage";
 const MAX_PHOTOS = 4;
 
 export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
-  const [state, action, uploading] = useActionState<FormState, FormData>(uploadPhoto, {});
+  const [state, action, uploading] = useActionState<FormState, FormData>(resolveForm(uploadPhoto), {});
   const { pending: changing, error: changeError, run: change } = useServerAction();
   const [preparing, setPreparing] = useState(false);
+  const [tooBig, setTooBig] = useState(false);
   const busy = uploading || preparing;
 
   async function pick(input: HTMLInputElement) {
     const file = input.files?.[0];
     if (!file) return;
+    setTooBig(false);
     setPreparing(true);
     const small = await shrinkForUpload(file);
+    setPreparing(false);
+    if (small.size > MAX_UPLOAD_BYTES) {
+      setTooBig(true);
+      input.value = "";
+      return;
+    }
     if (small !== file) {
       const transfer = new DataTransfer();
       transfer.items.add(small);
       input.files = transfer.files;
     }
-    setPreparing(false);
     input.form?.requestSubmit();
   }
 
@@ -94,7 +101,7 @@ export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
           </label>
         </form>
       )}
-      <ErrorMessage message={state.error} className="mt-2" />
+      <ErrorMessage message={tooBig ? UPLOAD_TOO_BIG : state.error} className="mt-2" />
     </div>
   );
 }

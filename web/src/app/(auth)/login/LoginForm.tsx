@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { login } from "@/actions/account";
+import { resolveForm } from "@/lib/action-client";
 import type { FormState } from "@/lib/types";
 import { Field } from "@/components/Field";
 import { ErrorMessage } from "@/components/ErrorMessage";
 import { SubmitButton } from "@/components/SubmitButton";
 
 export function LoginForm() {
-  const [state, action, pending] = useActionState<FormState, FormData>(login, {});
+  const [state, action, pending] = useActionState<FormState, FormData>(resolveForm(login), {});
 
   return (
     <form action={action} className="mt-6 space-y-4">

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { signup } from "@/actions/account";
+import { resolveForm } from "@/lib/action-client";
 import { GENDERS } from "@/lib/labels";
 import type { FormState } from "@/lib/types";
 import { ErrorMessage } from "@/components/ErrorMessage";
@@ -18,7 +19,7 @@ const choice =
   "flex h-11 cursor-pointer items-center justify-center rounded-lg border border-line bg-surface text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-accent-ink has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent";
 
 export function SignupForm() {
-  const [state, action, pending] = useActionState<FormState, FormData>(signup, {});
+  const [state, action, pending] = useActionState<FormState, FormData>(resolveForm(signup), {});
   const [dismissed, setDismissed] = useState<FormState>();
   const values = state.values ?? {};
 
