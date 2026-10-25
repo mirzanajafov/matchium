@@ -117,7 +117,9 @@ jobs:
       - name: Run the nightly job once against the migrated database
         run: docker compose --profile app run --rm matcher python -m jobs.nightly
       - if: failure()
-        run: docker compose --profile app logs
+        run: |
+          docker compose --profile app logs
+          docker inspect -f '{{.Name}} {{json .State.Health}}' matchium-api matchium-web
 
   backup:
     runs-on: ubuntu-latest
