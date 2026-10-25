@@ -7,6 +7,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { revokeSessions } from './sessions.js';
 
+const INVALID_CREDENTIALS = 'Invalid email or password';
+
 export interface TokenResponse {
   accessToken: string;
 }
@@ -24,7 +26,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<TokenResponse> {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
     const valid = await argon2.verify(user?.passwordHash ?? (await this.decoyHash), dto.password);
-    if (!user || !valid) throw new UnauthorizedException('Invalid email or password');
+    if (!user || !valid) throw new UnauthorizedException(INVALID_CREDENTIALS);
     if (user.bannedAt) throw new ForbiddenException('This account has been suspended');
     return this.startSession(user);
   }
@@ -47,7 +49,7 @@ export class AuthService {
       WHERE id = ${user.id}::uuid AND "passwordHash" = ${user.passwordHash}
       FOR SHARE
       RETURNING id`;
-    if (!session) throw new UnauthorizedException('Invalid email or password');
+    if (!session) throw new UnauthorizedException(INVALID_CREDENTIALS);
     return { accessToken: this.jwt.sign({ sub: user.id, sid: session.id }) };
   }
 }

@@ -1,7 +1,6 @@
-import * as argon2 from 'argon2';
+import type { Response, Test } from 'supertest';
 import { AuthSweeper } from '../src/auth/auth-sweeper.js';
-import { revokeSessions } from '../src/auth/sessions.js';
-import { app, clock, http, mails, prisma, useTestApp, waitUntilBlocking } from './support/app.js';
+import { app, clock, http, mails, prisma, useTestApp, waitForLockWaits } from './support/app.js';
 import { as, finishSignup, linkToken, register, registerWithoutEmail, signup } from './support/builders.js';
 
 useTestApp();
@@ -286,7 +285,7 @@ describe('account security', () => {
           .post('/auth/password/reset')
           .send({ token, password: 'a new password' })
           .then((res) => res.status);
-        await waitUntilBlocking(tx);
+        await waitForLockWaits(1);
       });
     } finally {
       status = await reset;
@@ -294,26 +293,40 @@ describe('account security', () => {
     expect(status).toBe(410);
   });
 
-  it('gives no session to a login that checked the old password while a reset was committing', async () => {
-    const alice = await register();
-    const passwordHash = await argon2.hash('a new password');
-    let login = Promise.resolve(0);
-    let status = 0;
-    try {
-      await prisma.$transaction(async (tx) => {
-        await tx.user.update({ where: { id: alice.id }, data: { passwordHash } });
-        await revokeSessions(tx, alice.id, clock.now());
-        login = http()
-          .post('/auth/login')
-          .send({ email: alice.email, password: 'correct horse battery' })
-          .then((res) => res.status);
-        await waitUntilBlocking(tx);
-      });
-    } finally {
-      status = await login;
+  describe('a login racing a password reset', () => {
+    async function queueBehindUserLock(userId: string, requests: Test[]) {
+      const responses: Promise<Response>[] = [];
+      try {
+        await prisma.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT 1 FROM "User" WHERE id = ${userId}::uuid FOR UPDATE`;
+          for (const request of requests) {
+            responses.push(Promise.resolve(request));
+            await waitForLockWaits(responses.length);
+          }
+        });
+      } finally {
+        await Promise.allSettled(responses);
+      }
+      return Promise.all(responses);
     }
-    expect(status).toBe(401);
-    expect(await prisma.session.count({ where: { userId: alice.id, revokedAt: null } })).toBe(0);
+
+    const login = (email: string) => http().post('/auth/login').send({ email, password: 'correct horse battery' });
+    const reset = (token: string) => http().post('/auth/password/reset').send({ token, password: 'a new password' });
+
+    it('refuses a login that checked the old password while the reset was committing', async () => {
+      const alice = await register();
+      const token = await resetLink(alice.email);
+      const responses = await queueBehindUserLock(alice.id, [reset(token), login(alice.email)]);
+      expect(responses.map((res) => res.status)).toEqual([204, 401]);
+    });
+
+    it('signs out a login that got in just before the reset', async () => {
+      const alice = await register();
+      const token = await resetLink(alice.email);
+      const [signedIn, resetDone] = await queueBehindUserLock(alice.id, [login(alice.email), reset(token)]);
+      expect([signedIn?.status, resetDone?.status]).toEqual([200, 204]);
+      await http().get('/me').set(as(signedIn?.body.accessToken)).expect(401);
+    });
   });
 
   it('answers sign-up, resend and reset requests without waiting for the mail server', async () => {
