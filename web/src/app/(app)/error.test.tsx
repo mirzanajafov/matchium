@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import AppError from "@/app/(app)/error";
+import AppError from "./error";
 
 describe("AppError", () => {
   it("explains the failure and retries on request", () => {
