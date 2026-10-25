@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { unmatch } from "@/actions/matches";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 import { REPORT_REASON_LABELS } from "@/lib/labels";
 import type { ReportReason } from "@/lib/types";
 import { ErrorMessage } from "./ErrorMessage";
@@ -13,8 +13,7 @@ export function UnmatchPanel({ matchId, personName }: { matchId: string; personN
   const [report, setReport] = useState(false);
   const [reason, setReason] = useState<ReportReason>("HARASSMENT");
   const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { pending, error, run } = useServerAction();
   const router = useRouter();
 
   if (!open) {
@@ -26,18 +25,13 @@ export function UnmatchPanel({ matchId, personName }: { matchId: string; personN
   }
 
   function confirm() {
-    setError(null);
-    startTransition(async () => {
-      const closed = await resolveAction(
-        unmatch(matchId, report ? { reason, note: note.trim() || undefined } : undefined),
-      );
-      if (!closed.ok) {
-        setError(closed.error);
-        return;
-      }
-      router.replace("/chats");
-      router.refresh();
-    });
+    run(
+      () => unmatch(matchId, report ? { reason, note: note.trim() || undefined } : undefined),
+      () => {
+        router.replace("/chats");
+        router.refresh();
+      },
+    );
   }
 
   return (

@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { answerQuestion } from "@/actions/questions";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 import { certaintyHint } from "@/lib/format";
 import type { AnswerValues, DailyQuestion } from "@/lib/types";
 import { ErrorMessage } from "./ErrorMessage";
@@ -23,16 +23,23 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
   const [open, setOpen] = useState(() => questions.filter((q) => !q.answered));
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [certainty, setCertainty] = useState(initialCertainty);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const { pending, error, run } = useServerAction();
 
   const total = questions.length;
   const current = open[0];
+  const heading = useRef<HTMLHeadingElement>(null);
+  const firstShown = useRef(current?.id);
+
+  useEffect(() => {
+    if (current?.id !== firstShown.current) heading.current?.focus();
+  }, [current?.id]);
 
   if (!current) {
     return (
       <section className="rounded-2xl border border-line bg-surface p-6">
-        <h2 className="text-lg font-semibold">That&apos;s it for today</h2>
+        <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold">
+          That&apos;s it for today
+        </h2>
         <p className="mt-1 text-muted">
           New matches are picked overnight. Come back tomorrow for a few more questions.
         </p>
@@ -51,17 +58,15 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
 
   function submit() {
     if (!complete) return;
-    setError(null);
-    startTransition(async () => {
-      const answered = await resolveAction(answerQuestion(current.id, draft as AnswerValues));
-      if (!answered.ok) {
-        setError(answered.error);
-        return;
-      }
-      setCertainty(answered.value.certainty);
-      setOpen((rest) => rest.slice(1));
-      setDraft(EMPTY);
-    });
+    run(
+      () => answerQuestion(current.id, draft as AnswerValues),
+      (answered) => {
+        setCertainty(answered.certainty);
+        setOpen((rest) => rest.slice(1));
+        setDraft(EMPTY);
+      },
+      () => heading.current?.focus(),
+    );
   }
 
   return (
@@ -69,7 +74,9 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
       <p className="text-sm text-muted">
         Question {total - open.length + 1} of {total}
       </p>
-      <h2 className="mt-2 text-xl leading-snug font-semibold">{current.text}</h2>
+      <h2 ref={heading} tabIndex={-1} className="mt-2 text-xl leading-snug font-semibold">
+        {current.text}
+      </h2>
 
       <form
         className="mt-6 space-y-6"
@@ -84,6 +91,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
           low="Not at all"
           high="Completely"
           value={draft.self}
+          disabled={pending}
           onChange={set("self")}
         />
         <Scale
@@ -92,6 +100,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
           low="Not at all"
           high="Completely"
           value={draft.partner}
+          disabled={pending}
           onChange={set("partner")}
         />
         <Scale
@@ -100,6 +109,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
           low="Doesn't matter"
           high="Deal-breaker"
           value={draft.importance}
+          disabled={pending}
           onChange={set("importance")}
         />
 

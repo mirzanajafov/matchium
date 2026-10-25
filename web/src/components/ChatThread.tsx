@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sendMessage } from "@/actions/chats";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import { mergeMessages } from "@/lib/messages";
 import type { ChatMessage } from "@/lib/types";
@@ -23,8 +23,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [sending, startSending] = useTransition();
+  const { pending: sending, error, run } = useServerAction();
   const [closed, setClosed] = useState(false);
   const latest = useRef(initialMessages.at(-1)?.createdAt);
   const bottom = useRef<HTMLLIElement>(null);
@@ -72,16 +71,12 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
   function send() {
     const body = draft.trim();
     if (!body) return;
-    setError(null);
-    startSending(async () => {
-      const sent = await resolveAction(sendMessage(matchId, body));
-      if (!sent.ok) {
-        setError(sent.error);
-        return;
-      }
-      setMessages((current) => mergeMessages(current, [sent.value]));
-      setDraft("");
-    });
+    setDraft("");
+    run(
+      () => sendMessage(matchId, body),
+      (sent) => setMessages((current) => mergeMessages(current, [sent])),
+      () => setDraft((typed) => (typed.trim() ? `${body} ${typed.trimStart()}` : body)),
+    );
   }
 
   return (

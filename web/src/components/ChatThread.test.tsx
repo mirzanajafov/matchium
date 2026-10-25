@@ -1,8 +1,11 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { startTransition } from "react";
 import { sendMessage } from "@/actions/chats";
 import { SessionExpiredError, fetchMessages } from "@/lib/fetchers";
 import type { ChatMessage } from "@/lib/types";
+import { recordWhile } from "@/test/frames";
+import { pendingAction } from "@/test/pending";
 import { ChatThread } from "./ChatThread";
 
 vi.mock("@/actions/chats", () => ({ sendMessage: vi.fn() }));
@@ -103,6 +106,81 @@ describe("ChatThread", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't reach Matchium");
     expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("Hello?");
+  });
+
+  it("empties the box as soon as a message is sent and keeps what's typed next", async () => {
+    const user = userEvent.setup();
+    const send = pendingAction<ChatMessage>();
+    vi.mocked(sendMessage).mockReturnValue(send.promise);
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    const input = screen.getByRole("textbox", { name: "Message" });
+
+    await user.type(input, "Hello");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(input).toHaveValue("");
+    await user.type(input, "there");
+    await act(async () => send.settle({ ok: true, value: message("m1", "Hello", "2026-09-23T10:00:00.000Z", true) }));
+
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(input).toHaveValue("there");
+  });
+
+  it("puts a failed message back in front of what was typed while it was sending", async () => {
+    const user = userEvent.setup();
+    const send = pendingAction<ChatMessage>();
+    vi.mocked(sendMessage).mockReturnValue(send.promise);
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    const input = screen.getByRole("textbox", { name: "Message" });
+
+    await user.type(input, "Are you free Saturday?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.type(input, "also");
+    await act(async () => send.settle({ ok: false, error: "This chat is closed." }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("This chat is closed.");
+    expect(input).toHaveValue("Are you free Saturday? also");
+  });
+
+  it("keeps a failed message when typing goes on before the failure shows", async () => {
+    const user = userEvent.setup();
+    const send = pendingAction<ChatMessage>();
+    const elsewhere = pendingAction();
+    vi.mocked(sendMessage).mockReturnValue(send.promise);
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    const input = screen.getByRole("textbox", { name: "Message" });
+
+    await user.type(input, "Are you free Saturday?");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.type(input, "also");
+    act(() => {
+      startTransition(async () => {
+        await elsewhere.promise;
+      });
+    });
+    await act(async () => send.settle({ ok: false, error: "This chat is closed." }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(input).toHaveValue("Are you free Saturday? also");
+    await user.type(input, " Sunday");
+    await act(async () => elsewhere.settle({ ok: true, value: undefined }));
+
+    expect(input).toHaveValue("Are you free Saturday? also Sunday");
+  });
+
+  it("frees Send in the same moment it says the message failed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(sendMessage).mockResolvedValue({ ok: false, error: "This chat is closed." });
+    render(<ChatThread matchId={MATCH} personName="Bob" initialMessages={[]} />);
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Hello?");
+    const send = screen.getByRole("button", { name: "Send" });
+    const locked = recordWhile(
+      () => screen.queryByRole("alert") !== null,
+      () => send.hasAttribute("disabled"),
+    );
+
+    await user.click(send);
+    await screen.findByRole("alert");
+
+    expect(locked).toEqual(new Set([false]));
   });
 
   it("shows messages pushed over the stream and closes it on unmount", async () => {

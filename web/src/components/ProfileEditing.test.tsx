@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { deletePhoto, makeMainPhoto, saveBio, uploadPhoto } from "@/actions/profile";
+import { recordWhile } from "@/test/frames";
 import { BioForm } from "./BioForm";
 import { ProfilePhotos } from "./ProfilePhotos";
 
@@ -56,6 +57,25 @@ describe("ProfilePhotos", () => {
     render(<ProfilePhotos photos={[photo(1), photo(2)]} />);
     await user.click(screen.getByRole("button", { name: "Remove photo 2" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't delete that photo");
+  });
+
+  it("frees the photo buttons in the same moment it says the change failed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(deletePhoto).mockResolvedValue({
+      ok: false,
+      error: "Couldn't delete that photo. Try again in a moment.",
+    });
+    render(<ProfilePhotos photos={[photo(1), photo(2)]} />);
+    const remove = screen.getByRole("button", { name: "Remove photo 2" });
+    const locked = recordWhile(
+      () => screen.queryByRole("alert") !== null,
+      () => remove.hasAttribute("disabled"),
+    );
+
+    await user.click(remove);
+    await screen.findByRole("alert");
+
+    expect(locked).toEqual(new Set([false]));
   });
 
   it("still sends the file after the async resize step", async () => {

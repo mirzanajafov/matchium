@@ -6,14 +6,15 @@ interface ScaleProps {
   low: string;
   high: string;
   value: number | null;
+  disabled: boolean;
   onChange: (value: number) => void;
 }
 
 const POINTS = [1, 2, 3, 4, 5];
 
-export function Scale({ name, label, low, high, value, onChange }: ScaleProps) {
+export function Scale({ name, label, low, high, value, disabled, onChange }: ScaleProps) {
   return (
-    <fieldset>
+    <fieldset disabled={disabled}>
       <legend className="text-sm font-medium">{label}</legend>
       <div className="mt-2 grid grid-cols-5 gap-2" role="radiogroup" aria-label={label}>
         {POINTS.map((point) => {
@@ -21,10 +22,10 @@ export function Scale({ name, label, low, high, value, onChange }: ScaleProps) {
           return (
             <label
               key={point}
-              className={`flex h-11 cursor-pointer items-center justify-center rounded-lg border text-sm font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
+              className={`flex h-11 items-center justify-center rounded-lg border text-sm font-medium transition-colors has-[:enabled]:cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent ${
                 selected
                   ? "border-accent bg-accent text-white dark:text-background"
-                  : "border-line bg-surface hover:border-accent"
+                  : "border-line bg-surface has-[:enabled]:hover:border-accent"
               }`}
             >
               <input

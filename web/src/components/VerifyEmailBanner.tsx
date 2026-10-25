@@ -1,22 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { resendVerification } from "@/actions/account";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 
 export function VerifyEmailBanner() {
   const [answer, setAnswer] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function resend() {
-    setError(null);
-    startTransition(async () => {
-      const resent = await resolveAction(resendVerification());
-      if (resent.ok) setAnswer(resent.value);
-      else setError(resent.error);
-    });
-  }
+  const { pending, error, run } = useServerAction();
 
   return (
     <aside
@@ -31,7 +21,7 @@ export function VerifyEmailBanner() {
           <button
             type="button"
             disabled={pending}
-            onClick={resend}
+            onClick={() => run(resendVerification, setAnswer)}
             className="font-medium underline disabled:opacity-50"
           >
             Send the link again

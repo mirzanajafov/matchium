@@ -1,30 +1,21 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import { deletePhoto, makeMainPhoto, uploadPhoto } from "@/actions/profile";
-import { resolveAction } from "@/lib/action-client";
+import { useServerAction } from "@/lib/action-client";
 import { photoUrl } from "@/lib/photos";
 import { shrinkForUpload } from "@/lib/shrink";
-import type { ActionResult, FormState, PhotoRef } from "@/lib/types";
+import type { FormState, PhotoRef } from "@/lib/types";
 import { ErrorMessage } from "./ErrorMessage";
 
 const MAX_PHOTOS = 4;
 
 export function ProfilePhotos({ photos }: { photos: PhotoRef[] }) {
   const [state, action, uploading] = useActionState<FormState, FormData>(uploadPhoto, {});
-  const [changing, startChanging] = useTransition();
-  const [changeError, setChangeError] = useState<string | null>(null);
+  const { pending: changing, error: changeError, run: change } = useServerAction();
   const [preparing, setPreparing] = useState(false);
   const busy = uploading || preparing;
-
-  function change(run: () => Promise<ActionResult>) {
-    setChangeError(null);
-    startChanging(async () => {
-      const changed = await resolveAction(run());
-      if (!changed.ok) setChangeError(changed.error);
-    });
-  }
 
   async function pick(input: HTMLInputElement) {
     const file = input.files?.[0];

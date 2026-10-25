@@ -1,6 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { answerQuestion } from "@/actions/questions";
+import type { AnswerResult } from "@/lib/types";
+import { recordWhile } from "@/test/frames";
+import { pendingAction } from "@/test/pending";
 import { QuestionFlow } from "./QuestionFlow";
 
 vi.mock("@/actions/questions", () => ({ answerQuestion: vi.fn() }));
@@ -45,6 +48,22 @@ describe("QuestionFlow", () => {
     expect(screen.getByRole("button", { name: "Finish for today" })).toBeDisabled();
   });
 
+  it("never shows the next question with the last one still saving", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+    const buttons = recordWhile(
+      () => screen.queryByRole("heading", { name: questions[2].text }) !== null,
+      () => screen.getByRole("button").textContent,
+    );
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("heading", { name: questions[2].text });
+
+    expect(buttons).toEqual(new Set(["Finish for today"]));
+  });
+
   it("shows the wrap-up once every question is answered", async () => {
     const user = userEvent.setup();
     vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 0, certainty: 0.35 } });
@@ -53,7 +72,7 @@ describe("QuestionFlow", () => {
     await answerCurrent(user);
     await user.click(screen.getByRole("button", { name: "Finish for today" }));
 
-    expect(await screen.findByRole("heading", { name: "That's it for today" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "That's it for today" })).toHaveFocus();
     expect(screen.getByRole("link", { name: "See today's matches" })).toHaveAttribute("href", "/matches");
   });
 
@@ -70,5 +89,63 @@ describe("QuestionFlow", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that answer");
     expect(screen.getByRole("heading", { name: questions[1].text })).toBeInTheDocument();
+  });
+
+  it("locks the answer while it saves", async () => {
+    const user = userEvent.setup();
+    const save = pendingAction<AnswerResult>();
+    vi.mocked(answerQuestion).mockReturnValue(save.promise);
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
+    await act(async () => save.settle({ ok: true, value: { remaining: 1, certainty: 0.2 } }));
+    expect(screen.getAllByRole("radio")[0]).toBeEnabled();
+  });
+
+  it("moves focus to the next question once the answer is saved", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+    expect(screen.getByRole("heading", { name: questions[1].text })).not.toHaveFocus();
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByRole("heading", { name: questions[2].text })).toHaveFocus();
+  });
+
+  it("puts focus back on the question when the answer can't be saved", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: false, error: "Couldn't save that answer." });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that answer.");
+    expect(screen.getByRole("heading", { name: questions[1].text })).toHaveFocus();
+  });
+
+  it("never shows a failed save with the button still saving", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({
+      ok: false,
+      error: "Couldn't save that answer. Try again in a moment.",
+    });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+    const buttons = recordWhile(
+      () => screen.queryByRole("alert") !== null,
+      () => screen.getByRole("button").textContent,
+    );
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("alert");
+
+    expect(buttons).toEqual(new Set(["Next"]));
   });
 });
