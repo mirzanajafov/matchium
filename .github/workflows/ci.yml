@@ -97,6 +97,30 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build what a deploy builds
+        env:
+          POSTGRES_PASSWORD: ci
+          MINIO_ROOT_PASSWORD: ci
+          JWT_SECRET: placeholder-secret
+          WEB_URL: http://localhost:3101
+          EDGE_NETWORK: edge
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app build
+      - name: Migrate and start the app without MinIO
+        env:
+          S3_ENDPOINT: ""
+        run: docker compose --profile app up --detach --wait --wait-timeout 180 api web matcher
+      - name: Run the nightly job once against the migrated database
+        run: docker compose --profile app run --rm matcher python -m jobs.nightly
+      - if: failure()
+        run: |
+          docker compose --profile app logs
+          docker inspect -f '{{.Name}} {{json .State.Health}}' matchium-api matchium-web
+
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 10
