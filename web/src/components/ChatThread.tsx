@@ -45,7 +45,7 @@ export function ChatThread({ matchId, personName, initialMessages }: ChatThreadP
           if (active && error instanceof SessionExpiredError) router.replace("/session/expired");
         });
 
-    function connect(): EventSource {
+    function connect() {
       const stream = new EventSource(`/api/chats/${encodeURIComponent(matchId)}/stream`);
       stream.addEventListener("open", catchUp);
       stream.addEventListener("message", (event: MessageEvent<string>) => {

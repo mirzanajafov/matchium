@@ -238,10 +238,13 @@ describe("ChatThread", () => {
       failed.emit("error");
     });
     expect(screen.getByText("Sent meanwhile")).toBeInTheDocument();
-    expect(FakeEventSource.instances).toHaveLength(1);
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(4_999);
+    });
+    expect(FakeEventSource.instances).toHaveLength(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
     });
     const next = FakeEventSource.instances[1];
     expect(next.url).toBe(`/api/chats/${MATCH}/stream`);
