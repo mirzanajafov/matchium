@@ -99,10 +99,23 @@ jobs:
 
   images:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
-      - run: docker compose --profile app build
+      - name: Build what a deploy builds
+        env:
+          POSTGRES_PASSWORD: ci
+          MINIO_ROOT_PASSWORD: ci
+          JWT_SECRET: ci
+          WEB_URL: http://localhost:3101
+          EDGE_NETWORK: edge
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app build
+      - name: Migrate and start the app without MinIO
+        env:
+          S3_ENDPOINT: ""
+        run: docker compose --profile app up --detach --wait api web matcher
+      - if: failure()
+        run: docker compose --profile app logs
 
   backup:
     runs-on: ubuntu-latest
