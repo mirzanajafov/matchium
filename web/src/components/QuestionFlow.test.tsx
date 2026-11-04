@@ -147,3 +147,47 @@ describe("QuestionFlow", () => {
     expect(buttons).toEqual(new Set(["Next"]));
   });
 });
+
+describe("QuestionFlow and the visit script", () => {
+  const steps: unknown[] = [];
+  const record = (event: Event) => {
+    steps.push(event instanceof CustomEvent ? event.detail : event);
+  };
+
+  beforeEach(() => {
+    vi.mocked(answerQuestion).mockReset();
+    steps.length = 0;
+    document.addEventListener("najafov:action", record);
+  });
+
+  afterEach(() => {
+    document.removeEventListener("najafov:action", record);
+  });
+
+  it("hands a saved answer to the visit script", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({ ok: true, value: { remaining: 1, certainty: 0.2 } });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("heading", { name: activity.text });
+
+    expect(steps).toEqual(["answered"]);
+  });
+
+  it("sends the visit script nothing when the answer can't be saved", async () => {
+    const user = userEvent.setup();
+    vi.mocked(answerQuestion).mockResolvedValue({
+      ok: false,
+      error: "Couldn't save that answer. Try again in a moment.",
+    });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("alert");
+
+    expect(steps).toEqual([]);
+  });
+});
