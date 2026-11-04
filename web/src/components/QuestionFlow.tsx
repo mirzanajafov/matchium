@@ -6,6 +6,7 @@ import { answerQuestion } from "@/actions/questions";
 import { useServerAction } from "@/lib/action-client";
 import { certaintyHint } from "@/lib/format";
 import type { AnswerValues, DailyQuestion } from "@/lib/types";
+import { reportStep } from "@/lib/visit";
 import { ErrorMessage } from "./ErrorMessage";
 import { Meter } from "./Meter";
 import { Scale } from "./Scale";
@@ -67,6 +68,7 @@ export function QuestionFlow({ questions, certainty: initialCertainty }: Questio
         setCertainty(answered.certainty);
         setOpen((rest) => rest.slice(1));
         setDraft(EMPTY);
+        reportStep("answered");
       },
       () => heading.current?.focus(),
     );

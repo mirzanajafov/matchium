@@ -6,7 +6,7 @@ The idea: you answer a handful of questions every day, and the app gets a better
 
 It's split into a matching engine in Python (plus a simulator I use to test it), a NestJS API, and a Next.js web app.
 
-It's running at **[matchium.najafov.dev](https://matchium.najafov.dev)**. Sign up with Baku as your city, answer the day's questions, and your first matches show up the next morning.
+It's running at **[matchium.najafov.dev](https://matchium.najafov.dev)**. Sign up with Baku as your city, answer the day's questions, and your first matches show up the next morning. The live demo loads a small script from najafov.dev that records visits the way my site does, with less detail, and whether someone answered a question. What it records and why is at [najafov.dev/privacy#demos](https://najafov.dev/privacy#demos).
 
 ![Today's questions, a match with its explanation, and a chat](docs/screenshots/app.png)
 

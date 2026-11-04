@@ -28,7 +28,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">{children}</body>
+      <script async src="https://najafov.dev/visit.js" />
+      <body className="flex min-h-full flex-col font-sans">
+        {children}
+        <footer className="px-6 pb-6 text-center text-xs text-muted">
+          <a href="https://najafov.dev/privacy#demos" className="underline hover:text-foreground">
+            What this demo records
+          </a>
+        </footer>
+      </body>
     </html>
   );
 }

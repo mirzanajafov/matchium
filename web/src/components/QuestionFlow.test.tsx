@@ -23,6 +23,18 @@ async function answerCurrent(user: ReturnType<typeof userEvent.setup>) {
   }
 }
 
+function stepsSent() {
+  const steps: unknown[] = [];
+  const record = (event: Event) => {
+    steps.push(event instanceof CustomEvent ? event.detail : event);
+  };
+  document.addEventListener("najafov:action", record);
+  onTestFinished(() => {
+    document.removeEventListener("najafov:action", record);
+  });
+  return steps;
+}
+
 describe("QuestionFlow", () => {
   beforeEach(() => {
     vi.mocked(answerQuestion).mockReset();
@@ -145,5 +157,36 @@ describe("QuestionFlow", () => {
     await screen.findByRole("alert");
 
     expect(buttons).toEqual(new Set(["Next"]));
+  });
+
+  it("hands the answer to the visit script only once it is saved", async () => {
+    const user = userEvent.setup();
+    const steps = stepsSent();
+    const save = pendingAction<AnswerResult>();
+    vi.mocked(answerQuestion).mockReturnValue(save.promise);
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(steps).toEqual([]);
+
+    await act(async () => save.settle({ ok: true, value: { remaining: 1, certainty: 0.2 } }));
+    expect(steps).toEqual(["answered"]);
+  });
+
+  it("sends the visit script nothing when the answer can't be saved", async () => {
+    const user = userEvent.setup();
+    const steps = stepsSent();
+    vi.mocked(answerQuestion).mockResolvedValue({
+      ok: false,
+      error: "Couldn't save that answer. Try again in a moment.",
+    });
+    render(<QuestionFlow questions={questions} certainty={0.1} />);
+
+    await answerCurrent(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("alert");
+
+    expect(steps).toEqual([]);
   });
 });
